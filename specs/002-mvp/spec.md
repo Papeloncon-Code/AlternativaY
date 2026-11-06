@@ -1,0 +1,126 @@
+# Especificación técnica del MVP
+
+Estado: **Borrador para aprobación** · 2026-11-06 · Alcance: RF-001 a RF-012 + RNF-001 a RNF-010.
+
+## 1. Objetivo
+Una persona puede reunir sus podcasts, canales de PeerTube, archivos locales y canales de YouTube (vía oficial) en una sola biblioteca. Puede reproducirlos con una experiencia de primer nivel y continuar en otro dispositivo (Android ↔ web) sin crear una cuenta de Google y sin perder sus datos.
+
+## 2. Fuera de alcance (explícito)
+- IA.
+- SDK de conectores de terceros.
+- Cast.
+- Jellyfin.
+- Marcadores, grupos y filtros avanzados.
+- Perfiles familiares.
+- Android TV, iOS nativo y escritorio nativo.
+- Data API de YouTube (búsqueda de YouTube): en el MVP, YouTube solo se añade pegando la URL de un canal o un vídeo.
+- Cualquier forma de extracción de YouTube (constitución §1).
+
+## 3. Historias y criterios de aceptación
+
+### H1. Añadir fuentes (RF-001)
+- **CA1.1:**
+  - *Dado* un usuario sin fuentes,
+  - *cuando* pega la URL de un feed RSS/Atom válido,
+  - *entonces* se crea la suscripción y en < 5 s (en wifi) aparecen los últimos 50 elementos.
+- **CA1.2:**
+  - *Dada* una URL de un canal PeerTube (`https://instancia/c/canal` o `/a/cuenta`),
+  - *cuando* se añade,
+  - *entonces* se resuelve mediante la API REST de la instancia y se listan los vídeos.
+- **CA1.3:** *Dada* una carpeta concedida por SAF (Android), *entonces* se indexan los ficheros de audio y vídeo con su duración y miniatura.
+- **CA1.4:**
+  - *Dada* una URL de canal de YouTube (`/channel/UC…` o `@handle`),
+  - *entonces* se resuelve el `channel_id` y la suscripción usa **solo** el RSS público.
+  - Si no se puede resolver el `@handle` sin extracción, se pide la URL `/channel/` [NV: confirmar el método].
+- **CA1.5:** una URL inválida o inaccesible muestra un error con su causa (formato, red, 404) y no crea la suscripción.
+
+### H2. Feed unificado (RF-002)
+- **CA2.1:** el Inicio muestra las novedades de todas las fuentes ordenadas por fecha, con chips de filtro: Todo, Vídeo, Audio, Sin ver, < 20 min.
+- **CA2.2:** la actualización en segundo plano (WorkManager) se ejecuta cada 2 h como mínimo, configurable, y respeta las restricciones de batería y datos.
+- **CA2.3:** si una fuente falla, las demás se muestran igual y aparece un banner con el número de fuentes con error.
+
+### H3. Reproducción (RF-003, RF-004)
+- **CA3.1:** audio y vídeo nativos (podcast, PeerTube, local) siguen sonando con la pantalla apagada y se controlan desde la notificación, la pantalla de bloqueo y los auriculares Bluetooth.
+- **CA3.2:** al pulsar Inicio durante un vídeo nativo se entra en PiP (Android 8+; automático en 12+).
+- **CA3.3:** velocidad de 0,5× a 3× en pasos de 0,05; saltos configurables (por defecto −10/+30 s en audio y ±10 s en vídeo).
+- **CA3.4:** reanudación: al reabrir un elemento continúa desde la última posición menos 3 s.
+  - Se marca como visto al llegar al 95 % o a menos de 30 s del final.
+- **CA3.5:** cola: añadir al final o a continuación, reordenar arrastrando y quitar. Se conserva tras matar el proceso.
+- **CA3.6:** contenido de YouTube:
+  - se abre en el reproductor IFrame oficial;
+  - al salir de la pantalla **se pausa**;
+  - no existe opción de descarga;
+  - se muestra el aviso descrito en `ux.md` §3.4.
+
+### H4. Descargas (RF-005)
+- **CA4.1:** solo aparece “Descargar” en los elementos cuyo conector declara `canDownload`: enclosures de podcast y PeerTube cuando la instancia permite la descarga [NV: campo exacto de la API].
+- **CA4.2:** las políticas “solo wifi” y “límite de N GB” se respetan. Un elemento descargado se reproduce en modo avión.
+
+### H5. Biblioteca e historial (RF-006, RF-007)
+- **CA5.1:** crear, renombrar y borrar colecciones; añadir y quitar elementos; marcar favorito; etiquetar.
+- **CA5.2:** el historial registra cada reproducción de más de 10 s. Se puede pausar y borrar por rango.
+
+### H6. Búsqueda local (RF-008)
+- **CA6.1:** buscar “entrevista” encuentra coincidencias en título, descripción y autor en < 100 ms con 10 000 elementos (FTS), sin red.
+
+### H7. Importar/exportar (RF-009)
+- **CA7.1:** importar un OPML crea las suscripciones a podcasts.
+- **CA7.2:** importar la exportación JSON de NewPipe:
+  - crea las suscripciones de PeerTube y SoundCloud que sean compatibles;
+  - convierte las de YouTube en suscripciones por RSS;
+  - informa de las que no se pudieron convertir.
+  - Formatos de FreeTube y LibreTube: [NV], definir con ejemplos reales en la tarea T-061.
+- **CA7.3:** exportar genera un JSON con esquema versionado (`packages/contracts`) y un OPML. Reimportarlo en una instalación limpia reproduce el estado (prueba de ida y vuelta).
+
+### H8. Cuenta y sincronización (RF-011)
+- **CA8.1:** la app funciona al 100 % sin cuenta.
+- **CA8.2:** registro e inicio de sesión con passkey o enlace por email. Vincular un segundo dispositivo sube el estado local completo y lo fusiona.
+- **CA8.3:** convergencia:
+  - *dados* dos dispositivos que editan sin conexión la misma colección (A añade X, B añade Y y borra Z),
+  - *cuando* ambos se reconectan,
+  - *entonces* los dos muestran {X, Y} sin Z en < 10 s (RNF-005).
+- **CA8.4:** el progreso de reproducción iniciado en Android se puede continuar en la web desde la posición sincronizada.
+- **CA8.5:** borrar la cuenta elimina los datos del servidor en ≤ 30 días (inmediato en el log activo) y conserva los datos locales.
+
+### H9. Web PWA (RF-012)
+- **CA9.1:** las mismas pantallas P0 (Inicio, Buscar, Biblioteca, Suscripciones, Historial, Reproductor, Perfil) en Chrome, Firefox y Safari (últimas 2 versiones).
+- **CA9.2:** es instalable como PWA. Sin red, abre la biblioteca desde SQLite-WASM.
+- **CA9.3:** la Media Session API muestra los controles en el sistema operativo; el PiP del navegador funciona para vídeo nativo.
+- **CA9.4:** los feeds RSS se actualizan mediante el proxy del servidor, que incluye protección SSRF (`arquitectura.md` §10).
+
+## 4. Modelo de datos del MVP (resumen; fuente de verdad: `packages/contracts`)
+
+| Entidad | Campos clave |
+|---|---|
+| `Source` | id, connectorId, url, title, iconUrl, addedAt, lastFetchAt, lastError |
+| `Feed` | id, sourceId, groupId?, muted |
+| `MediaItem` | id, feedId?, connectorId, externalId, kind(audio/video), title, author, description, durationMs, publishedAt, thumbnailUrl, playback(PlaybackSpec) |
+| `Progress` | itemId, positionMs, completed, updatedAt (HLC) |
+| `HistoryEvent` | id, itemId, startedAt, playedMs |
+| `Collection` / `CollectionItem` | id, name, sort / OR-Set de itemIds |
+| `Tag`, `ItemTag`, `Favorite` | — |
+| `Download` | itemId, state, bytes, path |
+| `QueueEntry` | position, itemId (solo local; no se sincroniza en el MVP) |
+| `SyncOp` | opId, deviceId, hlc, entity, entityId, field, value |
+
+## 5. API del servidor del MVP (resumen; fuente de verdad: OpenAPI)
+
+| Método | Ruta | Propósito |
+|---|---|---|
+| POST | `/auth/passkey/register`, `/auth/passkey/login`, `/auth/email/link` | Autenticación |
+| POST | `/sync/push` | Enviar un lote de operaciones (≤ 500) |
+| GET | `/sync/pull?since=` | Recibir operaciones desde un cursor |
+| GET | `/ws` | Avisos de cambios |
+| GET | `/proxy/feed?url=` | Solo para la web; con caché de 15 min y SSRF-safe |
+| GET/DELETE | `/account`, `/account/devices/:id` | Gestión de la cuenta |
+
+## 6. Definición de terminado (MVP)
+- Todos los CA en verde con tests automatizados donde sea posible:
+  - unitarios para el dominio y la sincronización;
+  - de contrato para los conectores, con fixtures grabadas;
+  - E2E con Playwright para la web;
+  - Compose UI tests para los flujos P0 en Android.
+- Vectores de conformidad de sincronización en verde en los dos motores.
+- Presupuestos de rendimiento medidos (Macrobenchmark, Lighthouse).
+- Auditoría de accesibilidad (axe + revisión manual con TalkBack).
+- Revisión legal de RL-01, RL-02, RL-03 y RL-05; nombre definitivo registrado.
