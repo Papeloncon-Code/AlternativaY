@@ -127,7 +127,10 @@ flowchart LR
 :connector:rss             – RSS 2.0, Atom, Podcasting 2.0
 :connector:peertube
 :connector:local           – SAF / MediaStore
-:connector:youtube-official – RSS de canal + embed
+:connector:youtube-official – RSS de canal + embed (solo build `play`)
+:connector:youtube          – cliente completo (solo build `full`, ADR-005): NewPipeExtractor,
+                              PoToken/SABR delegados en la librería, SponsorBlock/DeArrow/RYD
+:core:notifications         – receptor FCM / UnifiedPush, alarmas de estrenos, canales de notificación
 :connector:jellyfin        – (fase 2)
 :feature:home | :feature:search | :feature:player | :feature:library
 :feature:subscriptions | :feature:history | :feature:downloads
@@ -277,3 +280,63 @@ classDiagram
   Connector --> PlaybackSpec
 ```
 `PlaybackSpec.kind = OFFICIAL_EMBED` obliga a la UI a usar el reproductor oficial y desactiva segundo plano y descarga. La constitución queda así impuesta **por tipo**, no por disciplina.
+
+## 12. Módulo de YouTube completo (ADR-005)
+
+- **Build:** solo en el *flavor* Gradle `full`. El *flavor* `play` usa `:connector:youtube-official`. Un test de CI verifica que el APK `play` no contiene clases de NewPipeExtractor (constitución §I.3).
+- **Extracción:** **NewPipeExtractor** (GPL-3.0, la más mantenida: commit 2026-11-02, v0.26.5 [V-repo]). No se desarrolla un extractor propio. Lo que varía entre versiones de YouTube (PoToken, SABR) lo resuelve la librería y lo mantiene su comunidad. Contribuimos con parches upstream en lugar de hacer un fork.
+- **Dónde se ejecuta:** **solo en el dispositivo**. El servidor no importa este módulo.
+- **Reproducción:** `PlaybackSpec.kind = NATIVE_STREAM`, con Media3 (DASH/HLS, AV1/VP9), segundo plano, PiP y descargas por `:core:download`.
+- **Integraciones:** SponsorBlock y DeArrow (API pública; licencia de datos CC BY-NC-SA [NV]) y RYD.
+- **Recuperación rápida ante roturas** (la mayor debilidad de NewPipe):
+  1. **Actualizador in-app** en la build `full`: consulta las releases firmadas de GitHub; si hay un hotfix, pide instalarlo. Así se publica en horas sin esperar a F-Droid.
+  2. **Detector de roturas:** si fallan N reproducciones seguidas con el mismo error de extracción, la app muestra “YouTube cambió algo, buscando arreglo…” en vez de errores sueltos, y consulta el actualizador.
+  3. **Fase 3:** estudiar mover el conector de YouTube al runtime de conectores JS (patrón Grayjay) para actualizarlo sin reinstalar la app. Hay que evaluar las políticas de F-Droid sobre código descargado [NV].
+- **Login de YouTube** (opcional, fase 2): cookies guardadas solo en el Keystore, nunca enviadas a nuestro servidor. Advertencia al usuario: Google puede bloquear la cuenta [I].
+
+## 13. Servicio de notificaciones en tiempo real (ADR-006)
+
+```mermaid
+flowchart LR
+  subgraph Google
+    HUB[Hub WebSub<br/>pubsubhubbub.appspot.com]
+    RSS[RSS público de canales]
+  end
+  subgraph Server["notify-service (TypeScript)"]
+    SUB[Gestor de suscripciones<br/>alta · renovación de lease]
+    CB[Callback WebSub<br/>verifica HMAC · deduplica]
+    POLL[Respaldo: sondeo RSS<br/>1 vez por canal para todos]
+    FAN[Distribuidor de push]
+    DB[(Postgres: canales seguidos,<br/>vídeos vistos, endpoints)]
+  end
+  SUB -->|subscribe/renew| HUB
+  HUB -->|POST Atom| CB
+  POLL --> RSS
+  CB --> DB
+  POLL --> DB
+  CB --> FAN
+  POLL --> FAN
+  FAN -->|topic yt_canal| FCM[FCM]
+  FAN --> UP[UnifiedPush / ntfy]
+  FAN --> WP[Web Push VAPID]
+  FCM --> AND[Android play]
+  UP --> ANDF[Android full]
+  WP --> WEB[Web PWA]
+```
+
+- **Alta de canal:** el dispositivo comunica “sigo el canal X”. Con FCM se suscribe directamente al topic `yt_X` y avisa al servidor de forma anónima para que este se suscriba al hub si nadie lo hacía. Con UnifiedPush o Web Push, registra `endpoint → [canales]`.
+- **Recepción:**
+  - verificar la firma;
+  - descartar los topics no suscritos;
+  - `videoId` ya visto → es una edición, no se notifica;
+  - `videoId` nuevo → push con el payload mínimo (`videoId`, `channelId`, `title`).
+- **Dispositivo:** al recibir el push, obtiene los detalles con el extractor local y clasifica en vídeo, Short, estreno programado o directo.
+  - Notifica con la miniatura.
+  - Si es un estreno o directo programado, agenda una alarma exacta (`SCHEDULE_EXACT_ALARM` / `USE_EXACT_ALARM` según la versión de Android [NV: revisar la política de Google Play para la build `play`]).
+- **Respaldo:**
+  - en el servidor, sondeo del RSS cada 10–15 min por canal seguido;
+  - en el dispositivo, sin push, sondeo local con WorkManager cada 15 min o más.
+- **Escala:**
+  - el coste depende del número de **canales distintos**, no de usuarios;
+  - con 50 000 canales, renovar leases de 5 días son unas 7 renovaciones/min y el sondeo de respaldo cada 15 min unas 55 peticiones/s [I: cálculo aritmético]. Asumible para un servicio pequeño, y se puede bajar el respaldo a 30 min para los canales con WebSub sano.
+- **Seguridad:** callback con un secreto por suscripción, rate limit, payloads acotados y sin datos personales.

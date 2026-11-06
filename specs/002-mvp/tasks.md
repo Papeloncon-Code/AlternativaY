@@ -6,12 +6,13 @@ Formato: `T-xxx · [área] tarea → requisitos/CA · depende de`.
 ## Bloque 0: decisiones y validación (antes de escribir código)
 - T-001 · [producto] Aprobar la constitución v1.0 y `specs/001-plataforma/spec.md` → todas
 - T-002 · [producto] Elegir un nombre definitivo sin marcas ajenas y comprobar su disponibilidad (marca y dominio) → RL-11
-- T-003 · [legal] Revisión legal de RL-01/02/03/05: leer íntegramente los ToS de YouTube, las Developer Policies, la RMF y las branding guidelines; política de Google Play → constitución §1–5
-- T-004 · [producto] Decidir la licencia (ADR-004) → plan §1
-- T-005 · [investigación] Encuesta de validación (n ≥ 200) y 10 entrevistas → doc 04 §5 · *si menos del 30 % usaría la app sin YouTube sin anuncios, volver a la especificación*
+- T-003 · [legal] Revisión legal de los riesgos aceptados en ADR-005 (ToS de YouTube, anti-elusión según la jurisdicción de la empresa, monetización) → constitución §I.7
+- T-004 · [producto] Decidir la licencia (ADR-004; GPL-3.0 obligatoria en los clientes por NewPipeExtractor) → plan §1
+- T-005 · [investigación] Encuesta de validación (n ≥ 200) y 10 entrevistas: ¿cuánto valen los avisos en tiempo real y la sincronización con la web frente a PipePipe y Flow? → doc 04 §5
 - T-006 · [técnico] Spike: SQLite-WASM + OPFS en Safari/Firefox/Chrome (FTS5 incluido) → RF-012, R4
-- T-007 · [técnico] Spike: IFrame Player oficial en una WebView de Android (pausa al salir, cumplimiento de la RMF) → CA3.6, R2
-- T-008 · [técnico] Spike: resolver `@handle` → `channel_id` de YouTube sin extracción (¿oEmbed? ¿página pública?) → CA1.4
+- T-007 · [técnico] **Spike WebSub (crítico):** suscribir 20 canales de prueba, medir la latencia de los avisos de vídeo, estreno y directo durante 2 semanas, confirmar en la guía oficial el lease y el formato → CA11.1–11.4
+- T-008 · [técnico] Spike: NewPipeExtractor en un proyecto Media3/Compose (reproducción, PoToken, SABR) y tiempo hasta el primer fotograma → CA10.1
+- T-009 · [técnico] Spike: FCM topics + UnifiedPush (ntfy) + Web Push en una app de prueba → CA11.5
 
 ## Bloque 1: cimientos
 - T-010 · [repo] Monorepo según plan §2; CI (lint y tests) para android/web/server/contracts → constitución §13
@@ -26,7 +27,11 @@ Formato: `T-xxx · [área] tarea → requisitos/CA · depende de`.
 - T-021 · [android] `:connector:api` + `:connector:rss` (RSS 2.0/Atom/Podcasting 2.0), con tests de contrato y fixtures → CA1.1
 - T-022 · [android] `:connector:peertube` → CA1.2
 - T-023 · [android] `:connector:local` (SAF/MediaStore) → CA1.3
-- T-024 · [android] `:connector:youtube-official` (RSS + PlaybackSpec OFFICIAL_EMBED) → CA1.4, CA3.6 · depende de T-007/T-008
+- T-024 · [android] **`:connector:youtube`** (flavor `full`): búsqueda, canal, lista, vídeo, comentarios; NewPipeExtractor; streams a Media3 → CA10.1–10.3 · depende de T-008
+- T-024b · [android] SponsorBlock, DeArrow y RYD → CA10.4
+- T-024c · [android] Detector de roturas + actualizador in-app firmado (GitHub Releases) → CA10.6
+- T-024d · [ci] Test que impide que la build `play` contenga `:connector:youtube` → CA10.8
+- T-024e · [android] Importar Google Takeout CSV, NewPipe y PipePipe → CA10.5
 - T-025 · [android] `:core:player` (MediaSessionService, notificación, PiP, velocidad, saltos, reanudación, cola persistente) → CA3.1–3.5
 - T-026 · [android] WorkManager para actualizar feeds con restricciones → CA2.2
 - T-027 · [android] `:core:download` (Media3 DownloadManager + políticas) → CA4.1–4.2
@@ -37,6 +42,11 @@ Formato: `T-xxx · [área] tarea → requisitos/CA · depende de`.
 - T-032 · [server] Sync push/pull + cursor + WebSocket de avisos → CA8.3/8.4
 - T-033 · [server] Proxy de feeds con protección SSRF, caché de 15 min y rate limiting; tests de seguridad (IP privadas, redirecciones, tamaño) → CA9.4, R5
 - T-034 · [server] Borrado de cuenta y exportación → CA8.5
+- T-035 · [server] **notify-service**: suscripción y renovación WebSub, callback con HMAC, deduplicación por `videoId` → CA11.1, CA11.3 · depende de T-007
+- T-036 · [server] Distribuidor de push: FCM topics, UnifiedPush y Web Push (VAPID) → CA11.1, CA11.5, CA11.7 · depende de T-009
+- T-037 · [server] Respaldo: sondeo RSS por canal (una vez para todos) → CA11.4
+- T-038 · [android] `:core:notifications`: receptor FCM/UnifiedPush, clasificación (vídeo, Short, estreno, directo), alarmas exactas de estrenos, ajustes por canal → CA11.2, CA11.6
+- T-039 · [web] Service Worker con Web Push y notificaciones → CA11.1
 
 ## Bloque 4: motores de sincronización
 - T-040 · [android] `:core:sync` (HLC, log de operaciones, LWW por campo, OR-Set) que pasa los vectores de T-012 → CA8.3
@@ -83,6 +93,7 @@ Formato: `T-xxx · [área] tarea → requisitos/CA · depende de`.
 | RF-006/007 | T-020, T-053 |
 | RF-008 | T-013, T-020, T-054 |
 | RF-009 | T-060, T-061, T-062 |
-| RF-010 | T-007, T-008, T-024 |
+| RF-034/036/037 | T-008, T-024, T-024b–e |
+| RF-035 | T-007, T-009, T-035–T-039 |
 | RF-011 | T-012, T-031, T-032, T-040, T-041, T-042, T-057 |
 | RF-012 | T-006, T-070–T-073 |

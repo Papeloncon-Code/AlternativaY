@@ -110,3 +110,16 @@ Usar “YouTube” en el nombre o el logotipo del producto, incluido “YouTube 
 | RL-09 | IA sobre contenido | Media | Medio | En el dispositivo, opt-in, sin redistribuir | Fase 4 |
 | RL-10 | Extracción de YouTube | **Alta** | **Alto** | **Excluida** | — |
 | RL-11 | Nombre o marca “YouTube” | Alta | Alto | Nombre propio antes del lanzamiento | Antes del MVP público |
+
+## 7. Actualización: decisión del propietario (ADR-005, 2026-11-06)
+
+El propietario decidió construir un **cliente de YouTube completo** (opción A). Las conclusiones de §3 se mantienen **como análisis de riesgo**, pero ya no como decisión de producto. Con eso:
+
+- **RL-10** (extracción de YouTube) pasa de “excluida” a **riesgo aceptado**, con estas mitigaciones:
+  - solo en el dispositivo;
+  - módulo aislado, ausente en la build `play`;
+  - librería comunitaria (NewPipeExtractor), sin técnicas propias;
+  - asesoría legal antes de monetizar.
+- **Nueva RL-12:** WebSub/PubSubHubbub para avisos. Es el **mecanismo oficial** que documenta la guía *Push notifications* de la Data API. Riesgo **bajo**: es la parte del sistema que está claramente del lado correcto.
+- **Se mantiene excluido:** eludir DRM y acceder a contenido de pago sin pagarlo; recoger credenciales en el servidor; extraer desde nuestros servidores.
+- **Riesgo para la empresa:** cobrar por “YouTube sin anuncios” es lo que más probablemente atraería acciones de Google. El modelo de ingresos debe basarse en servicios propios: sincronización, avisos e IA (ver ADR-005).

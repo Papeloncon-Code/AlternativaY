@@ -1,9 +1,15 @@
 # Especificación técnica del MVP
 
-Estado: **Borrador para aprobación** · 2026-11-06 · Alcance: RF-001 a RF-012 + RNF-001 a RNF-010.
+Estado: **Borrador v2 (ADR-005/006)** · 2026-11-06 · Alcance: RF-001 a RF-009, RF-011, RF-012, **RF-034 a RF-037** + RNF-001 a RNF-010.
 
 ## 1. Objetivo
-Una persona puede reunir sus podcasts, canales de PeerTube, archivos locales y canales de YouTube (vía oficial) en una sola biblioteca. Puede reproducirlos con una experiencia de primer nivel y continuar en otro dispositivo (Android ↔ web) sin crear una cuenta de Google y sin perder sus datos.
+Una persona puede:
+- **ver YouTube como en las mejores apps alternativas**: sin anuncios, en segundo plano, con PiP, descargas y SponsorBlock;
+- **enterarse en minutos** cuando sus creadores publican, estrenan o emiten en directo;
+- reunir además sus podcasts, PeerTube y archivos locales;
+- continuar en la web desde donde lo dejó en Android, sin cuenta de Google.
+
+El orden de construcción del MVP es: **YouTube completo → avisos en tiempo real → sincronización con la web → resto de fuentes**.
 
 ## 2. Fuera de alcance (explícito)
 - IA.
@@ -13,8 +19,10 @@ Una persona puede reunir sus podcasts, canales de PeerTube, archivos locales y c
 - Marcadores, grupos y filtros avanzados.
 - Perfiles familiares.
 - Android TV, iOS nativo y escritorio nativo.
-- Data API de YouTube (búsqueda de YouTube): en el MVP, YouTube solo se añade pegando la URL de un canal o un vídeo.
-- Cualquier forma de extracción de YouTube (constitución §1).
+- Build `play` con YouTube oficial (RF-010): pasa a la fase 2. El MVP se publica solo en F-Droid, IzzyOnDroid y GitHub.
+- Login con cuenta de YouTube (fase 2).
+- Extracción de YouTube en la web: el navegador no puede hacerlo por CORS y el servidor no extrae (constitución §I.2). La web reproduce YouTube con el reproductor oficial incrustado y comparte la biblioteca, el progreso y los avisos.
+- Cualquier elusión de DRM o acceso a contenido de pago (constitución §I.1).
 
 ## 3. Historias y criterios de aceptación
 
@@ -46,7 +54,7 @@ Una persona puede reunir sus podcasts, canales de PeerTube, archivos locales y c
 - **CA3.4:** reanudación: al reabrir un elemento continúa desde la última posición menos 3 s.
   - Se marca como visto al llegar al 95 % o a menos de 30 s del final.
 - **CA3.5:** cola: añadir al final o a continuación, reordenar arrastrando y quitar. Se conserva tras matar el proceso.
-- **CA3.6:** contenido de YouTube:
+- **CA3.6:** contenido de YouTube **en la web** (y en la build `play`, fase 2):
   - se abre en el reproductor IFrame oficial;
   - al salir de la pantalla **se pausa**;
   - no existe opción de descarga;
@@ -88,6 +96,29 @@ Una persona puede reunir sus podcasts, canales de PeerTube, archivos locales y c
 - **CA9.3:** la Media Session API muestra los controles en el sistema operativo; el PiP del navegador funciona para vídeo nativo.
 - **CA9.4:** los feeds RSS se actualizan mediante el proxy del servidor, que incluye protección SSRF (`arquitectura.md` §10).
 
+### H10. YouTube completo (RF-034, RF-036, RF-037)
+- **CA10.1:** buscar en YouTube devuelve vídeos, canales y listas. Abrir un vídeo empieza a reproducir en < 2 s (p75, wifi) sin anuncios.
+- **CA10.2:** segundo plano, PiP, cola, velocidad, subtítulos, capítulos y calidad (hasta la máxima disponible; AV1/VP9 si el dispositivo lo decodifica) funcionan igual que en el resto de fuentes (H3).
+- **CA10.3:** se puede descargar vídeo o audio, y el elemento descargado se reproduce sin red.
+- **CA10.4:** SponsorBlock salta los segmentos de las categorías elegidas y lo muestra con un aviso. DeArrow y RYD se pueden activar por separado.
+- **CA10.5:** importar el CSV de suscripciones de Google Takeout y las exportaciones de NewPipe y PipePipe crea todas las suscripciones de YouTube compatibles. Informa de las que no se pudieron importar.
+- **CA10.6:** ante un error de extracción repetido, la app muestra un estado único (“YouTube cambió algo”) y busca una actualización. El hotfix firmado se instala desde la app.
+- **CA10.7:** contenido con DRM o de pago: se muestra “No disponible en esta app” y no se intenta reproducir.
+- **CA10.8:** un test de CI garantiza que la build `play` no contiene el módulo `:connector:youtube`.
+
+### H11. Avisos en tiempo real (RF-035)
+- **CA11.1:**
+  - *Dado* un canal seguido con avisos activados,
+  - *cuando* el creador publica un vídeo,
+  - *entonces* el usuario recibe la notificación en **≤ 3 min (p90)** en Android, con FCM o UnifiedPush, y en la web con Web Push.
+  - Medición: canales de prueba propios durante 2 semanas. El objetivo se ajusta tras medir; **no se publica ninguna cifra sin medirla**.
+- **CA11.2:** estreno o directo programado: aviso al detectarlo (“Estreno hoy a las 20:00”) y otro aviso al empezar (±2 min de la hora real).
+- **CA11.3:** las ediciones de título o descripción **no** generan avisos duplicados.
+- **CA11.4:** si WebSub falla en un canal, el respaldo por RSS lo detecta en ≤ 15 min.
+- **CA11.5:** sin servicios de Google (build `full`), los avisos funcionan con UnifiedPush (ntfy). Sin distribuidor, la app ofrece sondeo local cada 15 min o más y explica la diferencia.
+- **CA11.6:** ajustes por canal (todos, solo directos y estrenos, o nada), horas de silencio y agrupación. Todo funciona **sin cuenta**.
+- **CA11.7:** privacidad. Con FCM el servidor no guarda la relación usuario ↔ canal (topics). Con UnifiedPush o Web Push guarda endpoints anónimos revocables.
+
 ## 4. Modelo de datos del MVP (resumen; fuente de verdad: `packages/contracts`)
 
 | Entidad | Campos clave |
@@ -112,6 +143,8 @@ Una persona puede reunir sus podcasts, canales de PeerTube, archivos locales y c
 | GET | `/sync/pull?since=` | Recibir operaciones desde un cursor |
 | GET | `/ws` | Avisos de cambios |
 | GET | `/proxy/feed?url=` | Solo para la web; con caché de 15 min y SSRF-safe |
+| POST/DELETE | `/notify/channels` | Alta y baja anónima de canales a vigilar (+ endpoint UnifiedPush o Web Push) |
+| GET/POST | `/websub/callback/:subId` | Verificación (`hub.challenge`) y recepción de avisos del hub; HMAC obligatorio |
 | GET/DELETE | `/account`, `/account/devices/:id` | Gestión de la cuenta |
 
 ## 6. Definición de terminado (MVP)
@@ -123,4 +156,5 @@ Una persona puede reunir sus podcasts, canales de PeerTube, archivos locales y c
 - Vectores de conformidad de sincronización en verde en los dos motores.
 - Presupuestos de rendimiento medidos (Macrobenchmark, Lighthouse).
 - Auditoría de accesibilidad (axe + revisión manual con TalkBack).
-- Revisión legal de RL-01, RL-02, RL-03 y RL-05; nombre definitivo registrado.
+- Revisión legal de ADR-005 (riesgos aceptados) y RL-01/02/03; nombre definitivo registrado.
+- Latencia de avisos medida y publicada internamente (CA11.1).

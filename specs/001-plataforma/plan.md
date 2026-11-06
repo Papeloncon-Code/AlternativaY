@@ -47,7 +47,7 @@ Las estimaciones son **por escenarios**, ya que el equipo y los recursos no se c
 - **Tecnologías:** el stack completo de §1, salvo IA y SDK de conectores.
 - **Dificultad:** media-alta. La sincronización y la PWA con SQLite-WASM son las piezas de mayor riesgo.
 - **Tiempo estimado:** E1 36–52 sem · E2 16–24 sem · E3 10–14 sem.
-- **Riesgos:** sincronización con errores de convergencia; soporte de OPFS en Safari; rechazo en Google Play por el embed de YouTube; poca adopción si los usuarios solo quieren “YouTube sin anuncios”.
+- **Riesgos:** roturas de la extracción de YouTube; latencia real de WebSub (spike T-007); sincronización con errores de convergencia; soporte de OPFS en Safari.
 - **Criterios de cierre:**
   - todos los criterios de aceptación del MVP en verde;
   - RNF-001/002/003/007 medidos;
@@ -90,8 +90,10 @@ Las estimaciones son **por escenarios**, ya que el equipo y los recursos no se c
 
 | # | Riesgo | Prob. | Impacto | Mitigación |
 |---|---|---|---|---|
-| R1 | **Sin “YouTube sin anuncios”, la adopción será menor** | Alta | Alto | Posicionarse como biblioteca universal; segmento de podcasts primero; validar con encuesta antes de invertir en la fase 2 |
-| R2 | Google Play rechaza la app por el embed de YouTube | Media | Medio | Cumplir RMF y branding; si se rechaza, lanzar sin el conector de YouTube en Google Play |
+| R1 | **YouTube rompe la extracción** (cambios de PoToken o SABR) y la app deja de reproducir | Alta (recurrente) | Alto | NewPipeExtractor mantenido por la comunidad + parches upstream; detector de roturas; actualizador in-app (arquitectura §12) |
+| R1b | **Acción legal o de plataforma** contra el cliente de YouTube (ADR-005) | Media | Alto | Asesoría legal; sin extracción en servidores; monetizar servicios propios, no “sin anuncios” |
+| R1c | **WebSub deja de funcionar o se retrasa** | Baja-media | Medio | Respaldo RSS en el servidor + sondeo local (ADR-006) |
+| R2 | Google Play rechaza también la build `play` (por el embed de YouTube o las alarmas exactas) | Media | Medio | Cumplir RMF y branding; si se rechaza, la build `play` se publica sin YouTube |
 | R3 | Errores de convergencia en la sincronización | Media | Alto | Vectores de conformidad, tests de propiedades (fuzzing de órdenes) y beta larga |
 | R4 | Safari/iOS limita OPFS o el segundo plano | Alta | Medio | Fallback a IndexedDB; documentar las limitaciones; spike en la semana 1 |
 | R5 | El proxy de feeds abusado (SSRF, DDoS) | Media | Alto | Lista de denegación de IP privadas, límites, caché compartida y rate limiting |

@@ -4,16 +4,20 @@ Estado: **Borrador para aprobación** · 2026-11-06 · Depende de: constitución
 
 ## 1. Visión y propuesta de valor
 
-**Una sola biblioteca para todo lo que ves y escuchas, que es tuya, funciona sin cuenta, se sincroniza entre el móvil y la web, y te ayuda a entender y organizar el contenido, no a consumir más.**
+> **v2 (ADR-005):** el producto es un **cliente de YouTube completo** (sin anuncios, en segundo plano, con PiP, descargas y SponsorBlock), al nivel de PipePipe y Flow. Encima añade lo que ninguno tiene: **avisos en tiempo real** de vídeos, estrenos y directos (ADR-006), **sincronización móvil ↔ web** y una biblioteca universal.
+
+**El mejor cliente de YouTube, que además te avisa en cuanto tu creador publica, te sigue del móvil a la web y reúne todo lo que ves y escuchas en un solo sitio.**
 
 Propuesta de valor concreta (hipótesis por validar, doc 04 §5):
-1. **Biblioteca universal legítima:** podcasts, PeerTube, RSS, Jellyfin, ficheros locales y YouTube por la vía oficial, en un único feed, historial y buscador.
+0. **YouTube completo:** sin anuncios, en segundo plano, PiP, descargas, SponsorBlock, DeArrow y RYD (paridad con PipePipe y Flow), con reproductor Media3 moderno.
+0b. **Avisos al momento:** cuando un creador publica, programa un estreno o empieza un directo, el aviso llega en minutos por push. Hoy NewPipe pregunta cada 15 min como mínimo y PipePipe, Flow y LibreTube no usan push (verificado en su código).
+1. **Biblioteca universal:** YouTube, podcasts, PeerTube, RSS, Jellyfin y ficheros locales, en un único feed, historial y buscador.
 2. **Sincronización local-first entre Android y web**, cifrada y sin Google. Es lo que nadie hace bien (doc 03 §4.3).
 3. **Control y foco:** filtros, grupos y perfiles, modo sin distracciones, estadísticas de consumo y control parental.
 4. **Comprensión del contenido (IA opt-in):** transcripción y búsqueda por lo que se dice, capítulos, resúmenes y marcadores por minuto sobre contenido con acceso legítimo.
-5. **Distribuible en Google Play**, sin depender de que YouTube no cambie algo mañana.
+5. **Dos builds:** `full` (F-Droid, IzzyOnDroid, GitHub) con YouTube completo; `play` (Google Play) sin extracción.
 
-**Qué NO somos:** un YouTube sin anuncios. Si el usuario quiere eso, NewPipe, PipePipe y Flow existen y ocuparán ese nicho mejor que nosotros mientras YouTube lo tolere (doc 05 §3).
+**Qué NO somos:** una copia de PipePipe. Igualar sus funciones es la entrada; ganamos con push en tiempo real, sincronización con la web y biblioteca universal.
 
 ## 2. Segmentos objetivo (por orden)
 1. **Oyentes intensivos de podcasts y vídeo largo** que mezclan fuentes. El segmento más fácil de captar: los podcasts no tienen el bloqueo legal de YouTube.
@@ -40,7 +44,11 @@ Prioridades:
 | RF-007 | Historial y progreso por elemento | P0 | 03 §4.2 |
 | RF-008 | Búsqueda local sobre títulos, descripciones y notas (FTS) | P0 | — |
 | RF-009 | Importar/exportar: OPML; JSON completo; importar suscripciones de NewPipe, FreeTube y LibreTube (formatos documentados de sus exportaciones) | P0 | 04 “impedimento #1” |
-| RF-010 | YouTube oficial: suscribirse a canales por RSS público, ver con el reproductor incrustado oficial y guardar en la biblioteca | P0 (limitado) | 05 RL-05 |
+| RF-010 | YouTube (build `play`): suscribirse por RSS público y ver con el reproductor oficial incrustado | P1 | 05 RL-05 |
+| RF-034 | **YouTube completo (build `full`)**: buscar, ver canales, listas, comentarios, Shorts opcionales; reproducción Media3 sin anuncios; segundo plano, PiP, calidad hasta 4K/8K si la hay, AV1/VP9, subtítulos, capítulos; descargas; SponsorBlock, DeArrow, RYD; extracción solo en el dispositivo | **P0** | ADR-005 |
+| RF-035 | **Avisos en tiempo real** de vídeos nuevos, estrenos y directos (WebSub → FCM/UnifiedPush/Web Push), con ajustes por canal y horas de silencio | **P0** | ADR-006 |
+| RF-036 | Importar suscripciones de YouTube (Google Takeout CSV) y de NewPipe, PipePipe, FreeTube, LibreTube y Flow | **P0** | 04 “impedimento #1” |
+| RF-037 | Módulo de YouTube con actualización rápida: canal de actualización in-app para la build `full` (hotfix en horas) | P0 | Lección de Grayjay |
 | RF-011 | Cuenta opcional y sincronización (biblioteca, progreso, historial y suscripciones) entre Android y web | P0 | 03 §4.3 #1 |
 | RF-012 | Web app (PWA) con las mismas funciones de biblioteca y reproductor (con los límites del navegador) | P0 | Encargo §8B |
 | RF-013 | Marcadores por minuto con nota | P1 | Encargo §7 |
@@ -124,12 +132,15 @@ Puntuación = (Valor × Confianza) / Esfuerzo, en escala 1–5. El valor procede
 
 | Funcionalidad | Valor | Confianza | Esfuerzo | Puntuación | Fase |
 |---|---|---|---|---|---|
-| Podcasts + PeerTube + local (RF-001) | 5 | 4 | 2 | 10,0 | MVP |
+| **YouTube completo (RF-034)** | 5 | 5 | 4 | 6,3 | MVP |
+| **Avisos en tiempo real (RF-035)** | 5 | 4 | 3 | 6,7 | MVP |
+| Importar suscripciones de YouTube (RF-036) | 5 | 5 | 1 | 25,0 | MVP |
+| Podcasts + PeerTube + local (RF-001) | 4 | 4 | 2 | 8,0 | MVP |
 | Reproductor con segundo plano, PiP y cola (RF-003/004) | 5 | 5 | 3 | 8,3 | MVP |
 | Importar/exportar (RF-009) | 5 | 4 | 2 | 10,0 | MVP |
 | Sincronización (RF-011) | 5 | 4 | 4 | 5,0 | MVP |
 | Web PWA (RF-012) | 4 | 3 | 4 | 3,0 | MVP |
-| YouTube oficial limitado (RF-010) | 4 | 3 | 2 | 6,0 | MVP |
+| YouTube oficial para la build `play` (RF-010) | 3 | 3 | 2 | 4,5 | F2 |
 | Marcadores (RF-013) | 3 | 3 | 1 | 9,0 | F2 |
 | Filtros y grupos (RF-014/015) | 4 | 4 | 2 | 8,0 | F2 |
 | Cast (RF-017) | 4 | 4 | 3 | 5,3 | F2 |
@@ -142,11 +153,11 @@ Puntuación = (Valor × Confianza) / Esfuerzo, en escala 1–5. El valor procede
 
 | Pregunta | Respuesta honesta |
 |---|---|
-| ¿Qué haría que alguien deje PipePipe por nosotros? | Para ver YouTube sin anuncios, **nada**: PipePipe es mejor en eso y lo seguirá siendo. Le dejaría por: sincronización con la web, podcasts y otras fuentes en el mismo sitio, búsqueda dentro del contenido y no depender de que YouTube rompa la app. |
+| ¿Qué haría que alguien deje PipePipe por nosotros? | Igualamos sus funciones de YouTube (entrada obligatoria) y añadimos: **avisos en minutos en lugar de sondeos cada 15 min o más**, la misma biblioteca en la web, interfaz Compose moderna, cast, podcasts y búsqueda dentro del contenido. |
 | ¿Qué tendríamos que no tenga NewPipe? | Sincronización, versión web, PiP nativo, cast, podcasts, Jellyfin, medios locales, marcadores por minuto, modos de foco, estadísticas e IA opt-in. |
 | ¿Cómo superar a Grayjay? | Licencia libre real (Grayjay es Source First, no comercial); presencia en Google Play; web (Grayjay tiene escritorio, no web); sincronización fiable como prioridad de ingeniería (sus issues de sync); podcasts de primera clase. |
 | ¿Ventajas frente a FreeTube? | Móvil + web con los mismos datos; ligereza frente a Electron; podcasts. Adoptaremos sus ideas de perfiles y modo sin distracciones. |
-| ¿Cuál es la principal ventaja competitiva? | **Sincronización local-first entre Android y web + búsqueda por lo que se dice dentro del contenido.** Nadie del ecosistema lo tiene (doc 03 §2) y no depende de ninguna plataforma. |
-| ¿Qué errores evitar? | (1) Depender de la extracción de YouTube; (2) depender de instancias públicas (Piped); (3) proyecto de una persona; (4) licencia hostil (Grayjay); (5) acumular funciones sin estabilidad (riesgo de Flow); (6) fragmentar repositorios y numeración (PipePipe); (7) usar “YouTube” en la marca. |
+| ¿Cuál es la principal ventaja competitiva? | **Avisos push en tiempo real + sincronización Android ↔ web.** Ningún cliente alternativo tiene ninguna de las dos bien resuelta (verificado en código, doc 03 y ADR-006). Después, la búsqueda dentro del contenido. |
+| ¿Qué errores evitar? | (1) Extraer YouTube desde servidores (Piped e Invidious acaban bloqueados); (2) depender de instancias públicas; (3) proyecto de una persona; (4) licencia hostil (Grayjay); (5) acumular funciones sin estabilidad (riesgo de Flow); (6) fragmentar repositorios y numeración (PipePipe); (7) usar “YouTube” en la marca. |
 
 > **Regla (constitución, §16):** no se publicará “somos mejores que X” hasta tener la funcionalidad implementada y medida.

@@ -5,13 +5,13 @@
 Plataforma audiovisual multiplataforma (Android + web) diseñada con **SDD, Desarrollo Guiado por Especificaciones**. Todavía no hay código: primero se investigó, se especificó y se planificó.
 
 ## Conclusión principal (leer primero)
-- La investigación muestra que lo que hace atractivos a NewPipe, PipePipe o Flow (YouTube **sin anuncios, en segundo plano y con descargas**) depende de:
-  - incumplir los Términos de YouTube;
-  - superar controles anti-bots: todos los clientes analizados generan PoTokens (`docs/research/01-catalogo.md` §D).
-- El encargo prohíbe eludir controles técnicos, así que **ese camino queda descartado** (`docs/research/05-legal-y-viabilidad.md`).
-- La propuesta resultante es una **biblioteca y reproductor universal de contenido legítimo**:
-  - podcasts, PeerTube, RSS, Jellyfin, archivos locales y YouTube por la vía oficial;
-  - con **sincronización local-first entre Android y web** y **búsqueda dentro de lo que se dice**, que nadie del ecosistema tiene.
+**v2 (ADR-005/006):** el producto es un **cliente de YouTube completo** (sin anuncios, en segundo plano, con PiP, descargas y SponsorBlock), al nivel de PipePipe y Flow. Encima añade lo que ningún cliente alternativo tiene:
+
+1. **Avisos en tiempo real** de vídeos, estrenos y directos, por push con WebSub, el mecanismo oficial de YouTube. Hoy NewPipe pregunta cada 15 min o más, y PipePipe, Flow y LibreTube no usan push (verificado en su código). Ver [ADR-006](docs/adr/ADR-006-notificaciones-tiempo-real.md).
+2. **Sincronización Android ↔ web** sin cuenta de Google.
+3. **Biblioteca universal:** YouTube + podcasts + PeerTube + Jellyfin + locales.
+
+Riesgos aceptados y límites (nunca DRM, nunca extracción en servidores): [ADR-005](docs/adr/ADR-005-cliente-youtube-completo.md). El análisis legal original sigue en `docs/research/05-legal-y-viabilidad.md` como evaluación de riesgos (§7, actualización).
 
 ## Mapa de entregables
 
@@ -40,7 +40,7 @@ Plataforma audiovisual multiplataforma (Android + web) diseñada con **SDD, Desa
 | — | Metodología, registro y limitaciones | [docs/00-metodologia-y-registro.md](docs/00-metodologia-y-registro.md) |
 
 ## Decisiones pendientes del propietario
-1. Aprobar o cambiar la estrategia “sin extracción de YouTube” (constitución §I).
+1. ~~Estrategia sobre YouTube~~ → decidida: cliente completo (ADR-005).
 2. Nombre definitivo (RL-11).
 3. Licencia (ADR-004, propuesta en `plan.md` §1).
 4. Equipo y recursos, que determinan el escenario E1, E2 o E3 del roadmap.
@@ -52,3 +52,5 @@ Plataforma audiovisual multiplataforma (Android + web) diseñada con **SDD, Desa
 | ADR-002 | Web: React + Vite SPA/PWA + SQLite-WASM (alternativa: SvelteKit) | Propuesto |
 | ADR-003 | Backend: Node + Hono + PostgreSQL + pg-boss, sin Redis en el MVP | Propuesto |
 | ADR-004 | Licencias: clientes GPL-3.0, SDK y contracts Apache-2.0, servidor AGPL-3.0 | **Decisión del propietario** |
+| [ADR-005](docs/adr/ADR-005-cliente-youtube-completo.md) | Cliente de YouTube completo, extracción solo en el dispositivo, builds `full` y `play` | **Aceptado** |
+| [ADR-006](docs/adr/ADR-006-notificaciones-tiempo-real.md) | Avisos en tiempo real: WebSub → FCM / UnifiedPush / Web Push, con respaldo RSS | Propuesto |

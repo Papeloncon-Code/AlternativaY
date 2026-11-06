@@ -2,20 +2,26 @@
 
 Principios **no negociables**. Toda especificación, plan, tarea o PR que los contradiga se rechaza. Para cambiarlos hace falta un ADR (Architecture Decision Record) aprobado por el propietario del producto.
 
-Versión 1.0 · 2026-11-06 · Basada en `docs/research/01–05`.
+Versión 2.0 · 2026-11-06 · Basada en `docs/research/01–05` y en **ADR-005** (cliente de YouTube completo).
 
-## I. Legalidad y sostenibilidad
-1. **Nada de eludir controles.** No se implementan mecanismos para eludir DRM, autenticación, atestaciones anti-bots (PoToken/BotGuard), cifrado de firmas ni límites técnicos de ninguna plataforma. No se suplantan clientes oficiales.
-2. **Cada fuente se integra por un canal autorizado:** API oficial, feed público diseñado para terceros, servidor del usuario o fichero del usuario. Cada conector documenta su base legal (ID `RL-xx`).
-3. **Contenido de YouTube = reproductor oficial.** No se bloquean ni modifican anuncios, no hay segundo plano y no se descarga.
-4. **Las marcas ajenas no forman parte de nuestro nombre ni de nuestro logotipo.**
-5. **Distribuible en Google Play y F-Droid.** Si una funcionalidad impide publicar en Google Play, no entra en el producto principal.
+> Cambio respecto a la v1.0: el propietario decidió (ADR-005) que el producto sea un cliente de YouTube completo, que compita con NewPipe, PipePipe y Flow. La v1.0 excluía la extracción de YouTube; la v2.0 la permite, con los límites siguientes.
+
+## I. Límites legales y de sostenibilidad
+1. **Nunca se elude DRM** (Widevine u otros) ni se accede a contenido de pago sin pagarlo: películas, series de alquiler o contenido exclusivo de miembros o de Premium.
+2. **La extracción de YouTube solo se ejecuta en el dispositivo del usuario.** Nuestros servidores solo usan mecanismos oficiales: WebSub y RSS público. Ningún servidor nuestro descarga ni reproduce streams de YouTube.
+3. **El módulo de YouTube está aislado** (`:connector:youtube`). Debe poder eliminarse con una opción de build sin romper nada más. La variante `play` no lo incluye.
+4. **No se tocan las credenciales del usuario en el servidor.** Si existe login de YouTube, se guarda solo en el dispositivo (Keystore).
+5. **No se redistribuye contenido.** Las descargas son para uso privado del usuario.
+6. **Las marcas ajenas no forman parte de nuestro nombre ni de nuestro logotipo.**
+7. **Asesoría legal obligatoria antes de monetizar** o de constituir la empresa (ADR-005).
+8. Las demás fuentes (podcasts, PeerTube, Jellyfin, locales) se integran por canales autorizados y documentan su base legal (`RL-xx`).
 
 ## II. El usuario es dueño de sus datos
 6. **Local-first.** La app es completamente usable sin cuenta y sin servidor. El servidor solo sincroniza y hace copias de seguridad.
 7. **Exportación completa en formato abierto** (JSON documentado y OPML para feeds) desde el día 1.
 8. **Sin telemetría por defecto.** Cualquier métrica es opt-in, agregada y está documentada.
 9. **La IA es opt-in.** El procesamiento en el dispositivo es la opción preferente. Si algo se envía a un servidor, se avisa antes y por cada acción.
+9b. **Las notificaciones no requieren cuenta.** El servidor no debe necesitar saber qué usuario sigue qué canal cuando el canal de push lo permita (topics, ADR-006).
 
 ## III. Calidad de ingeniería
 10. **Spec-first.** No se escribe código sin una especificación aprobada con criterios de aceptación.
