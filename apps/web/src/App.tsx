@@ -10,6 +10,7 @@ import Channel from './pages/Channel';
 import You, { YouList } from './pages/You';
 import { Navigate } from 'react-router-dom';
 import Playlist from './pages/Playlist';
+import Privacy from './pages/Privacy';
 import Settings from './pages/Settings';
 import Bridge from './pages/Bridge';
 import { Empty } from './components/States';
@@ -33,6 +34,7 @@ const router = createBrowserRouter([
       { path: '/biblioteca', element: <Navigate to="/tu" replace /> },
       { path: '/ajustes', element: <Settings /> },
       { path: '/puente', element: <Bridge /> },
+      { path: '/privacidad', element: <Privacy /> },
       { path: '*', element: <div className="page"><Empty title="Esta página no existe"><p>Puede que el enlace esté mal escrito o que la página ya no esté.</p><Link className="btn primary" to="/">Ir a Principal</Link></Empty></div> },
     ],
   },

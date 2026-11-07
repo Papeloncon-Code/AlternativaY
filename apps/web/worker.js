@@ -18,12 +18,23 @@ async function api(request, env, url) {
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 60, 1), 200);
     const { results } = await env.DB.prepare(
       `SELECT v.video_id AS id, v.title, v.published_at AS publishedAt, v.channel_id AS channelId,
-              COALESCE(c.label, v.channel_id) AS channel, v.first_source AS source, v.first_seen_at AS seenAt, v.kind AS kind
+              COALESCE(c.label, v.channel_id) AS channel, v.first_source AS source, v.first_seen_at AS seenAt, v.kind AS kind,
+              v.views AS views, v.likes AS likes
        FROM videos v LEFT JOIN channels c ON c.channel_id = v.channel_id
        WHERE (c.status IS NULL OR c.status <> 'removing') AND v.published_at < ?
        ORDER BY v.published_at DESC LIMIT ?`
     ).bind(Number(url.searchParams.get('before')) || 9e15, limit).all();
     return json({ items: results }, 200, { 'cache-control': 'public, max-age=60' });
+  }
+  // Datos públicos de un vídeo (del RSS público): descripción, visitas y me gusta. Solo se piden al abrir el vídeo.
+  const vid = url.pathname.match(/^\/api\/video\/([A-Za-z0-9_-]{11})$/);
+  if (vid && request.method === 'GET') {
+    const row = await env.DB.prepare(
+      `SELECT v.video_id AS id, v.title, v.published_at AS publishedAt, v.channel_id AS channelId, COALESCE(c.label, v.channel_id) AS channel,
+              v.views AS views, v.likes AS likes, v.description AS description, v.kind AS kind
+       FROM videos v LEFT JOIN channels c ON c.channel_id = v.channel_id WHERE v.video_id = ?`
+    ).bind(vid[1]).first();
+    return row ? json(row, 200, { 'cache-control': 'public, max-age=300' }) : json({ error: 'No está entre los vídeos de tus canales' }, 404);
   }
   if (url.pathname === '/api/channels' && request.method === 'GET') {
     const { results } = await env.DB.prepare(

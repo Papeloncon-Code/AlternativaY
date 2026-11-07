@@ -27,7 +27,7 @@
 |---|---|---|---|
 | L1 | Ampliado ↔ mini con ☰; mini automático en pantallas medianas | ✅ | |
 | L2 | Principal, Shorts, Suscripciones | ✅ | |
-| L3 | Lista de suscripciones con avatar y punto de “nuevo” | ✅ | Foto real: con el Puente se obtiene en el navegador y se comparte vía servidor; sin él, iniciales 🔌 |
+| L3 | Lista de suscripciones con avatar y punto de “nuevo” | ✅ | Foto real sin Puente: vista previa pública del canal, una vez al día (ADR-006, enmienda 3) |
 | L4 | Indicador de directo (ondas rojas) junto al canal | ❌ 🔌 | |
 | L5 | “Mostrar más” | ✅ | |
 | L6 | Sección Tú: Historial, Ver más tarde, Me gusta | ✅ | |
@@ -38,8 +38,8 @@
 | # | Función | TodoTube | Nota |
 |---|---|---|---|
 | H1 | Fila de filtros desplazable con flechas | ✅ | Corregido 2026-11-07: los filtros que daban lo mismo que «Todos» parecían rotos; ahora solo aparecen si cambian algo y se confirma con «N vídeos · filtro» |
-| H2 | Cuadrícula que se adapta (3–6 columnas según el ancho) | ✅ | Corregido tras QA: 2 col. a 600 px, 3 a 1024, 5 a 1920 (por ancho real del contenido) |
-| H3 | Tarjeta: miniatura, avatar, título 2 líneas, canal, visitas, antigüedad | 🟡 | Visitas 🔌 |
+| H2 | Cuadrícula que se adapta (3–6 columnas según el ancho) | ✅ | Tarjetas de ≥ 320 px como en YouTube: 1243 px → 3, 1920 px → 4 (bloque 7) |
+| H3 | Tarjeta: miniatura, avatar, título 2 líneas, canal, visitas, antigüedad | ✅ | Visitas del RSS público, sin Puente |
 | H4 | Duración en la esquina de la miniatura | ❌ 🔌 | |
 | H5 | “EN VIVO” con contador de espectadores | ❌ 🔌 | |
 | H6 | Barra roja de progreso en lo ya visto | ✅ | |
@@ -54,7 +54,7 @@
 | W1 | Reproductor grande + columna “A continuación” a la derecha | ✅ | |
 | W2 | Título, canal con avatar y botón **Suscrito 🔔** | ✅ | |
 | W3 | Me gusta, Compartir (copiar enlace), Guardar | ✅ | |
-| W4 | Visitas, fecha y **descripción** desplegable | 🟡 🔌 | Se muestran con el reproductor propio; sin puente, invitación a instalarlo |
+| W4 | Visitas, fecha y **descripción** desplegable | ✅ | Sin Puente, del RSS público (vídeos de tus canales); me gusta en el botón. Duración 🔌 |
 | W5 | **Reproducción automática del siguiente** (cuenta atrás, cancelable) | ✅ | 8 s, interruptor en el reproductor |
 | W6 | Atajos de teclado: K/espacio, J/L ±10 s, F, M, flechas, `<`/`>` velocidad | ✅ | También 0–9, T (cine) y Mayús+N (siguiente) |
 | W7 | Modo cine (reproductor a todo el ancho) | ✅ | |

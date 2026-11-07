@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS channels (
   last_error     TEXT,
   rss_failures   INTEGER NOT NULL DEFAULT 0,
   notify         TEXT NOT NULL DEFAULT 'all',  -- campanita: all | noshorts | none
-  avatar         TEXT                          -- foto del canal (CDN pública), la aporta un dispositivo
+  avatar         TEXT,                         -- foto del canal (CDN pública): vista previa diaria o un dispositivo con Puente
+  avatar_at      INTEGER                       -- última lectura de la vista previa (una vez al día como mucho)
 );
 CREATE TABLE IF NOT EXISTS videos (
   video_id      TEXT PRIMARY KEY,
@@ -20,7 +21,11 @@ CREATE TABLE IF NOT EXISTS videos (
   published_at  INTEGER,          -- <published> del Atom (ms)
   first_source  TEXT NOT NULL,    -- websub | rss | baseline
   first_seen_at INTEGER NOT NULL,
-  kind          TEXT              -- short | video | NULL (sin clasificar)
+  kind          TEXT,             -- short | video | NULL (sin clasificar)
+  views         INTEGER,          -- del RSS público (media:statistics)
+  likes         INTEGER,          -- del RSS público (media:starRating count)
+  description   TEXT,             -- del RSS público (media:description)
+  stats_at      INTEGER
 );
 CREATE TABLE IF NOT EXISTS events (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,

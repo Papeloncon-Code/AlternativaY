@@ -22,3 +22,10 @@ export function hue(id: string): number {
   for (const c of id) h = (h * 31 + c.charCodeAt(0)) % 360;
   return h;
 }
+const compact = new Intl.NumberFormat('es', { notation: 'compact', maximumFractionDigits: 1 });
+/** «1,8 M visualizaciones», como en las apps de vídeo. */
+export function fmtViews(n?: number | null): string {
+  return n == null ? '' : `${compact.format(n)} ${n === 1 ? 'visualización' : 'visualizaciones'}`;
+}
+/** «64 mil» para el contador de Me gusta. */
+export const fmtCount = (n?: number | null) => (n == null ? '' : compact.format(n));

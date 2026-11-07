@@ -64,3 +64,13 @@
 | Servir el `.xpi` firmado con `Content-Type: application/x-xpinstall` | [Extension Workshop](https://extensionworkshop.com/documentation/publish/self-distribution/) [V] | ✅ preparado: se publica solo cuando exista `apps/bridge/firmado/todotube-puente.xpi` |
 
 **No verificado [NV]:** si Firefox activa el Puente en la pestaña ya abierta justo después de instalarlo. Por eso, si no se anuncia en 60 s, la web ofrece «Recargar».
+
+## 7. El código de dos pasos de Mozilla no funciona (2026-11-07)
+Mozilla exige verificación en dos pasos a quien publica complementos desde 2021 [S: [blog de Mozilla Add-ons](https://blog.mozilla.org/addons/2021/03/11/two-factor-authentication-required-for-extension-developers)]. Causas habituales de “código incorrecto” [S: hilos de [support.mozilla.org](https://support.mozilla.org/questions/1291696)]:
+1. **Hora del móvil desajustada** (la más común): activar fecha, hora y zona horaria automáticas; en Google Authenticator (Android), *Corrección de hora de los códigos*.
+2. **Aplicación de códigos**: varias personas informan de fallos con Samsung Pass, Aegis o Ente y éxito con Google Authenticator o Microsoft Authenticator.
+3. **Códigos de 8 cifras**: Mozilla solo acepta los de 6.
+4. **VPN activa** durante la configuración.
+5. Escribir el código en cuanto aparece (caduca a los 30 s) y **guardar los códigos de recuperación**.
+- Alternativa sin móvil: un gestor con códigos en el ordenador (Bitwarden, KeePassXC).
+- Las tiendas de Chrome y Edge quedan sin decidir (el propietario no eligió ninguna).

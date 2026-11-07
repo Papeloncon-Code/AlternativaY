@@ -107,3 +107,16 @@ sequenceDiagram
 - **Señal nueva:** `HEAD https://www.youtube.com/shorts/<id>` con `redirect: manual` → **200** = Short, **3xx** = vídeo (redirige a `/watch`). Verificado en 4 casos dudosos (3 Shorts y 1 vídeo de CNN/NBC) y en la reclasificación de 159 vídeos (de 33 Shorts se pasó a ≥ 47).
 - **Respeto a la constitución §I.2:** solo se lee el código de estado de una URL pública. No se descarga ni se interpreta contenido, ni se extrae nada del vídeo. La miniatura vertical queda como respaldo.
 - **Lección:** verificar con al menos 3 canales distintos antes de dar por buena una heurística (la anterior se probó solo con BBC y DW).
+
+## Enmienda 3 (2026-11-07): datos públicos sin Puente — RSS enriquecido y foto del canal
+**Problema:** sin TodoTube Puente no había fotos de canal, visitas ni descripciones.
+
+**Hallazgos (docs/research/10):**
+- El RSS público que ya leemos trae, por vídeo, `media:statistics views` (visitas), `media:starRating count` (me gusta), `media:description` y un enlace `/shorts/ID` en los Shorts. No trae duración ni foto del canal.
+- La API oficial de datos de YouTube daría fotos y duraciones, pero sus normas prohíben bloquear anuncios en las apps que la usan (riesgo de perder la clave o la cuenta de Google): **descartada**.
+- La página pública del canal incluye metadatos de vista previa (Open Graph): `og:image` = foto del canal en `yt3.googleusercontent.com`, `og:title` = nombre.
+
+**Decisión del propietario:**
+1. El servidor guarda visitas, me gusta y descripción del RSS y los refresca en cada lectura. El enlace `/shorts/` del RSS sirve para clasificar Shorts sin otra petición.
+2. El servidor lee **solo `og:image` y `og:title`** de la página de cada canal seguido, **una vez al día** (el propietario pidió diario en vez de semanal), leyendo por partes y cortando en cuanto los encuentra. Si YouTube lo bloquea, se muestran iniciales.
+3. Nada de vídeos ni de usuarios. Ninguna API con normas incompatibles.

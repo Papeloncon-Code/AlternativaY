@@ -8,7 +8,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { useChannels, useFeed } from '../data';
 import Avatar from '../components/Avatar';
 import { actions, useStore, type Meta } from '../store';
-import { ago, clock } from '../format';
+import { ago, clock, fmtCount, fmtViews } from '../format';
 import VideoCard from '../components/VideoCard';
 import Icon from '../components/Icon';
 import { ErrorBox } from '../components/States';
@@ -16,13 +16,12 @@ import { handleRef, pageCallbacks, play, useSession } from '../player/session';
 import { hostEl } from '../components/PlayerHost';
 import BellMenu, { type Bell } from '../components/BellMenu';
 import { setChannelBell } from '../push';
-import { removeChannel, thumb } from '../api';
+import { fetchVideo, removeChannel, thumb, type VideoData } from '../api';
 import { shareVideo, toast } from '../toast';
 import { useBranding, useSegments } from '../community';
 
 const ID_RE = /^[A-Za-z0-9_-]{11}$/;
 const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
-const fmtViews = (n?: number) => (n == null ? '' : `${new Intl.NumberFormat('es', { notation: 'compact' }).format(n)} visualizaciones`);
 
 export default function Watch() {
   const { id = '' } = useParams();
@@ -45,6 +44,11 @@ export default function Watch() {
   const session = useSession();
   const fallback = session?.id === id ? session.fallback : '';
   const details = session?.id === id ? session.details : null;
+  // Sin Puente: descripción, visitas y me gusta del RSS público, guardados por nuestro servidor (ADR-006, enmienda 3).
+  const [pub, setPub] = useState<VideoData | null>(null);
+  useEffect(() => { setPub(null); let ok = true; fetchVideo(id).then((d) => { if (ok) setPub(d); }).catch(() => {}); return () => { ok = false; }; }, [id]);
+  const views = details?.views ?? pub?.views ?? null;
+  const description = details?.description || pub?.description || '';
   const [descOpen, setDescOpen] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const handle = handleRef;
@@ -147,7 +151,7 @@ export default function Watch() {
           </div>
           <div className="watch-actions">
             <button type="button" className={`btn${fav ? ' on' : ''}`} aria-pressed={fav} onClick={() => { actions.toggleFavorite(meta); toast(fav ? 'Quitado de Me gusta' : 'Añadido a Me gusta'); }}>
-              <Icon name="like" size={18} /> {fav ? 'Te gusta' : 'Me gusta'}
+              <Icon name="like" size={18} /> {pub?.likes != null ? fmtCount(pub.likes + (fav ? 1 : 0)) : fav ? 'Te gusta' : 'Me gusta'}
             </button>
             <button type="button" className="btn" onClick={() => shareVideo(id, meta.title)}><Icon name="share" size={18} /> Compartir</button>
             <button type="button" className={`btn${later ? ' on' : ''}`} aria-pressed={later} onClick={() => openSave(meta)}>
@@ -158,12 +162,12 @@ export default function Watch() {
         </div>
         <div className={`desc${descOpen ? ' open' : ''}`} onClick={() => setDescOpen(true)}>
           <p className="desc-meta">
-            {[fmtViews(details?.views), video?.publishedAt ? ago(video.publishedAt) : '', details?.lengthSeconds ? clock(details.lengthSeconds) : '', startAt >= 5 ? `continúa en ${clock(startAt)}` : ''].filter(Boolean).join(' · ')}
+            {[fmtViews(views), video?.publishedAt ? ago(video.publishedAt) : '', details?.lengthSeconds ? clock(details.lengthSeconds) : '', startAt >= 5 ? `continúa en ${clock(startAt)}` : ''].filter(Boolean).join(' · ')}
           </p>
-          {details?.description
-            ? <p className="desc-text">{details.description}</p>
-            : <p className="desc-text muted">{hasBridge() ? 'Cargando la descripción…' : <>La descripción, las visitas y la duración se muestran con <Link to="/puente">TodoTube Puente</Link>.</>}</p>}
-          {details?.description && <button type="button" className="desc-toggle" onClick={(e) => { e.stopPropagation(); setDescOpen((o) => !o); }}>{descOpen ? 'Mostrar menos' : '…más'}</button>}
+          {description
+            ? <p className="desc-text">{description}</p>
+            : <p className="desc-text muted">{pub ? 'Este vídeo no tiene descripción.' : hasBridge() ? 'Cargando la descripción…' : <>La descripción de los vídeos de fuera de tus canales se muestra con <Link to="/puente">TodoTube Puente</Link>.</>}</p>}
+          {description && <button type="button" className="desc-toggle" onClick={(e) => { e.stopPropagation(); setDescOpen((o) => !o); }}>{descOpen ? 'Mostrar menos' : '…más'}</button>}
         </div>
         {fallback && <p className="bridge-hint">El reproductor TodoTube no pudo cargar este vídeo ({fallback}); se usa el reproductor de reserva.</p>}
         {!video && !feed.loading && !saved && !navMeta && !listMeta && !oe && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir a Principal</Link></p>}

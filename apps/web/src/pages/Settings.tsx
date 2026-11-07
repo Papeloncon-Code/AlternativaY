@@ -1,6 +1,6 @@
 import { useTitle } from '../title';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { toast } from '../toast';
 import { actions, getState, useStore } from '../store';
 import Icon from '../components/Icon';
@@ -98,6 +98,7 @@ export default function Settings() {
       </section>
       <section className="panel">
         <h2>Acerca de</h2>
+        <p className="note"><Link to="/privacidad">Privacidad: qué datos hay y dónde</Link></p>
         <p className="note">TodoTube Web v0.2. Las novedades llegan al momento en cuanto tus canales publican. Tus favoritos e historial se quedan en este navegador.</p>
       </section>
     </div>

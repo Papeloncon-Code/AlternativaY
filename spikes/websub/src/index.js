@@ -1,5 +1,6 @@
-// Spike T-007: avisos WebSub de YouTube → D1 + ntfy. Ver specs/003-spike-websub/spec.md
-// Constitución §I.2: solo WebSub y RSS público. Nada de extracción de YouTube.
+// Servicio de avisos de TodoTube: WebSub de YouTube → D1 → Web Push. Ver specs/003-spike-websub/spec.md
+// Constitución §I.2: solo WebSub, RSS público y (enmienda 2026-11-07) la vista previa pública del canal una vez al día.
+// Privacidad: aquí no se guarda nada de las personas salvo la dirección de avisos de quien los activa.
 import { parseAtom, hmacSha1Hex, safeEqual, isFresh } from './atom.js';
 import { buildPushPayload } from '@block65/webcrypto-web-push';
 
@@ -11,16 +12,6 @@ function randomHex(n = 16) {
   return [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function notify(env, { title, body, url }) {
-  if (!env.NTFY_TOPIC) return;
-  await fetch(`https://ntfy.sh/${env.NTFY_TOPIC}`, {
-    method: 'POST',
-    body,
-    headers: { Title: title.slice(0, 200), ...(url ? { Click: url } : {}), Tags: 'tv' },
-  }).catch(() => {});
-}
-
-const mins = (ms) => (ms / 60000).toFixed(1);
 
 // Shorts vs vídeo (ADR-006, enmienda 2). Señal principal: la URL pública youtube.com/shorts/<id> responde 200 si es un Short
 // y redirige (3xx) a /watch si no lo es. Solo se lee el código de estado (HEAD, sin descargar contenido).
@@ -45,10 +36,10 @@ async function recordEntry(env, e, source, now) {
   ).bind(source, e.videoId, e.channelId, e.title, e.published, e.updated, now).run();
   const seen = await env.DB.prepare('SELECT 1 FROM videos WHERE video_id = ?').bind(e.videoId).first();
   if (seen || !isFresh(e.published, now)) return false;
-  const kind = await classify(e.videoId);
+  const kind = e.isShort != null ? (e.isShort ? 'short' : 'video') : await classify(e.videoId);
   await env.DB.batch([
-    env.DB.prepare('INSERT OR IGNORE INTO videos (video_id, channel_id, title, published_at, first_source, first_seen_at, kind) VALUES (?,?,?,?,?,?,?)')
-      .bind(e.videoId, e.channelId, e.title, e.published, source, now, kind),
+    env.DB.prepare('INSERT OR IGNORE INTO videos (video_id, channel_id, title, published_at, first_source, first_seen_at, kind, views, likes, description, stats_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+      .bind(e.videoId, e.channelId, e.title, e.published, source, now, kind, e.views ?? null, e.likes ?? null, e.description ?? null, e.views != null ? now : null),
     env.DB.prepare('UPDATE events SET is_new = 1 WHERE id = (SELECT MAX(id) FROM events WHERE video_id = ? AND source = ?)')
       .bind(e.videoId, source),
   ]);
@@ -119,12 +110,6 @@ async function handlePush(request, env, ctx, channelId) {
     const rec = await recordEntry(env, e, 'websub', now);
     if (rec) {
       ctx.waitUntil(pushNew(env, e, rec.kind));
-      const lat = e.published ? ` · ${mins(now - e.published)} min tras publicar` : '';
-      ctx.waitUntil(notify(env, {
-        title: `Nuevo: ${e.title || e.videoId}`,
-        body: `WebSub${lat}`,
-        url: `https://www.youtube.com/watch?v=${e.videoId}`,
-      }));
     }
   }
   return new Response('ok', { status: 200 });
@@ -168,19 +153,69 @@ async function pollRss(env, channelId, baseline, now) {
   for (const e of entries) {
     e.channelId ||= channelId;
     if (baseline) {
-      await env.DB.prepare('INSERT OR IGNORE INTO videos (video_id, channel_id, title, published_at, first_source, first_seen_at) VALUES (?,?,?,?,?,?)')
-        .bind(e.videoId, e.channelId, e.title, e.published, 'baseline', now).run();
+      await env.DB.prepare('INSERT OR IGNORE INTO videos (video_id, channel_id, title, published_at, first_source, first_seen_at, kind) VALUES (?,?,?,?,?,?,?)')
+        .bind(e.videoId, e.channelId, e.title, e.published, 'baseline', now, e.isShort == null ? null : e.isShort ? 'short' : 'video').run();
     } else if ((rec = await recordEntry(env, e, 'rss', now))) {
       fresh++;
       await pushNew(env, e, rec.kind);
-      await notify(env, {
-        title: `Nuevo (respaldo RSS): ${e.title || e.videoId}`,
-        body: `RSS · ${e.published ? mins(now - e.published) + ' min tras publicar' : ''}`,
-        url: `https://www.youtube.com/watch?v=${e.videoId}`,
-      });
     }
   }
+  // Datos públicos del feed (visitas, me gusta, descripción): se refrescan en cada lectura (ADR-006, enmienda 3).
+  const upd = entries.filter((e) => e.views != null || e.description != null).map((e) =>
+    env.DB.prepare('UPDATE videos SET views=COALESCE(?, views), likes=COALESCE(?, likes), description=COALESCE(?, description), stats_at=?, kind=COALESCE(kind, ?) WHERE video_id=?')
+      .bind(e.views ?? null, e.likes ?? null, e.description ?? null, now, e.isShort == null ? null : e.isShort ? 'short' : 'video', e.videoId));
+  if (upd.length) await env.DB.batch(upd);
   return { fresh };
+}
+
+// Foto y nombre del canal desde sus metadatos públicos de vista previa (og:image, og:title), como hacen las apps de
+// mensajería al compartir un enlace. Constitución §I.2, enmienda 2026-11-07: una vez al día por canal y nada más.
+// La página pesa ~2,6 MB y og:image está hacia el byte 835 000: se lee por partes y se corta en cuanto aparece.
+// Una foto de canal cada 10 minutos (desfasado del cron principal); cada canal como mucho una vez al día.
+export const PREVIEW_CRON = '3-59/10 * * * *';
+const AVATAR_HOST = /^yt[34]\.(ggpht|googleusercontent)\.com$/;
+const after = (buf, key) => {
+  const i = buf.indexOf(key); if (i < 0) return null;
+  const j = buf.indexOf('"', i + key.length); return j < 0 ? null : buf.slice(i + key.length, j);
+};
+export async function readChannelPreview(fetchFn, channelId) {
+  const r = await fetchFn(`https://www.youtube.com/channel/${channelId}`, { headers: { 'accept-language': 'es' }, redirect: 'follow' });
+  if (!r.ok || !r.body) return { status: r.status };
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = ''; let read = 0; let image = null; let title = null;
+  try {
+    while (read < 1_500_000 && !(image && title)) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      read += value.byteLength;
+      buf = buf.slice(-600) + dec.decode(value, { stream: true }); // ventana deslizante: las etiquetas pueden partirse entre trozos
+      // Búsqueda de texto nativa (más barata que una expresión regular en cada trozo).
+      image ??= after(buf, '<meta property="og:image" content="');
+      title ??= after(buf, '<meta property="og:title" content="');
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+  }
+  let avatar = null;
+  try {
+    const u = new URL(image || '');
+    if (u.protocol === 'https:' && AVATAR_HOST.test(u.hostname)) avatar = u.href.replace(/=s\d+(-|$)/, '=s176$1');
+  } catch { /* sin foto */ }
+  const name = title ? title.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim().slice(0, 80) : null;
+  return { status: r.status, avatar, name, read };
+}
+
+async function refreshChannelPreview(env, now) {
+  const ch = await env.DB.prepare(
+    "SELECT channel_id FROM channels WHERE status IN ('requested','verified','pending') AND (avatar_at IS NULL OR avatar_at < ?) ORDER BY COALESCE(avatar_at, 0) ASC LIMIT 1"
+  ).bind(now - 24 * 3600 * 1000).first();
+  if (!ch) return;
+  let res = {};
+  try { res = await readChannelPreview(fetch, ch.channel_id); } catch { /* red */ }
+  // Se anota la fecha aunque falle: como mucho un intento al día por canal (si YouTube lo bloquea, quedan iniciales).
+  await env.DB.prepare('UPDATE channels SET avatar = COALESCE(?, avatar), avatar_at = ?, label = COALESCE(label, ?) WHERE channel_id = ?')
+    .bind(res.avatar ?? null, now, res.name ?? null, ch.channel_id).run();
 }
 
 async function cron(env) {
@@ -236,6 +271,11 @@ async function cron(env) {
         .bind(now, st === 202 ? null : `renew ${st}`, channel_id).run();
       if (st === 202) stats.renewed++;
     }
+    // 2c. Privacidad y orden: los registros técnicos (vídeos públicos recibidos, ejecuciones) se borran a los 7 días.
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM events WHERE received_at < ?').bind(now - 7 * 86_400_000),
+      env.DB.prepare('DELETE FROM runs WHERE at < ?').bind(now - 7 * 86_400_000),
+    ]);
     // 3. Respaldo RSS por rotación.
     const n = Number(env.RSS_PER_RUN || 7);
     const rot = await env.DB.prepare(
@@ -264,7 +304,9 @@ export default {
     if (request.method === 'POST') return handlePush(request, env, ctx, m[1]);
     return new Response('method not allowed', { status: 405 });
   },
-  async scheduled(_event, env, ctx) {
-    ctx.waitUntil(cron(env));
+  async scheduled(event, env, ctx) {
+    // Tarea aparte para la foto del canal: si algún día excede el tiempo de CPU, los avisos no se ven afectados.
+    if (event.cron === PREVIEW_CRON) ctx.waitUntil(refreshChannelPreview(env, Date.now()));
+    else ctx.waitUntil(cron(env));
   },
 };

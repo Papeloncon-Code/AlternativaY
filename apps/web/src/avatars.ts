@@ -1,4 +1,4 @@
-// Fotos reales de los canales. Origen: el servidor (si algún dispositivo tuyo ya la obtuvo) o este navegador con el Puente.
+// Fotos reales de los canales. Origen: el servidor (vista previa pública del canal, una vez al día) o este navegador con el Puente.
 // Sin Puente ni foto guardada se muestran las iniciales.
 import { useSyncExternalStore } from 'react';
 import type { Channel } from './api';
@@ -23,7 +23,8 @@ export function useAvatar(id: string): string | undefined {
 /** Toma las fotos que ya tiene el servidor y, con el Puente, busca las que faltan (una a una, sin prisa). */
 let running = false;
 export async function syncAvatars(channels: Channel[]) {
-  channels.forEach((c) => { if (c.avatar && !map[c.id]) setAvatar(c.id, c.avatar, 0); });
+  // La foto del servidor (vista previa diaria) manda, salvo que este navegador tenga una más reciente traída con el Puente.
+  channels.forEach((c) => { if (c.avatar && (!map[c.id] || map[c.id].at === 0)) setAvatar(c.id, c.avatar, 0); });
   if (running || !hasBridge()) return;
   running = true;
   try {

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { thumb } from '../api';
-import { ago } from '../format';
+import { ago, fmtViews } from '../format';
 import { actions, useStore } from '../store';
 import Icon from './Icon';
 import Avatar from './Avatar';
@@ -12,11 +12,11 @@ import { openSave } from './SaveDialog';
 
 type Props = {
   id: string; title: string; channel: string; channelId: string;
-  publishedAt?: number | null; isNew?: boolean; progress?: number; short?: boolean; compact?: boolean; list?: string;
+  publishedAt?: number | null; isNew?: boolean; progress?: number; short?: boolean; compact?: boolean; list?: string; views?: number | null;
 };
 
 // Tarjeta de vídeo con la estructura que la gente ya conoce: miniatura, avatar del canal, título en 2 líneas, canal y fecha, menú ⋮.
-export default function VideoCard({ id, title, channel, channelId, publishedAt, isNew, progress, short, compact, list }: Props) {
+export default function VideoCard({ id, title, channel, channelId, publishedAt, isNew, progress, short, compact, list, views }: Props) {
   const fav = useStore((s) => Boolean(s.favorites[id]));
   const later = useStore((s) => Boolean(s.watchLater[id]));
   const watched = useStore((s) => Boolean(s.watched[id]));
@@ -69,7 +69,7 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
         <div className="vtext">
           <Link to={href} className="vtitle" title={brand.title ? `Título original: ${title}` : title}>{shownTitle}</Link>
           <Link to={`/canal/${channelId}`} className="vmeta vchan">{channel}</Link>
-          <span className="vmeta">{publishedAt ? ago(publishedAt) : ''}{watched ? ' · visto' : ''}</span>
+          <span className="vmeta">{[fmtViews(views), publishedAt ? ago(publishedAt) : '', watched ? 'visto' : ''].filter(Boolean).join(' · ')}</span>
           {isNew && !watched && <span className="badge-nuevo">Nuevo</span>}
         </div>
         <div className="vmenu" ref={ref}>

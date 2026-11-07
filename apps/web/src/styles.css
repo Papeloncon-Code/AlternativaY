@@ -581,11 +581,12 @@ img.avatar { object-fit: cover; background: var(--chip); }
 /* #11: columnas según el ancho real del contenido, como las apps de vídeo (1 → 6) */
 .main { container-type: inline-size; }
 .vgrid { --cols: 1; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
-@container (min-width: 480px) { .vgrid { --cols: 2; } }
-@container (min-width: 860px) { .vgrid { --cols: 3; } }
-@container (min-width: 1140px) { .vgrid { --cols: 4; } }
-@container (min-width: 1520px) { .vgrid { --cols: 5; } }
-@container (min-width: 2000px) { .vgrid { --cols: 6; } }
+/* Tarjetas de al menos 320 px + 16 de separación, como las de las apps de vídeo (1243 px → 3 columnas; 1920 con menú → 4) */
+@container (min-width: 704px) { .vgrid { --cols: 2; } }
+@container (min-width: 1040px) { .vgrid { --cols: 3; } }
+@container (min-width: 1376px) { .vgrid { --cols: 4; } }
+@container (min-width: 1712px) { .vgrid { --cols: 5; } }
+@container (min-width: 2048px) { .vgrid { --cols: 6; } }
 /* #9: el “hace X” de los avisos quedaba cortado por el límite de 3 líneas */
 .notif-text { display: flex; flex-direction: column; -webkit-line-clamp: unset; overflow: visible; }
 .notif-line { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
@@ -620,3 +621,10 @@ img.avatar { object-fit: cover; background: var(--chip); }
 .bell-lock a { color: var(--new); }
 .bell-item:disabled { opacity: .45; cursor: not-allowed; }
 .short .card-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.privacy .lead { font-size: 16px; line-height: 1.5; margin: 0 0 24px; }
+.ptable { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ptable th, .ptable td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; line-height: 1.45; }
+.ptable th { color: var(--text-2); font-weight: 500; }
+.ptable a { color: var(--new); }
+@media (max-width: 792px) { .ptable thead { display: none; } .ptable tr { display: grid; padding: 8px 0; border-bottom: 1px solid var(--line); } .ptable td { border: 0; padding: 2px 0; } .ptable td:first-child { font-weight: 600; } }

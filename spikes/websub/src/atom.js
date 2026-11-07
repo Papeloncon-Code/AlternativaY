@@ -2,6 +2,7 @@
 const ENT = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&apos;': "'" };
 const decode = (s) => s.replace(/&(amp|lt|gt|quot|apos|#39);/g, (m) => ENT[m] ?? m);
 const pick = (block, re) => { const m = block.match(re); return m ? decode(m[1].trim()) : null; };
+const num = (s) => (s == null ? null : Number(s));
 const ts = (s) => { const t = s ? Date.parse(s) : NaN; return Number.isNaN(t) ? null : t; };
 
 export function parseAtom(xml, maxEntries = Infinity) {
@@ -18,6 +19,11 @@ export function parseAtom(xml, maxEntries = Infinity) {
       title: pick(b, /<title>([^<]*)<\/title>/),
       published: ts(pick(b, /<published>([^<]+)<\/published>/)),
       updated: ts(pick(b, /<updated>([^<]+)<\/updated>/)),
+      // Solo en el RSS público (el aviso WebSub no las trae): datos públicos que muestra cualquier lector de feeds.
+      views: num(pick(b, /<media:statistics[^>]*\bviews="(\d+)"/)),
+      likes: num(pick(b, /<media:starRating[^>]*\bcount="(\d+)"/)),
+      description: (pick(b, /<media:description>([\s\S]*?)<\/media:description>/) ?? null)?.slice(0, 5000) ?? null,
+      isShort: /<link rel="alternate" href="[^"]*\/shorts\//.test(b) ? true : /<link rel="alternate" href="[^"]*\/watch\?v=/.test(b) ? false : null,
     });
   }
   const deleted = [];

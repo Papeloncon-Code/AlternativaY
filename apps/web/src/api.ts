@@ -1,4 +1,6 @@
 export type Video = {
+  views?: number | null;
+  likes?: number | null;
   id: string;
   title: string | null;
   publishedAt: number | null;
@@ -45,5 +47,7 @@ export async function removeChannel(id: string, ownerKey: string) {
   if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
 }
 
+export type VideoData = { id: string; views: number | null; likes: number | null; description: string | null };
+export const fetchVideo = (id: string) => get<VideoData>(`/api/video/${id}`);
 export const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 export const shortThumb = (id: string) => `https://i.ytimg.com/vi/${id}/oar2.jpg`;

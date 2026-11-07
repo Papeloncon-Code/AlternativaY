@@ -58,3 +58,47 @@ test('isFresh: ventana de 48 h', () => {
   assert.ok(!isFresh(now - 49 * 3600e3, now));
   assert.ok(!isFresh(null, now));
 });
+
+// Entrada real del RSS público (Linus Tech Tips, 2026-11-07), recortada.
+const RSS_REAL = `<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <title>Linus Tech Tips</title>
+ <entry>
+  <id>yt:video:spXuvLHTIs4</id>
+  <yt:videoId>spXuvLHTIs4</yt:videoId>
+  <yt:channelId>UCXuqSBlHAE6Xw-yeJA0Tunw</yt:channelId>
+  <title>My F-You To Sam Altman</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/spXuvLHTIs4"/>
+  <published>2026-11-05T21:02:51+00:00</published>
+  <updated>2026-11-06T11:40:32+00:00</updated>
+  <media:group>
+   <media:title>My F-You To Sam Altman</media:title>
+   <media:thumbnail url="https://i4.ytimg.com/vi/spXuvLHTIs4/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Línea 1 &amp; más
+Línea 2</media:description>
+   <media:community>
+    <media:starRating count="64440" average="5.00" min="1" max="5"/>
+    <media:statistics views="1822521"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <yt:videoId>NORMALVID01</yt:videoId>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=NORMALVID01"/>
+  <published>2026-11-05T21:02:51+00:00</published>
+ </entry>
+</feed>`;
+
+test('RSS público: visitas, me gusta, descripción y Short por el enlace', () => {
+  const { entries } = parseAtom(RSS_REAL);
+  assert.equal(entries[0].views, 1822521);
+  assert.equal(entries[0].likes, 64440);
+  assert.equal(entries[0].description, 'Línea 1 & más\nLínea 2');
+  assert.equal(entries[0].isShort, true);
+  assert.equal(entries[1].isShort, false);
+  assert.equal(entries[1].views, null);
+});
+
+test('el aviso WebSub (sin media:group) no inventa datos', () => {
+  const e = parseAtom(PUSH).entries[0];
+  assert.equal(e.views, null); assert.equal(e.likes, null); assert.equal(e.description, null); assert.equal(e.isShort, null);
+});

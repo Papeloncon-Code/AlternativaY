@@ -23,7 +23,8 @@ test('#12 modo cine a todo el ancho', async ({ page }) => {
   await page.keyboard.press('t');
 });
 
-for (const [w, cols] of [[600, 2], [1024, 3], [1920, 5]] as const) {
+// Tamaño como YouTube (bloque 7): 1243 px (captura del propietario) → 3 columnas; 1920 con menú ampliado → 4.
+for (const [w, cols] of [[600, 1], [1024, 2], [1243, 3], [1920, 4]] as const) {
   test(`#11 ${cols} columnas a ${w} px`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: 900 });
     await page.goto('/'); await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });

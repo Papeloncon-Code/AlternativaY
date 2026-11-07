@@ -17,6 +17,6 @@ database_name = "alternativay-websub"
 database_id = "676928c8-1061-40cc-9d67-9f7395c9c958"
 
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/5 * * * *", "3-59/10 * * * *"] # avisos · foto del canal (PREVIEW_CRON en src/index.js)
 
-# Secretos (no van en el repo): NTFY_TOPIC, VAPID_PRIVATE_KEY  ->  wrangler secret put <NOMBRE>
+# Secretos (no van en el repo): VAPID_PRIVATE_KEY  ->  wrangler secret put <NOMBRE>
