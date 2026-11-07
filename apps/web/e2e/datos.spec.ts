@@ -32,9 +32,15 @@ test('L3 · fotos reales de canal en el menú sin Puente (cuando el servidor ya 
   const withPhoto = chans.items.find((c: { avatar?: string | null }) => c.avatar);
   test.skip(!withPhoto, 'el servidor aún no tiene fotos');
   await page.goto('/'); await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.side-item[href^="/canal/"]').first()).toBeVisible(); // lista de canales cargada
+  const more = page.locator('.side-item', { hasText: /^Mostrar \d+ más$/ });
+  if (await more.count()) await more.click(); // el canal puede estar entre los ocultos
   const img = page.locator(`.side-item[href="/canal/${withPhoto.id}"] img.avatar`);
   await expect(img).toBeVisible();
   await expect.poll(() => img.evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  // También en la cabecera del canal
+  await page.goto(`/canal/${withPhoto.id}`);
+  await expect(page.locator('.channel-head img.avatar')).toBeVisible();
 });
 
 test('Privacidad: página enlazada desde el menú y Ajustes', async ({ page }) => {
