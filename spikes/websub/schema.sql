@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS channels (
   verified_at    INTEGER,
   lease_expires  INTEGER,
   last_polled_at INTEGER,
-  last_error     TEXT
+  last_error     TEXT,
+  rss_failures   INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS videos (
   video_id      TEXT PRIMARY KEY,

@@ -135,13 +135,17 @@ async function cron(env) {
       // del hub se sondea en modo normal, para que los vídeos publicados entre intentos cuenten como nuevos.
       const base = await pollRss(env, channel_id, last_polled_at == null, now);
       if (base.invalid) {
-        await env.DB.prepare("UPDATE channels SET status='invalid', last_error='RSS 404' WHERE channel_id=?").bind(channel_id).run();
+        // YouTube devuelve 404 de forma intermitente en el RSS: solo se descarta tras 3 fallos seguidos.
+        await env.DB.prepare(
+          "UPDATE channels SET rss_failures = rss_failures + 1, last_error='RSS 404', status = CASE WHEN rss_failures + 1 >= 3 THEN 'invalid' ELSE 'pending' END WHERE channel_id=?"
+        ).bind(channel_id).run();
         continue;
       }
       if (base.error && last_polled_at == null) {
         await env.DB.prepare('UPDATE channels SET last_error=? WHERE channel_id=?').bind(base.error, channel_id).run();
         continue; // sin línea base no se suscribe; se reintenta en la próxima ejecución
       }
+      await env.DB.prepare('UPDATE channels SET rss_failures = 0 WHERE channel_id=?').bind(channel_id).run();
       const secret = oldSecret || randomHex();
       const st = await subscribe(env, channel_id, secret);
       await env.DB.prepare("UPDATE channels SET secret=?, status=?, requested_at=?, last_polled_at=?, last_error=? WHERE channel_id=?")
