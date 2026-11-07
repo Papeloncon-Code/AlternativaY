@@ -13,6 +13,7 @@ const DAY = 86_400_000;
 export default function Home() {
   const feed = useFeed();
   const watched = useStore((s) => s.watched);
+  const hidden = useStore((s) => s.hidden);
   const [chip, setChip] = useState('todos');
 
   const channels = useMemo(() => {
@@ -26,15 +27,15 @@ export default function Home() {
   ];
   const videos = useMemo(() => {
     const now = Date.now();
-    return (feed.data ?? []).filter((v) => v.kind !== 'short').filter((v) => {
+    return (feed.data ?? []).filter((v) => v.kind !== 'short' && !hidden[v.id]).filter((v) => {
       if (chip === 'sinver') return !watched[v.id];
       if (chip === 'hoy') return (v.publishedAt ?? 0) > now - DAY;
       if (chip === 'nuevos') return v.source !== 'baseline';
       if (chip.startsWith('c:')) return v.channelId === chip.slice(2);
       return true;
     });
-  }, [feed.data, chip, watched]);
-  const shorts = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && (!chip.startsWith('c:') || v.channelId === chip.slice(2))).slice(0, 12), [feed.data, chip]);
+  }, [feed.data, chip, watched, hidden]);
+  const shorts = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && !hidden[v.id] && (!chip.startsWith('c:') || v.channelId === chip.slice(2))).slice(0, 12), [feed.data, chip, hidden]);
   const firstRows = 8; // la fila de Shorts va después de las primeras filas, como en las apps de vídeo
 
   const shelf = shorts.length > 0 && (

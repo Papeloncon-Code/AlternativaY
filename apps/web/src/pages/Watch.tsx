@@ -29,6 +29,7 @@ export default function Watch() {
   const saved = useStore((s) => s.progress[id]);
   const fav = useStore((s) => Boolean(s.favorites[id]));
   const later = useStore((s) => Boolean(s.watchLater[id]));
+  const hidden = useStore((s) => s.hidden);
   const theater = useStore((s) => s.theater);
   const autoplay = useStore((s) => s.autoplay);
   const ownerKey = useStore((s) => s.ownerKey);
@@ -48,7 +49,7 @@ export default function Watch() {
   const validId = ID_RE.test(id);
   const channel = channels.data?.find((c) => c.id === meta.channelId);
 
-  const all = (feed.data ?? []).filter((v) => v.id !== id && v.kind !== 'short');
+  const all = (feed.data ?? []).filter((v) => v.id !== id && v.kind !== 'short' && !hidden[v.id]);
   const next = [...all.filter((v) => v.channelId === meta.channelId), ...all.filter((v) => v.channelId !== meta.channelId)].slice(0, 20);
   const upNext = next[0];
 

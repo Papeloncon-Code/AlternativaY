@@ -6,6 +6,7 @@ import { actions, useStore } from '../store';
 import Icon from './Icon';
 import Avatar from './Avatar';
 import { prefetchVideo } from '../player/warm';
+import { shareVideo, toast } from '../toast';
 
 type Props = {
   id: string; title: string; channel: string; channelId: string;
@@ -62,6 +63,16 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
               </button>
               <button type="button" role="menuitem" onClick={() => { actions.toggleWatched(id); setMenu(false); }}>
                 <Icon name="eye" size={20} />{watched ? 'Marcar como no visto' : 'Marcar como visto'}
+              </button>
+              <button type="button" role="menuitem" onClick={() => { void shareVideo(id, title); setMenu(false); }}>
+                <Icon name="share" size={20} />Compartir
+              </button>
+              <hr />
+              <button type="button" role="menuitem" onClick={() => {
+                actions.hideVideo(id); setMenu(false);
+                toast('Vídeo quitado. Lo tendremos en cuenta.', { label: 'Deshacer', run: () => actions.unhideVideo(id) });
+              }}>
+                <Icon name="ban" size={20} />No me interesa
               </button>
               <Link role="menuitem" to={`/canal/${channelId}`} onClick={() => setMenu(false)}>
                 <Icon name="user" size={20} />Ir al canal

@@ -22,7 +22,8 @@ export default function ShortsPlayer() {
   const [paused, setPaused] = useState(false);
   const [muted, setMuted] = useState(false);
   const handle = useRef<PlayerHandle | null>(null);
-  const list = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short'), [feed.data]);
+  const hidden = useStore((st) => st.hidden);
+  const list = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && (!hidden[v.id] || v.id === id)), [feed.data, hidden, id]);
   const idx = list.findIndex((v) => v.id === id);
   const cur = list[idx];
   const fav = useStore((s) => Boolean(s.favorites[id]));

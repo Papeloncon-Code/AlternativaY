@@ -1,13 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import Icon from './Icon';
 import Logo from './Logo';
 import Avatar from './Avatar';
-import { useStore, actions } from '../store';
+import { useStore, actions, getState } from '../store';
 import { useChannels, useFeed } from '../data';
 import { ago } from '../format';
 import { thumb } from '../api';
-import { Toaster } from '../toast';
+import { Toaster, toast } from '../toast';
+import SearchBox from './SearchBox';
+import AccountMenu from './AccountMenu';
+import { setChannelBell } from '../push';
+import type { Video } from '../api';
 
 const MAIN = [
   { to: '/', label: 'Principal', icon: 'home', end: true },
@@ -35,18 +39,37 @@ function Notifications() {
   const seenAt = useStore((s) => s.notifSeenAt);
   const [openedSeenAt, setOpenedSeenAt] = useState(seenAt);
   const ref = useRef<HTMLDivElement>(null);
-  const items = useMemo(() => (feed.data ?? []).filter((v) => v.source !== 'baseline' && Date.now() - v.seenAt < 2 * DAY).slice(0, 12), [feed.data]);
+  const hiddenN = useStore((s) => s.notifHidden);
+  const [menuFor, setMenuFor] = useState('');
+  const items = useMemo(() => (feed.data ?? []).filter((v) => v.source !== 'baseline' && Date.now() - v.seenAt < 2 * DAY && !hiddenN[v.id]).slice(0, 12), [feed.data, hiddenN]);
   const unseen = items.filter((v) => v.seenAt > seenAt).length;
   const toggle = () => {
     if (!open) { setOpenedSeenAt(seenAt); actions.markNotificationsSeen(); }
     setOpen((o) => !o);
   };
   useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    if (!open) { setMenuFor(''); return; }
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent) { if (e.key === 'Escape') { if (menuFor) setMenuFor(''); else setOpen(false); } return; }
+      const t = e.target as HTMLElement;
+      if (!ref.current?.contains(t)) setOpen(false);
+      else if (!t.closest('.notif-menu, .notif-kebab')) setMenuFor('');
+    };
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
+    document.addEventListener('keydown', close);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', close); };
+  }, [open, menuFor]);
+  const hide = (v: Video) => {
+    actions.hideNotification(v.id); setMenuFor('');
+    toast('Aviso ocultado', { label: 'Deshacer', run: () => actions.unhideNotification(v.id) });
+  };
+  const muteChannel = async (v: Video) => {
+    setMenuFor('');
+    const key = getState().ownerKey;
+    if (!key) { toast('Pon tu clave de propietario en Ajustes para cambiar los avisos'); return; }
+    try { await setChannelBell(v.channelId, 'none', key); toast(`Avisos de ${v.channel} desactivados`); }
+    catch (e) { toast(e instanceof Error ? e.message : 'No se pudo cambiar'); }
+  };
   return (
     <div className="notif" ref={ref}>
       <button type="button" className="icon-btn" aria-label={unseen ? `Avisos: ${unseen} sin ver` : 'Avisos'} aria-expanded={open} onClick={toggle}>
@@ -59,13 +82,22 @@ function Notifications() {
           {items.length === 0 && <p className="notif-empty">Cuando tus canales publiquen, lo verás aquí al momento.</p>}
           <ul>
             {items.map((v) => (
-              <li key={v.id}>
+              <li key={v.id} className="notif-li">
                 <Link to={v.kind === 'short' ? `/shorts/${v.id}` : `/ver/${v.id}`} onClick={() => setOpen(false)} className="notif-item">
                   <span className={`notif-dot${v.seenAt > openedSeenAt ? '' : ' seen'}`} aria-hidden="true" />
                   <Avatar name={v.channel} id={v.channelId} size={40} />
-                  <span className="notif-text"><b>{v.channel}</b> ha subido: {v.title}<small>{ago(v.seenAt)}</small></span>
+                  <span className="notif-text"><b>{v.channel}</b> ha subido{v.kind === 'short' ? ' un Short' : ''}: {v.title}<small>{ago(v.seenAt)}</small></span>
                   <img src={thumb(v.id)} alt="" width={86} height={48} loading="lazy" />
                 </Link>
+                <button type="button" className="icon-btn notif-kebab" aria-label="Opciones del aviso" aria-haspopup="menu" aria-expanded={menuFor === v.id}
+                  onClick={() => setMenuFor((m) => (m === v.id ? '' : v.id))}><Icon name="more" size={20} /></button>
+                {menuFor === v.id && (
+                  <div className="menu notif-menu" role="menu">
+                    <button type="button" role="menuitem" onClick={() => hide(v)}><Icon name="eyeOff" size={20} />Ocultar este aviso</button>
+                    <button type="button" role="menuitem" onClick={() => void muteChannel(v)}><Icon name="bellOff" size={20} />Desactivar todos los avisos de {v.channel}</button>
+                    <Link role="menuitem" to={`/canal/${v.channelId}`} onClick={() => setOpen(false)}><Icon name="user" size={20} />Ir al canal</Link>
+                  </div>
+                )}
               </li>
             ))}
           </ul>
@@ -80,9 +112,7 @@ export default function Layout() {
   const sidebar = useStore((s) => s.sidebar);
   const channels = useChannels();
   const feed = useFeed();
-  const navigate = useNavigate();
   const location = useLocation();
-  const [q, setQ] = useState(new URLSearchParams(location.search).get('q') ?? '');
   const [mobileSearch, setMobileSearch] = useState(false);
   const isWatch = location.pathname.startsWith('/ver/');
   const [drawer, setDrawer] = useState(false);
@@ -109,12 +139,6 @@ export default function Layout() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  function search(e: FormEvent) {
-    e.preventDefault();
-    if (q.trim()) navigate(`/buscar?q=${encodeURIComponent(q.trim())}`);
-    setMobileSearch(false);
-  }
-
   const mode = isWatch ? 'overlay' : sidebar;
   return (
     <div className={`app side-${mode}${drawer ? ' drawer-open' : ''}`}>
@@ -124,15 +148,11 @@ export default function Layout() {
           <button type="button" className="icon-btn menu-btn" aria-label="Menú" aria-expanded={isWatch ? drawer : undefined} onClick={onMenu}><Icon name="menu" size={22} /></button>
           <Link to="/" className="logo-link" aria-label="TodoTube, inicio"><Logo /></Link>
         </div>
-        <form className="search" role="search" onSubmit={search}>
-          {mobileSearch && <button type="button" className="icon-btn" aria-label="Cerrar búsqueda" onClick={() => setMobileSearch(false)}><Icon name="back" size={20} /></button>}
-          <input id="q" type="search" placeholder="Buscar" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar vídeos y canales" autoComplete="off" />
-          <button type="submit" className="search-btn" aria-label="Buscar"><Icon name="search2" size={20} /></button>
-        </form>
+        <SearchBox mobile={mobileSearch} onClose={() => setMobileSearch(false)} />
         <div className="top-right">
           <button type="button" className="icon-btn only-mobile" aria-label="Buscar" onClick={() => setMobileSearch(true)}><Icon name="search2" size={22} /></button>
           <Notifications />
-          <Link to="/tu" className="me" aria-label="Tú"><Icon name="user" size={18} /></Link>
+          <AccountMenu />
         </div>
       </header>
 

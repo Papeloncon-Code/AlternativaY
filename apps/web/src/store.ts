@@ -13,6 +13,7 @@ type State = {
   theater: boolean;
   autoplay: boolean;
   hidden: Record<string, number>;
+  notifHidden: Record<string, number>;
   searches: string[];
   focus: boolean;
   progress: Record<string, Progress>;
@@ -23,7 +24,7 @@ type State = {
 };
 
 const KEY = 'todotube:v1';
-const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system' };
+const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system' };
 
 function load(): State {
   try {
@@ -110,6 +111,9 @@ export const actions = {
   toggleAutoplay() { set((s) => ({ ...s, autoplay: !s.autoplay })); },
   toggleFocus() { set((s) => ({ ...s, focus: !s.focus })); },
   hideVideo(id: string) { set((s) => ({ ...s, hidden: { ...s.hidden, [id]: Date.now() } })); },
+  hideNotification(id: string) { set((s) => ({ ...s, notifHidden: { ...s.notifHidden, [id]: Date.now() } })); },
+  unhideNotification(id: string) { set((s) => { const notifHidden = { ...s.notifHidden }; delete notifHidden[id]; return { ...s, notifHidden }; }); },
+  clearSearches() { set((s) => ({ ...s, searches: [] })); },
   unhideVideo(id: string) { set((s) => { const hidden = { ...s.hidden }; delete hidden[id]; return { ...s, hidden }; }); },
   addSearch(q: string) { set((s) => ({ ...s, searches: [q, ...s.searches.filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 12) })); },
   removeSearch(q: string) { set((s) => ({ ...s, searches: s.searches.filter((x) => x !== q) })); },

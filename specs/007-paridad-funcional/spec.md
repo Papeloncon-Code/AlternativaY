@@ -13,13 +13,13 @@
 | P1 | ☰ alterna el menú lateral | ✅ | |
 | P2 | Logo → Principal | ✅ | Marca propia 🚫 YouTube |
 | P3 | Buscador con botón; Enter busca | ✅ | Busca en tus canales; búsqueda global 🔌 |
-| P4 | Sugerencias mientras escribes | ❌ | Títulos y canales locales; global 🔌 |
-| P5 | Búsquedas recientes (con borrar) | ❌ | |
+| P4 | Sugerencias mientras escribes | ✅ | Canales y títulos de tus canales, por comienzo de palabra (“chin” no encuentra “Tou**chin**g”); ↑/↓, Enter, Esc. Global 🔌 |
+| P5 | Búsquedas recientes (con borrar) | ✅ | Quitar una o borrar todas |
 | P6 | Atajo `/` para enfocar el buscador | ✅ | |
 | P7 | Búsqueda por voz | ❌ | Web Speech API (Chrome); baja prioridad |
 | P8 | Campana con contador de no vistos | ✅ | Se pone a cero al abrir (arreglado 2026-11-07) |
-| P9 | Panel de avisos: miniatura, “X ha subido: …”, hace cuánto, ⋮ por aviso | 🟡 | Falta ⋮ (ocultar aviso, apagar avisos del canal) |
-| P10 | Avatar → menú de cuenta (tema, ajustes) | 🟡 | Lleva a “Tú”; falta el menú desplegable |
+| P9 | Panel de avisos: miniatura, “X ha subido: …”, hace cuánto, ⋮ por aviso | ✅ | ⋮: ocultar aviso (con Deshacer), desactivar avisos del canal, ir al canal |
+| P10 | Avatar → menú de cuenta (tema, ajustes) | ✅ | Aspecto, Modo Foco, combinaciones de teclas, ajustes, datos, Puente |
 | P11 | Botón “Crear” | 🚫 | No somos plataforma de subida |
 
 ## 2. Menú lateral
@@ -44,7 +44,7 @@
 | H5 | “EN VIVO” con contador de espectadores | ❌ 🔌 | |
 | H6 | Barra roja de progreso en lo ya visto | ✅ | |
 | H7 | Vista previa al pasar el ratón (el vídeo se reproduce sin sonido) | ❌ 🔌 | |
-| H8 | ⋮: Ver más tarde, Guardar en playlist, No me interesa, Compartir | 🟡 | Faltan Compartir y No me interesa |
+| H8 | ⋮: Ver más tarde, Guardar en playlist, No me interesa, Compartir | 🟡 | Compartir y No me interesa (con Deshacer) ✅; playlists pendientes (L7) |
 | H9 | **Shorts NUNCA mezclados** con los vídeos: fila propia de Shorts | ✅ | Detección corregida (URL `/shorts/`); verificada con casos de CNN/NBC |
 | H10 | Carga continua al bajar (scroll infinito) | 🟡 | 200 elementos de una vez; paginación pendiente |
 
