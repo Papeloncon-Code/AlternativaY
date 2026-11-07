@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { fetchFeed } from '../api';
-import { useAsync } from '../useAsync';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useFeed } from '../data';
+import Avatar from '../components/Avatar';
 import { actions, useStore, type Meta } from '../store';
 import { ago, clock } from '../format';
 import VideoCard from '../components/VideoCard';
@@ -16,9 +16,8 @@ const ID_RE = /^[A-Za-z0-9_-]{11}$/;
 
 export default function Watch() {
   const { id = '' } = useParams();
-  const navigate = useNavigate();
   const [params] = useSearchParams();
-  const feed = useAsync(() => fetchFeed(150));
+  const feed = useFeed();
   const saved = useStore((s) => s.progress[id]);
   const fav = useStore((s) => Boolean(s.favorites[id]));
   const [fallback, setFallback] = useState('');
@@ -34,43 +33,42 @@ export default function Watch() {
 
   const validId = ID_RE.test(id);
 
-  const more = (feed.data ?? []).filter((v) => v.channelId === meta.channelId && v.id !== id && v.kind !== 'short').slice(0, 8);
+  const later = useStore((s) => Boolean(s.watchLater[id]));
+  const all = (feed.data ?? []).filter((v) => v.id !== id && v.kind !== 'short');
+  const next = [...all.filter((v) => v.channelId === meta.channelId), ...all.filter((v) => v.channelId !== meta.channelId)].slice(0, 20);
 
   return (
-    <div className="page watch">
-      <button type="button" className="back" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}>
-        <Icon name="back" size={18} /> Volver
-      </button>
-      <div className={`player-frame${isShort ? ' vertical' : ''}`}>
-        {!validId ? <ErrorBox message="Enlace de vídeo no válido." />
-          : own ? <OwnPlayer key={id} id={id} meta={meta} startAt={startAt.current} onFail={setFallback} />
-          : <OfficialPlayer key={id} id={id} meta={meta} startAt={startAt.current} />}
-      </div>
-      <div className="watch-info">
+    <div className="watch-layout">
+      <div className="watch-main">
+        <div className={`player-frame${isShort ? ' vertical' : ''}`}>
+          {!validId ? <ErrorBox message="Enlace de vídeo no válido." />
+            : own ? <OwnPlayer key={id} id={id} meta={meta} startAt={startAt.current} onFail={setFallback} />
+            : <OfficialPlayer key={id} id={id} meta={meta} startAt={startAt.current} />}
+        </div>
         <h1 className="watch-title">{meta.title}</h1>
-        <p className="card-meta">
-          {meta.channel}{video?.publishedAt ? ` · ${ago(video.publishedAt)}` : ''}
-          {startAt.current >= 5 ? ` · continúa en ${clock(startAt.current)}` : ''}
-        </p>
+        <div className="watch-row">
+          <Link to={`/canal/${meta.channelId}`} className="watch-channel">
+            <Avatar name={meta.channel || 'Canal'} id={meta.channelId || id} size={40} />
+            <span><b>{meta.channel}</b><span className="vmeta">{video?.publishedAt ? ago(video.publishedAt) : ''}{startAt.current >= 5 ? ` · continúa en ${clock(startAt.current)}` : ''}</span></span>
+          </Link>
+          <div className="watch-actions">
+            <button type="button" className={`btn${fav ? ' on' : ''}`} aria-pressed={fav} onClick={() => actions.toggleFavorite(meta)}>
+              <Icon name="like" size={18} /> {fav ? 'Te gusta' : 'Me gusta'}
+            </button>
+            <button type="button" className={`btn${later ? ' on' : ''}`} aria-pressed={later} onClick={() => actions.toggleWatchLater(meta)}>
+              <Icon name="clock" size={18} /> {later ? 'Guardado' : 'Ver más tarde'}
+            </button>
+          </div>
+        </div>
         {!hasBridge() && (
           <p className="bridge-hint">¿Sin anuncios ni marcas en el reproductor? <Link to="/puente">Instala TodoTube Puente</Link></p>
         )}
         {fallback && <p className="bridge-hint">El reproductor TodoTube no pudo cargar este vídeo ({fallback}); se usa el reproductor de reserva.</p>}
-        <div className="watch-actions">
-          <button type="button" className={`btn${fav ? ' on' : ''}`} aria-pressed={fav} onClick={() => actions.toggleFavorite(meta)}>
-            <Icon name="heart" size={18} filled={fav} /> {fav ? 'En favoritos' : 'Favorito'}
-          </button>
-        </div>
+        {!video && !feed.loading && !saved && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir a Principal</Link></p>}
       </div>
-      {more.length > 0 && (
-        <section className="section" aria-labelledby="h-more">
-          <h2 id="h-more">Más de {meta.channel}</h2>
-          <div className="grid">
-            {more.map((v) => <VideoCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} channelId={v.channelId} publishedAt={v.publishedAt} />)}
-          </div>
-        </section>
-      )}
-      {!video && !feed.loading && !saved && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir al inicio</Link></p>}
+      <aside className="watch-side" aria-label="Más vídeos">
+        {next.map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} compact />)}
+      </aside>
     </div>
   );
 }

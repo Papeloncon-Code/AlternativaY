@@ -77,3 +77,14 @@ El propietario mostró capturas de YouTube (escritorio, tema oscuro) y pidió qu
 - **CA-D7:** el menú lateral alterna entre mini y ampliado con ☰ en escritorio; en móvil se usa la barra inferior.
 - **CA-D8:** cada vídeo tiene menú ⋮ con Ver más tarde, Me gusta, Marcar como visto y Dejar de seguir canal.
 - **CA-D9:** ningún texto, logo ni icono de la interfaz propia menciona ni imita la marca YouTube.
+
+### Verificación de la propuesta E (2026-11-07, https://todotube.papelon.workers.dev)
+| CA | Resultado |
+|---|---|
+| CA-D6 | ✅ Buscador, Suscripciones, Shorts, Historial y Ver más tarde, visibles en la barra superior y en el menú lateral (pendiente de validar con 3 personas) |
+| CA-D7 | ✅ Menú ampliado ↔ mini con ☰; mini automático por debajo de 1312 px; barra inferior en móvil |
+| CA-D8 | ✅ Menú ⋮: Ver más tarde, Me gusta, Marcar como visto, Ir al canal (dejar de seguir en el canal y en Suscripciones) |
+| CA-D9 | ✅ Sin menciones ni marca de YouTube en la interfaz propia |
+| CA-D2 | ✅ Tokens claro/oscuro; sin desplazamiento horizontal en 1440, 1100 y 390 px; 0 errores de JavaScript (Playwright) |
+
+Pendiente (necesita el puente o Android): duración, visitas, foto real del canal y “EN VIVO” en las miniaturas.

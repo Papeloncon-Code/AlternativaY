@@ -7,15 +7,17 @@ export type HistoryEntry = Meta & { at: number };
 
 type State = {
   favorites: Record<string, Meta & { at: number }>;
+  watchLater: Record<string, Meta & { at: number }>;
+  sidebar: 'full' | 'mini';
   progress: Record<string, Progress>;
   history: HistoryEntry[];
   watched: Record<string, number>;
   ownerKey: string;
-  theme: 'dark' | 'light';
+  theme: 'dark' | 'light' | 'system';
 };
 
 const KEY = 'todotube:v1';
-const empty: State = { favorites: {}, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'dark' };
+const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system' };
 
 function load(): State {
   try {
@@ -88,7 +90,18 @@ export const actions = {
   setOwnerKey(ownerKey: string) {
     set((s) => ({ ...s, ownerKey }));
   },
-  setTheme(theme: 'dark' | 'light') {
+  toggleWatchLater(m: Meta) {
+    set((s) => {
+      const watchLater = { ...s.watchLater };
+      if (watchLater[m.id]) delete watchLater[m.id];
+      else watchLater[m.id] = { ...m, at: Date.now() };
+      return { ...s, watchLater };
+    });
+  },
+  toggleSidebar() {
+    set((s) => ({ ...s, sidebar: s.sidebar === 'full' ? 'mini' : 'full' }));
+  },
+  setTheme(theme: 'dark' | 'light' | 'system') {
     set((s) => ({ ...s, theme }));
   },
 };

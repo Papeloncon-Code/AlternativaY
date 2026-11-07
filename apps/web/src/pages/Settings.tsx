@@ -14,6 +14,7 @@ export default function Settings() {
       <section className="panel">
         <h2>Apariencia</h2>
         <div className="chips" role="group" aria-label="Tema">
+          <button type="button" className={`chip${theme === 'system' ? ' on' : ''}`} aria-pressed={theme === 'system'} onClick={() => actions.setTheme('system')}>Como el sistema</button>
           <button type="button" className={`chip${theme === 'dark' ? ' on' : ''}`} aria-pressed={theme === 'dark'} onClick={() => actions.setTheme('dark')}><Icon name="moon" size={16} /> Oscuro</button>
           <button type="button" className={`chip${theme === 'light' ? ' on' : ''}`} aria-pressed={theme === 'light'} onClick={() => actions.setTheme('light')}><Icon name="sun" size={16} /> Claro</button>
         </div>
