@@ -1,30 +1,11 @@
 import shaka from 'shaka-player/dist/shaka-player.ui';
 
 // Derivado de googlevideo/examples/sabr-shaka-example (MIT, © LuanRT). Adaptado a TodoTube Puente.
-type Bridge = { installed: boolean; version: string; fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> };
-const bridge = (): Bridge | undefined => (window as unknown as { todotubeBridge?: Bridge }).todotubeBridge;
+import { hasBridge } from '../bridge';
+export { fetchFunction } from './bridgeFetch';
 
 export function checkExtension(): boolean {
-  return !!bridge()?.installed;
-}
-
-export function getInjectedProxyFunction() {
-  return bridge()?.fetch ?? fetch;
-}
-
-export async function fetchFunction(input: string | Request | URL, init?: RequestInit): Promise<Response> {
-  const url = input instanceof URL ? input : new URL(typeof input === 'string' ? input : input.url);
-  const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-  const requestInit = { ...init, headers };
-
-  if (url.pathname.includes('v1/player')) {
-    url.searchParams.set('$fields', 'playerConfig,storyboards,captions,playabilityStatus,streamingData,responseContext.mainAppWebResponseContext.datasyncId,videoDetails.isLive,videoDetails.isLiveContent,videoDetails.title,videoDetails.author,videoDetails.thumbnail');
-  }
-
-  const b = bridge();
-  if (!b) throw new Error('TodoTube Puente no está instalado.');
-  if (url.pathname.includes('initplayback')) return fetch(url, requestInit);
-  return b.fetch(url.toString(), requestInit);
+  return hasBridge();
 }
 
 export function asMap<K, V>(object: Record<string, V>): Map<K, V> {

@@ -15,6 +15,7 @@ export type Channel = {
   verifiedAt: number | null;
   lastError: string | null;
   notify: 'all' | 'noshorts' | 'none';
+  avatar?: string | null;
   videos: number;
 };
 

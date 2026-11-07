@@ -2,25 +2,17 @@
 // Lógica derivada de googlevideo/examples/sabr-shaka-example/src/main.ts (MIT, © LuanRT). Spec: specs/006-spike-reproductor-propio.
 import shaka from 'shaka-player/dist/shaka-player.ui';
 import type { Types } from 'youtubei.js/web';
-import { Constants, Innertube, Platform, UniversalCache, Utils, YT } from 'youtubei.js/web';
+import { Constants, Innertube, Platform, Utils, YT } from 'youtubei.js/web';
+import { getInnertube } from './innertube';
 import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
 import { buildSabrFormat } from 'googlevideo/utils';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
-import { checkExtension, fetchFunction } from './helpers';
+import { checkExtension } from './helpers';
 import { botguardService } from './BotguardService';
 import 'shaka-player/dist/controls.css';
 
 // YouTube.js necesita evaluar el código del reproductor de YouTube para descifrar las URL (igual que hace youtube.com).
 Platform.shim.eval = async (data: Types.BuildScriptResult) => new Function(data.output)();
-
-let innertubePromise: Promise<Innertube> | null = null;
-function getInnertube() {
-  if (!innertubePromise) {
-    innertubePromise = Innertube.create({ cache: new UniversalCache(true), fetch: fetchFunction });
-    innertubePromise.catch(() => { innertubePromise = null; });
-  }
-  return innertubePromise;
-}
 
 export type LoadInfo = { title: string; author: string; isLive: boolean; views?: number; description?: string; lengthSeconds?: number };
 

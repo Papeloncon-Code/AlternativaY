@@ -8,6 +8,9 @@ import { useChannels, useFeed } from '../data';
 import { ago } from '../format';
 import { thumb } from '../api';
 import { Toaster, toast } from '../toast';
+import { syncAvatars } from '../avatars';
+import { useBridge } from '../bridge';
+import PermissionPrompt from './PermissionPrompt';
 import SearchBox from './SearchBox';
 import AccountMenu from './AccountMenu';
 import { setChannelBell } from '../push';
@@ -125,6 +128,8 @@ export default function Layout() {
     return m;
   }, [feed.data]);
   const subs = (channels.data ?? []).filter((c) => c.status !== 'invalid');
+  const bridge = useBridge();
+  useEffect(() => { if (channels.data) void syncAvatars(channels.data); }, [channels.data, bridge]);
   const [allSubs, setAllSubs] = useState(false);
 
   useEffect(() => {
@@ -198,6 +203,7 @@ export default function Layout() {
 
       <main id="main" className="main"><Outlet /></main>
       <Toaster />
+      <PermissionPrompt />
 
       <nav className="bottombar" aria-label="Principal">
         {[...MAIN, { to: '/tu', label: 'Tú', icon: 'user', end: false }].map((i) => (

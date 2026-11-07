@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS channels (
   last_polled_at INTEGER,
   last_error     TEXT,
   rss_failures   INTEGER NOT NULL DEFAULT 0,
-  notify         TEXT NOT NULL DEFAULT 'all'   -- campanita: all | noshorts | none
+  notify         TEXT NOT NULL DEFAULT 'all',  -- campanita: all | noshorts | none
+  avatar         TEXT                          -- foto del canal (CDN pública), la aporta un dispositivo
 );
 CREATE TABLE IF NOT EXISTS videos (
   video_id      TEXT PRIMARY KEY,

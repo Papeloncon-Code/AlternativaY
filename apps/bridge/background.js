@@ -12,6 +12,8 @@ const ALLOWED_SENDERS = [/^https:\/\/todotube\.papelon\.workers\.dev\//, /^http:
 function isAllowedUrl(raw) {
   try {
     const u = new URL(raw);
+    // Nunca licencias DRM (constitución §I): el Puente no las transporta aunque se le pidan.
+    if (/drm|license/i.test(u.pathname)) return false;
     return u.protocol === 'https:' && ALLOWED_HOSTS.some((re) => re.test(u.hostname));
   } catch { return false; }
 }

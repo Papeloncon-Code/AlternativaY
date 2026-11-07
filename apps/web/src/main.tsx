@@ -1,3 +1,4 @@
+import { hasBridge } from './bridge';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -5,7 +6,6 @@ import './styles.css';
 
 import { loadYouTubeApi } from './youtube';
 import { prewarmPlayer } from './player/warm';
-const hasBridge = () => !!(window as unknown as { todotubeBridge?: { installed?: boolean } }).todotubeBridge?.installed;
 
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
 // Precarga del reproductor oficial en cuanto el navegador está libre: al pulsar un vídeo ya está listo.

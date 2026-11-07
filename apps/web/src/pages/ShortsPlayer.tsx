@@ -1,3 +1,4 @@
+import { hasBridge } from '../bridge';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useFeed } from '../data';
@@ -11,7 +12,6 @@ import { ago } from '../format';
 import { Empty } from '../components/States';
 import type { PlayerHandle } from '../player/handle';
 
-const hasBridge = () => !!(window as unknown as { todotubeBridge?: { installed?: boolean } }).todotubeBridge?.installed;
 
 // Reproductor de Shorts: vertical, en bucle, y se pasa al siguiente deslizando, con la rueda o con ↑/↓ (S1–S4).
 export default function ShortsPlayer() {

@@ -15,9 +15,8 @@ import {
 } from 'googlevideo/sabr-streaming-adapter';
 
 import {
-  asMap, checkExtension,
+  asMap,
   createRecoverableError,
-  getInjectedProxyFunction,
   headersToGenericObject,
   makeResponse
 } from './helpers';
@@ -326,10 +325,10 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         }
       }
 
-      // We only make one InnerTube request through the player, and it needs to be proxied properly.
-      const fetchFn = uri.includes('get_drm_license') && checkExtension() ? getInjectedProxyFunction() : fetch;
+      // TodoTube nunca gestiona contenido con DRM (constitución §I): no se piden licencias, ni por el Puente ni sin él.
+      if (uri.includes('get_drm_license')) throw new Error('Este contenido está protegido (DRM) y TodoTube no lo reproduce.');
 
-      const response = await fetchFn(uri, init);
+      const response = await fetch(uri, init);
       headersReceived(headersToGenericObject(response.headers));
 
       if (requestMetadata && init.method !== 'HEAD' && response.headers.get('content-type') === 'application/vnd.yt-ump') {

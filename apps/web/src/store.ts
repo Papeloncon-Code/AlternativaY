@@ -22,11 +22,14 @@ type State = {
   ownerKey: string;
   theme: 'dark' | 'light' | 'system';
   sponsorblock: boolean;
+  promptDismissed: { push?: number; bridge?: number };
+  visitAt: number;
+  visitPrev: number;
   dearrow: boolean;
 };
 
 const KEY = 'todotube:v1';
-const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system', sponsorblock: true, dearrow: false };
+const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system', sponsorblock: true, dearrow: false, promptDismissed: {}, visitAt: 0, visitPrev: 0 };
 
 function load(): State {
   try {
@@ -38,6 +41,7 @@ function load(): State {
 }
 
 let state = load();
+if (Date.now() - (state.visitAt || 0) > 30 * 60_000) state = { ...state, visitPrev: state.visitAt || 0, visitAt: Date.now() };
 const listeners = new Set<() => void>();
 
 function set(updater: (s: State) => State) {
@@ -111,6 +115,7 @@ export const actions = {
   },
   toggleTheater() { set((s) => ({ ...s, theater: !s.theater })); },
   toggleAutoplay() { set((s) => ({ ...s, autoplay: !s.autoplay })); },
+  dismissPrompt(k: 'push' | 'bridge') { set((s) => ({ ...s, promptDismissed: { ...s.promptDismissed, [k]: Date.now() } })); },
   toggleSponsorBlock() { set((s) => ({ ...s, sponsorblock: !s.sponsorblock })); },
   toggleDeArrow() { set((s) => ({ ...s, dearrow: !s.dearrow })); },
   toggleFocus() { set((s) => ({ ...s, focus: !s.focus })); },

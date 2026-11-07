@@ -1,5 +1,5 @@
+import { hasBridge } from '../bridge';
 // Puente ligero (en el paquete principal) hacia la carga rápida del reproductor propio. No importa nada pesado.
-const hasBridge = () => !!(window as unknown as { todotubeBridge?: { installed?: boolean } }).todotubeBridge?.installed;
 type Mod = typeof import('./TodoTubePlayer');
 let mod: Promise<Mod> | null = null;
 const load = () => (mod ??= import('./TodoTubePlayer'));

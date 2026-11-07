@@ -2,3 +2,5 @@ node_modules/
 dist/
 .wrangler/
 assets.generated.js
+test-results/
+playwright-report/

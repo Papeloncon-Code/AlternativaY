@@ -28,7 +28,7 @@ async function api(request, env, url) {
   if (url.pathname === '/api/channels' && request.method === 'GET') {
     const { results } = await env.DB.prepare(
       `SELECT c.channel_id AS id, COALESCE(c.label, c.channel_id) AS name, c.status, c.verified_at AS verifiedAt,
-              c.last_error AS lastError, c.notify AS notify, (SELECT COUNT(*) FROM videos v WHERE v.channel_id = c.channel_id) AS videos
+              c.last_error AS lastError, c.notify AS notify, c.avatar AS avatar, (SELECT COUNT(*) FROM videos v WHERE v.channel_id = c.channel_id) AS videos
        FROM channels c WHERE c.status <> 'removing' ORDER BY name COLLATE NOCASE`
     ).all();
     return json({ items: results }, 200, { 'cache-control': 'no-store' });
@@ -69,6 +69,16 @@ async function api(request, env, url) {
     if (!['all', 'noshorts', 'none'].includes(b?.notify)) return json({ error: 'Valor de campanita inválido' }, 400);
     const r = await env.DB.prepare('UPDATE channels SET notify=? WHERE channel_id=?').bind(b.notify, bell[1]).run();
     return json({ id: bell[1], notify: b.notify }, r.meta.changes ? 200 : 404);
+  }
+  const av = url.pathname.match(/^\/api\/channels\/(UC[A-Za-z0-9_-]{22})\/avatar$/);
+  if (av && request.method === 'PUT') {
+    if (!isOwner()) return json({ error: 'Clave de propietario incorrecta' }, 401);
+    let b; try { b = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
+    let u; try { u = new URL(String(b?.url || '')); } catch { return json({ error: 'URL inválida' }, 400); }
+    // Solo fotos de la CDN pública de imágenes de canales: nada de URL arbitrarias.
+    if (u.protocol !== 'https:' || !/^yt[34]\.(ggpht|googleusercontent)\.com$/.test(u.hostname) || u.href.length > 600) return json({ error: 'URL no permitida' }, 400);
+    const r = await env.DB.prepare('UPDATE channels SET avatar=? WHERE channel_id=?').bind(u.href, av[1]).run();
+    return json({ id: av[1], avatar: u.href }, r.meta.changes ? 200 : 404);
   }
   const del = url.pathname.match(/^\/api\/channels\/(UC[A-Za-z0-9_-]{22})$/);
   if (del && request.method === 'DELETE') {

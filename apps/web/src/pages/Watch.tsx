@@ -1,5 +1,6 @@
+import { hasBridge } from '../bridge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useChannels, useFeed } from '../data';
 import Avatar from '../components/Avatar';
 import { actions, useStore, type Meta } from '../store';
@@ -16,7 +17,6 @@ import { shareVideo, toast } from '../toast';
 import type { PlayerHandle, VideoDetails } from '../player/handle';
 import { useBranding, useSponsorSkip } from '../community';
 
-const hasBridge = () => !!(window as unknown as { todotubeBridge?: { installed?: boolean } }).todotubeBridge?.installed;
 const ID_RE = /^[A-Za-z0-9_-]{11}$/;
 const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
 const fmtViews = (n?: number) => (n == null ? '' : `${new Intl.NumberFormat('es', { notation: 'compact' }).format(n)} visualizaciones`);
@@ -47,10 +47,11 @@ export default function Watch() {
   const frameRef = useRef<HTMLDivElement>(null);
   const own = hasBridge() && !fallback;
   const video = feed.data?.find((v) => v.id === id);
+  const navMeta = (useLocation().state as { meta?: Meta } | null)?.meta; // vídeo abierto desde la búsqueda global
   const isShort = params.get('short') === '1' || video?.kind === 'short';
   const meta: Meta = useMemo(() => ({
-    id, title: video?.title ?? saved?.title ?? 'Vídeo', channel: video?.channel ?? saved?.channel ?? '', channelId: video?.channelId ?? saved?.channelId ?? '',
-  }), [id, video, saved]);
+    id, title: video?.title ?? saved?.title ?? navMeta?.title ?? 'Vídeo', channel: video?.channel ?? saved?.channel ?? navMeta?.channel ?? '', channelId: video?.channelId ?? saved?.channelId ?? navMeta?.channelId ?? '',
+  }), [id, video, saved, navMeta]);
   const startAt = useRef(saved ? Math.max(0, saved.pos - 3) : 0);
   const validId = ID_RE.test(id);
   const channel = channels.data?.find((c) => c.id === meta.channelId);
