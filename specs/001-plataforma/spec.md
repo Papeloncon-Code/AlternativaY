@@ -49,6 +49,7 @@ Prioridades:
 | RF-035 | **Avisos en tiempo real** de vídeos nuevos, estrenos y directos (WebSub → FCM/UnifiedPush/Web Push), con ajustes por canal y horas de silencio | **P0** | ADR-006 |
 | RF-036 | Importar suscripciones de YouTube (Google Takeout CSV) y de NewPipe, PipePipe, FreeTube, LibreTube y Flow | **P0** | 04 “impedimento #1” |
 | RF-037 | Módulo de YouTube con actualización rápida: canal de actualización in-app para la build `full` (hotfix en horas) | P0 | Lección de Grayjay |
+| RF-038 | **Importación automática de suscripciones sin iniciar sesión**: pregunta “¿qué usas para ver vídeos?”. En Android `full`, el lector automático lee la lista de suscripciones de la app de YouTube con el permiso del usuario. En `play` y web, “Permitir” de Google o extensión del navegador. Se importa una vez y llega a todos los dispositivos por sincronización. | **P0** | ADR-007 |
 | RF-011 | Cuenta opcional y sincronización (biblioteca, progreso, historial y suscripciones) entre Android y web | P0 | 03 §4.3 #1 |
 | RF-012 | Web app (PWA) con las mismas funciones de biblioteca y reproductor (con los límites del navegador) | P0 | Encargo §8B |
 | RF-013 | Marcadores por minuto con nota | P1 | Encargo §7 |
@@ -134,7 +135,8 @@ Puntuación = (Valor × Confianza) / Esfuerzo, en escala 1–5. El valor procede
 |---|---|---|---|---|---|
 | **YouTube completo (RF-034)** | 5 | 5 | 4 | 6,3 | MVP |
 | **Avisos en tiempo real (RF-035)** | 5 | 4 | 3 | 6,7 | MVP |
-| Importar suscripciones de YouTube (RF-036) | 5 | 5 | 1 | 25,0 | MVP |
+| Importar suscripciones de YouTube desde archivo (RF-036) | 3 | 5 | 1 | 15,0 | MVP |
+| **Importación automática sin iniciar sesión (RF-038)** | 5 | 3 | 3 | 5,0 | MVP |
 | Podcasts + PeerTube + local (RF-001) | 4 | 4 | 2 | 8,0 | MVP |
 | Reproductor con segundo plano, PiP y cola (RF-003/004) | 5 | 5 | 3 | 8,3 | MVP |
 | Importar/exportar (RF-009) | 5 | 4 | 2 | 10,0 | MVP |

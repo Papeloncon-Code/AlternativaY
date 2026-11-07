@@ -14,6 +14,8 @@ Formato: `T-xxx · [área] tarea → requisitos/CA · depende de`.
 - T-008 · [técnico] Spike: NewPipeExtractor en un proyecto Media3/Compose (reproducción, PoToken, SABR) y tiempo hasta el primer fotograma → CA10.1
 - T-009 · [técnico] Spike: FCM topics + UnifiedPush (ntfy) + Web Push en una app de prueba → CA11.5
 
+- T-090 · [técnico] **Spike del lector automático** en un teléfono Android real (13, 14 y 15+; instalación por F-Droid y APK): ajustes restringidos, apertura de Suscripciones por intent, desplazamiento y lectura de nombres en es/en, tiempo con 40 canales → CA12.3, CA12.8
+
 ## Bloque 1: cimientos
 - T-010 · [repo] Monorepo según plan §2; CI (lint y tests) para android/web/server/contracts → constitución §13
 - T-011 · [contracts] JSON Schema de las entidades del MVP + codegen Kotlin/TS → spec MVP §4
@@ -32,6 +34,11 @@ Formato: `T-xxx · [área] tarea → requisitos/CA · depende de`.
 - T-024c · [android] Detector de roturas + actualizador in-app firmado (GitHub Releases) → CA10.6
 - T-024d · [ci] Test que impide que la build `play` contenga `:connector:youtube` → CA10.8
 - T-024e · [android] Importar Google Takeout CSV, NewPipe y PipePipe → CA10.5
+- T-024f · [android] Pantalla “¿Qué usas para ver vídeos?” + explicación previa + guía de activación del permiso → CA12.1, CA12.2, CA12.8 · depende de T-090
+- T-024g · [android] `:feature:import-assistant` (flavor `full`): AccessibilityService filtrado a YouTube, desplazamiento, lectura por texto con diccionario de idiomas, modo seguro, autodesactivación → CA12.3, CA12.5–12.7
+- T-024h · [android] Resolución nombre → canal con el extractor + pantalla de confirmación de ambiguos → CA12.4
+- T-024i · [ci] Test: la build `play` no contiene el servicio de accesibilidad → CA12.9
+- T-024j · [web] (fase 2) Extensión de navegador para importar desde youtube.com; autorización de Google para `play` y web → ADR-007
 - T-025 · [android] `:core:player` (MediaSessionService, notificación, PiP, velocidad, saltos, reanudación, cola persistente) → CA3.1–3.5
 - T-026 · [android] WorkManager para actualizar feeds con restricciones → CA2.2
 - T-027 · [android] `:core:download` (Media3 DownloadManager + políticas) → CA4.1–4.2
@@ -95,5 +102,6 @@ Formato: `T-xxx · [área] tarea → requisitos/CA · depende de`.
 | RF-009 | T-060, T-061, T-062 |
 | RF-034/036/037 | T-008, T-024, T-024b–e |
 | RF-035 | T-007, T-009, T-035–T-039 |
+| RF-038 | T-090, T-024f–j |
 | RF-011 | T-012, T-031, T-032, T-040, T-041, T-042, T-057 |
 | RF-012 | T-006, T-070–T-073 |

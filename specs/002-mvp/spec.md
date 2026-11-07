@@ -1,6 +1,6 @@
 # Especificación técnica del MVP
 
-Estado: **Borrador v2 (ADR-005/006)** · 2026-11-06 · Alcance: RF-001 a RF-009, RF-011, RF-012, **RF-034 a RF-037** + RNF-001 a RNF-010.
+Estado: **Borrador v2 (ADR-005/006)** · 2026-11-06 · Alcance: RF-001 a RF-009, RF-011, RF-012, **RF-034 a RF-038** + RNF-001 a RNF-010.
 
 ## 1. Objetivo
 Una persona puede:
@@ -118,6 +118,21 @@ El orden de construcción del MVP es: **YouTube completo → avisos en tiempo re
 - **CA11.5:** sin servicios de Google (build `full`), los avisos funcionan con UnifiedPush (ntfy). Sin distribuidor, la app ofrece sondeo local cada 15 min o más y explica la diferencia.
 - **CA11.6:** ajustes por canal (todos, solo directos y estrenos, o nada), horas de silencio y agrupación. Todo funciona **sin cuenta**.
 - **CA11.7:** privacidad. Con FCM el servidor no guarda la relación usuario ↔ canal (topics). Con UnifiedPush o Web Push guarda endpoints anónimos revocables.
+
+### H12. Importación automática de suscripciones (RF-038, ADR-007)
+- **CA12.1:** la bienvenida pregunta “¿Qué usas para ver vídeos?”. Si la respuesta es YouTube y la app está instalada, ofrece la importación automática como opción principal.
+- **CA12.2:** antes del aviso del sistema se muestra una explicación propia: qué se lee (solo nombres de canales), que no sale del dispositivo y cómo desactivarlo. Sin aceptar esa pantalla no se pide el permiso.
+- **CA12.3:**
+  - *Dada* una cuenta con 40 suscripciones en la app de YouTube (es o en),
+  - *cuando* el usuario activa el permiso,
+  - *entonces* la app lee la lista sin intervención en ≤ 30 s y detecta ≥ 95 % de los canales.
+- **CA12.4:** solo se piden confirmaciones para los nombres ambiguos. Con ≥ 90 % de coincidencias exactas, la importación termina con un toque.
+- **CA12.5:** si no se reconoce la pantalla en 10 s, el lector se detiene y ofrece importar desde archivo.
+- **CA12.6:** al terminar, el servicio se desactiva solo o lleva al usuario a desactivarlo con un toque.
+- **CA12.7:** el servicio solo observa el paquete de YouTube y solo durante la importación (verificado con un test instrumentado).
+- **CA12.8:** si el APK se instaló a mano y Android bloquea el permiso (ajustes restringidos), la guía muestra los pasos para desbloquearlo.
+- **CA12.9:** la build `play` no contiene el servicio de accesibilidad (test de CI, como CA10.8).
+- **CA12.10:** las suscripciones importadas aparecen en la web y en los demás dispositivos tras la sincronización (H8).
 
 ## 4. Modelo de datos del MVP (resumen; fuente de verdad: `packages/contracts`)
 

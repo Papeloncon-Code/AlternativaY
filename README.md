@@ -54,3 +54,4 @@ Riesgos aceptados y límites (nunca DRM, nunca extracción en servidores): [ADR-
 | ADR-004 | Licencias: clientes GPL-3.0, SDK y contracts Apache-2.0, servidor AGPL-3.0 | **Decisión del propietario** |
 | [ADR-005](docs/adr/ADR-005-cliente-youtube-completo.md) | Cliente de YouTube completo, extracción solo en el dispositivo, builds `full` y `play` | **Aceptado** |
 | [ADR-006](docs/adr/ADR-006-notificaciones-tiempo-real.md) | Avisos en tiempo real: WebSub → FCM / UnifiedPush / Web Push, con respaldo RSS | Propuesto |
+| [ADR-007](docs/adr/ADR-007-importacion-automatica-suscripciones.md) | Importación automática de suscripciones sin iniciar sesión: lector automático (Android `full`), “Permitir” de Google (`play`), extensión (web) | **Aceptado** |
