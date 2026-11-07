@@ -24,6 +24,54 @@ function getInnertube() {
 
 export type LoadInfo = { title: string; author: string; isLive: boolean };
 
+// ---- Carga rápida (docs/research/08): todo lo que se puede preparar antes del clic ----
+type Cached = { at: number; response: Awaited<ReturnType<Innertube['actions']['execute']>> };
+const responseCache = new Map<string, Cached>();
+const pending = new Map<string, Promise<Cached['response']>>();
+const FRESH_MS = 5 * 60_000;
+
+/** Al abrir la web: sesión de YouTube.js (en caché entre visitas) + BotGuard (token de integridad). */
+export function prewarm(): void {
+  void getInnertube().catch(() => {});
+  botguardService.init().catch(() => {});
+}
+
+function preconnect(url?: string) {
+  try {
+    if (!url) return;
+    const origin = new URL(url).origin;
+    if (document.querySelector(`link[rel="preconnect"][href="${origin}"]`)) return;
+    const l = document.createElement('link');
+    l.rel = 'preconnect'; l.href = origin; l.crossOrigin = 'anonymous';
+    document.head.appendChild(l);
+  } catch { /* URL inválida */ }
+}
+
+async function requestPlayer(videoId: string) {
+  const cached = responseCache.get(videoId);
+  if (cached && Date.now() - cached.at < FRESH_MS) return cached.response;
+  const inflight = pending.get(videoId);
+  if (inflight) return inflight;
+  const p = (async () => {
+    const innertube = await getInnertube();
+    const response = await innertube.actions.execute('/player', {
+      videoId, contentCheckOk: true, racyCheckOk: true, client: 'VISIONOS',
+      playbackContext: { contentPlaybackContext: { signatureTimestamp: innertube.session.player?.signature_timestamp } },
+    });
+    responseCache.set(videoId, { at: Date.now(), response });
+    const sd = (response as { data?: { streamingData?: { serverAbrStreamingUrl?: string } } }).data?.streamingData;
+    preconnect(sd?.serverAbrStreamingUrl);
+    return response;
+  })();
+  pending.set(videoId, p);
+  try { return await p; } finally { pending.delete(videoId); }
+}
+
+/** Al pasar el ratón o el dedo por un vídeo: pide sus datos de reproducción por adelantado. */
+export function prefetch(videoId: string): void {
+  void requestPlayer(videoId).catch(() => {});
+}
+
 export class TodoTubePlayer {
   private player?: shaka.Player;
   private ui?: shaka.ui.Overlay;
@@ -42,7 +90,7 @@ export class TodoTubePlayer {
     const it = getInnertube();
     botguardService.init().catch((e) => console.warn('[TodoTube] BotGuard no disponible todavía', e));
     this.player = new shaka.Player();
-    this.player.configure({ abr: { enabled: true }, streaming: { bufferingGoal: 120, rebufferingGoal: 2 } });
+    this.player.configure({ abr: { enabled: true, defaultBandwidthEstimate: 5_000_000 }, streaming: { bufferingGoal: 60, rebufferingGoal: 1.5 } });
     await this.player.attach(video);
     this.ui = new shaka.ui.Overlay(this.player, container, video);
     this.ui.configure({
@@ -63,13 +111,8 @@ export class TodoTubePlayer {
     await player.unload();
     this.sabr?.dispose();
 
-    const playerResponse = await innertube.actions.execute('/player', {
-      videoId,
-      contentCheckOk: true,
-      racyCheckOk: true,
-      client: 'VISIONOS',
-      playbackContext: { contentPlaybackContext: { signatureTimestamp: innertube.session.player?.signature_timestamp } },
-    });
+    const playerResponse = await requestPlayer(videoId);
+    responseCache.delete(videoId); // un uso por respuesta: la siguiente reproducción pide datos frescos
     const cpn = Utils.generateRandomString(16);
     const info = new YT.VideoInfo([playerResponse], innertube.actions, cpn);
     if (info.playability_status?.status !== 'OK') {

@@ -31,8 +31,15 @@ function useTheme() {
 function Notifications() {
   const feed = useFeed();
   const [open, setOpen] = useState(false);
+  const seenAt = useStore((s) => s.notifSeenAt);
+  const [openedSeenAt, setOpenedSeenAt] = useState(seenAt);
   const ref = useRef<HTMLDivElement>(null);
   const items = useMemo(() => (feed.data ?? []).filter((v) => v.source !== 'baseline' && Date.now() - v.seenAt < 2 * DAY).slice(0, 12), [feed.data]);
+  const unseen = items.filter((v) => v.seenAt > seenAt).length;
+  const toggle = () => {
+    if (!open) { setOpenedSeenAt(seenAt); actions.markNotificationsSeen(); }
+    setOpen((o) => !o);
+  };
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
@@ -41,9 +48,9 @@ function Notifications() {
   }, [open]);
   return (
     <div className="notif" ref={ref}>
-      <button type="button" className="icon-btn" aria-label={`Avisos (${items.length})`} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="icon-btn" aria-label={unseen ? `Avisos: ${unseen} sin ver` : 'Avisos'} aria-expanded={open} onClick={toggle}>
         <Icon name="bell" size={22} />
-        {items.length > 0 && <span className="notif-count">{items.length > 9 ? '9+' : items.length}</span>}
+        {unseen > 0 && <span className="notif-count">{unseen > 9 ? '9+' : unseen}</span>}
       </button>
       {open && (
         <div className="notif-panel" role="dialog" aria-label="Avisos">
@@ -53,7 +60,7 @@ function Notifications() {
             {items.map((v) => (
               <li key={v.id}>
                 <Link to={`/ver/${v.id}${v.kind === 'short' ? '?short=1' : ''}`} onClick={() => setOpen(false)} className="notif-item">
-                  <span className="notif-dot" aria-hidden="true" />
+                  <span className={`notif-dot${v.seenAt > openedSeenAt ? '' : ' seen'}`} aria-hidden="true" />
                   <Avatar name={v.channel} id={v.channelId} size={40} />
                   <span className="notif-text"><b>{v.channel}</b> ha subido: {v.title}<small>{ago(v.seenAt)}</small></span>
                   <img src={thumb(v.id)} alt="" width={86} height={48} loading="lazy" />

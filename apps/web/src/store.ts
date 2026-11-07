@@ -9,6 +9,7 @@ type State = {
   favorites: Record<string, Meta & { at: number }>;
   watchLater: Record<string, Meta & { at: number }>;
   sidebar: 'full' | 'mini';
+  notifSeenAt: number;
   progress: Record<string, Progress>;
   history: HistoryEntry[];
   watched: Record<string, number>;
@@ -17,7 +18,7 @@ type State = {
 };
 
 const KEY = 'todotube:v1';
-const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system' };
+const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system' };
 
 function load(): State {
   try {
@@ -97,6 +98,9 @@ export const actions = {
       else watchLater[m.id] = { ...m, at: Date.now() };
       return { ...s, watchLater };
     });
+  },
+  markNotificationsSeen() {
+    set((s) => ({ ...s, notifSeenAt: Date.now() }));
   },
   toggleSidebar() {
     set((s) => ({ ...s, sidebar: s.sidebar === 'full' ? 'mini' : 'full' }));

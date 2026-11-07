@@ -22,15 +22,20 @@ async function notify(env, { title, body, url }) {
 
 const mins = (ms) => (ms / 60000).toFixed(1);
 
-// Shorts: tienen miniatura vertical pública (i.ytimg.com/vi/<id>/oardefault.jpg → 200); los vídeos normales dan 404.
-// Comportamiento no documentado de YouTube [I], verificado con 60 vídeos el 2026-11-07. Si falla, kind queda NULL.
+// Shorts vs vídeo (ADR-006, enmienda 2). Señal principal: la URL pública youtube.com/shorts/<id> responde 200 si es un Short
+// y redirige (3xx) a /watch si no lo es. Solo se lee el código de estado (HEAD, sin descargar contenido).
+// Respaldo: miniatura vertical oardefault.jpg (falla con algunos canales, p. ej. CNN/NBC; por eso ya no es la principal).
 async function classify(videoId) {
+  try {
+    const r = await fetch(`https://www.youtube.com/shorts/${videoId}`, { method: 'HEAD', redirect: 'manual' });
+    if (r.status === 200) return 'short';
+    if (r.status >= 300 && r.status < 400) return 'video';
+  } catch { /* red */ }
   try {
     const r = await fetch(`https://i.ytimg.com/vi/${videoId}/oardefault.jpg`, { method: 'HEAD' });
     if (r.status === 200) return 'short';
-    if (r.status === 404) return 'video';
   } catch { /* red */ }
-  return null;
+  return null; // sin clasificar: se reintenta en el siguiente cron
 }
 
 // Registra una entrada; devuelve true si es un vídeo nuevo (primera vez visto y reciente).
@@ -216,7 +221,7 @@ async function cron(env) {
       ]);
     }
     // 1c. Clasificar Short/vídeo los que aún no lo están (relleno gradual).
-    const unk = await env.DB.prepare('SELECT video_id FROM videos WHERE kind IS NULL ORDER BY published_at DESC LIMIT 25').all();
+    const unk = await env.DB.prepare('SELECT video_id FROM videos WHERE kind IS NULL ORDER BY published_at DESC LIMIT 60').all();
     for (const { video_id } of unk.results) {
       const k = await classify(video_id);
       if (k) await env.DB.prepare('UPDATE videos SET kind=? WHERE video_id=?').bind(k, video_id).run();

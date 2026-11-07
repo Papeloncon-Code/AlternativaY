@@ -5,6 +5,7 @@ import { ago } from '../format';
 import { actions, useStore } from '../store';
 import Icon from './Icon';
 import Avatar from './Avatar';
+import { prefetchVideo } from '../player/warm';
 
 type Props = {
   id: string; title: string; channel: string; channelId: string;
@@ -35,7 +36,7 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
 
   return (
     <article className={`vcard${compact ? ' compact' : ''}`}>
-      <Link to={href} className="vthumb" aria-label={title}>
+      <Link to={href} className="vthumb" aria-label={title} onMouseEnter={() => prefetchVideo(id)} onFocus={() => prefetchVideo(id)} onTouchStart={() => prefetchVideo(id)}>
         <img src={thumb(id)} alt="" loading="lazy" width={480} height={270} />
         {pct != null && <span className="vprog"><span style={{ width: `${Math.min(100, pct * 100)}%` }} /></span>}
       </Link>
