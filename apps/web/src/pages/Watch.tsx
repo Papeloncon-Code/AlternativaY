@@ -1,3 +1,5 @@
+import { openSave } from '../components/SaveDialog';
+import { isBlocked } from '../filters';
 import { hasBridge } from '../bridge';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -29,8 +31,12 @@ export default function Watch() {
   const channels = useChannels();
   const saved = useStore((s) => s.progress[id]);
   const fav = useStore((s) => Boolean(s.favorites[id]));
-  const later = useStore((s) => Boolean(s.watchLater[id]));
+  const listId = params.get('lista');
+  const plist = useStore((s) => (listId ? s.playlists.find((p) => p.id === listId) : undefined));
+  const later = useStore((s) => Boolean(s.watchLater[id]) || s.playlists.some((p) => p.items.some((i) => i.id === id)));
+  const q = listId ? `?lista=${listId}` : '';
   const hidden = useStore((s) => s.hidden);
+  const words = useStore((s) => s.blockWords);
   const theater = useStore((s) => s.theater);
   const focus = useStore((s) => s.focus);
   const autoplay = useStore((s) => s.autoplay) && !focus; // en Foco no se encadenan vídeos
@@ -48,16 +54,20 @@ export default function Watch() {
   const own = hasBridge() && !fallback;
   const video = feed.data?.find((v) => v.id === id);
   const navMeta = (useLocation().state as { meta?: Meta } | null)?.meta; // vídeo abierto desde la búsqueda global
+  const listIdx = plist ? plist.items.findIndex((i) => i.id === id) : -1;
+  const listMeta = listIdx >= 0 ? plist!.items[listIdx] : undefined;
   const isShort = params.get('short') === '1' || video?.kind === 'short';
   const meta: Meta = useMemo(() => ({
-    id, title: video?.title ?? saved?.title ?? navMeta?.title ?? 'Vídeo', channel: video?.channel ?? saved?.channel ?? navMeta?.channel ?? '', channelId: video?.channelId ?? saved?.channelId ?? navMeta?.channelId ?? '',
-  }), [id, video, saved, navMeta]);
+    id, title: video?.title ?? saved?.title ?? navMeta?.title ?? listMeta?.title ?? 'Vídeo', channel: video?.channel ?? saved?.channel ?? navMeta?.channel ?? listMeta?.channel ?? '', channelId: video?.channelId ?? saved?.channelId ?? navMeta?.channelId ?? listMeta?.channelId ?? '',
+  }), [id, video, saved, navMeta, listMeta]);
   const startAt = useRef(saved ? Math.max(0, saved.pos - 3) : 0);
   const validId = ID_RE.test(id);
   const channel = channels.data?.find((c) => c.id === meta.channelId);
 
-  const all = (feed.data ?? []).filter((v) => v.id !== id && v.kind !== 'short' && !hidden[v.id]);
-  const next = [...all.filter((v) => v.channelId === meta.channelId), ...all.filter((v) => v.channelId !== meta.channelId)].slice(0, 20);
+  const all = (feed.data ?? []).filter((v) => v.id !== id && v.kind !== 'short' && !hidden[v.id] && !isBlocked(v.title, words));
+  const next = plist
+    ? plist.items.slice(listIdx + 1)
+    : [...all.filter((v) => v.channelId === meta.channelId), ...all.filter((v) => v.channelId !== meta.channelId)].slice(0, 20);
   const upNext = next[0];
 
   useEffect(() => { setDetails(null); setDescOpen(false); setCountdown(null); handle.current = null; setFallback(''); }, [id]);
@@ -66,7 +76,7 @@ export default function Watch() {
   const onEnded = useCallback(() => { if (autoplay && upNext && !isShort) setCountdown(8); }, [autoplay, upNext, isShort]);
   useEffect(() => {
     if (countdown == null) return;
-    if (countdown <= 0) { navigate(`/ver/${upNext.id}`); return; }
+    if (countdown <= 0) { navigate(`/ver/${upNext.id}${q}`); return; }
     const t = setTimeout(() => setCountdown((c) => (c == null ? c : c - 1)), 1000);
     return () => clearTimeout(t);
   }, [countdown, upNext, navigate]);
@@ -79,7 +89,7 @@ export default function Watch() {
       const k = e.key;
       if (k === 't') { actions.toggleTheater(); return; }
       if (k === 'f') { const el = frameRef.current; if (document.fullscreenElement) document.exitFullscreen(); else el?.requestFullscreen?.(); return; }
-      if (k === 'N' && e.shiftKey && upNext) { navigate(`/ver/${upNext.id}`); return; }
+      if (k === 'N' && e.shiftKey && upNext) { navigate(`/ver/${upNext.id}${q}`); return; }
       if (!h) return;
       if (k === 'k' || k === ' ') { e.preventDefault(); h.togglePlay(); }
       else if (k === 'j') h.seekBy(-10);
@@ -114,7 +124,7 @@ export default function Watch() {
               <div className="upnext-card"><img src={thumb(upNext.id)} alt="" /><div><b>{upNext.title}</b><span>{upNext.channel}</span></div></div>
               <div className="upnext-actions">
                 <button type="button" className="btn" onClick={() => setCountdown(null)}>Cancelar</button>
-                <button type="button" className="btn primary" onClick={() => navigate(`/ver/${upNext.id}`)}>Reproducir ahora</button>
+                <button type="button" className="btn primary" onClick={() => navigate(`/ver/${upNext.id}${q}`)}>Reproducir ahora</button>
               </div>
             </div>
           )}
@@ -136,7 +146,7 @@ export default function Watch() {
               <Icon name="like" size={18} /> {fav ? 'Te gusta' : 'Me gusta'}
             </button>
             <button type="button" className="btn" onClick={() => shareVideo(id, meta.title)}><Icon name="share" size={18} /> Compartir</button>
-            <button type="button" className={`btn${later ? ' on' : ''}`} aria-pressed={later} onClick={() => { actions.toggleWatchLater(meta); toast(later ? 'Quitado de Ver más tarde' : 'Guardado en Ver más tarde'); }}>
+            <button type="button" className={`btn${later ? ' on' : ''}`} aria-pressed={later} onClick={() => openSave(meta)}>
               <Icon name="clock" size={18} /> {later ? 'Guardado' : 'Guardar'}
             </button>
             <button type="button" className="btn icon-only" aria-pressed={theater} title="Modo cine (t)" aria-label="Modo cine" onClick={() => actions.toggleTheater()}><Icon name="theater" size={18} /></button>
@@ -152,14 +162,14 @@ export default function Watch() {
           {details?.description && <button type="button" className="desc-toggle" onClick={(e) => { e.stopPropagation(); setDescOpen((o) => !o); }}>{descOpen ? 'Mostrar menos' : '…más'}</button>}
         </div>
         {fallback && <p className="bridge-hint">El reproductor TodoTube no pudo cargar este vídeo ({fallback}); se usa el reproductor de reserva.</p>}
-        {!video && !feed.loading && !saved && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir a Principal</Link></p>}
+        {!video && !feed.loading && !saved && !navMeta && !listMeta && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir a Principal</Link></p>}
       </div>
       <aside className="watch-side" aria-label="A continuación">
         <div className="side-head">
-          <b>A continuación</b>
+          <b>{plist ? `${plist.name} · ${listIdx + 1}/${plist.items.length}` : 'A continuación'}</b>
           <label className="switch"><input id="autoplay" type="checkbox" checked={autoplay} onChange={() => actions.toggleAutoplay()} /><span>Reproducción automática</span></label>
         </div>
-        {next.map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} compact />)}
+        {next.map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} compact list={listId ?? undefined} />)}
       </aside>
     </div>
   );

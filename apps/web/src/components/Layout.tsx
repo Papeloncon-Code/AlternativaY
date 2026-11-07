@@ -11,6 +11,7 @@ import { Toaster, toast } from '../toast';
 import { syncAvatars } from '../avatars';
 import { useBridge } from '../bridge';
 import PermissionPrompt from './PermissionPrompt';
+import { SaveDialogHost } from './SaveDialog';
 import SearchBox from './SearchBox';
 import AccountMenu from './AccountMenu';
 import { setChannelBell } from '../push';
@@ -113,6 +114,7 @@ function Notifications() {
 export default function Layout() {
   useTheme();
   const sidebar = useStore((s) => s.sidebar);
+  const playlists = useStore((s) => s.playlists);
   const focus = useStore((s) => s.focus);
   const channels = useChannels();
   const feed = useFeed();
@@ -192,6 +194,7 @@ export default function Layout() {
         <div className="side-group">
           <NavLink to="/tu" className="side-title">Tú <Icon name="next" size={16} /></NavLink>
           {YOU.map((i) => <NavLink key={i.to} to={i.to} className="side-item"><Icon name={i.icon} size={22} /><span>{i.label}</span></NavLink>)}
+          {playlists.map((p) => <NavLink key={p.id} to={`/lista/${p.id}`} className="side-item"><Icon name="library" size={22} /><span className="ellipsis">{p.name}</span></NavLink>)}
         </div>
         <div className="side-group">
           <NavLink to="/ajustes" className="side-item"><Icon name="settings" size={22} /><span>Ajustes</span></NavLink>
@@ -204,6 +207,7 @@ export default function Layout() {
       <main id="main" className="main"><Outlet /></main>
       <Toaster />
       <PermissionPrompt />
+      <SaveDialogHost />
 
       <nav className="bottombar" aria-label="Principal">
         {[...MAIN, { to: '/tu', label: 'Tú', icon: 'user', end: false }].map((i) => (

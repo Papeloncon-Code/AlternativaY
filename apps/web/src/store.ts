@@ -24,12 +24,15 @@ type State = {
   sponsorblock: boolean;
   promptDismissed: { push?: number; bridge?: number };
   visitAt: number;
+  blockWords: string[];
+  groups: { id: string; name: string; channels: string[] }[];
+  playlists: { id: string; name: string; items: (Meta & { at: number })[] }[];
   visitPrev: number;
   dearrow: boolean;
 };
 
 const KEY = 'todotube:v1';
-const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system', sponsorblock: true, dearrow: false, promptDismissed: {}, visitAt: 0, visitPrev: 0 };
+const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system', sponsorblock: true, dearrow: false, promptDismissed: {}, visitAt: 0, visitPrev: 0, blockWords: [], groups: [], playlists: [] };
 
 function load(): State {
   try {
@@ -115,6 +118,16 @@ export const actions = {
   },
   toggleTheater() { set((s) => ({ ...s, theater: !s.theater })); },
   toggleAutoplay() { set((s) => ({ ...s, autoplay: !s.autoplay })); },
+  addBlockWord(w: string) { const v = w.trim().toLowerCase(); if (v) set((s) => ({ ...s, blockWords: [...new Set([...s.blockWords, v])] })); },
+  removeBlockWord(w: string) { set((s) => ({ ...s, blockWords: s.blockWords.filter((x) => x !== w) })); },
+  addGroup(name: string) { const id = Math.random().toString(36).slice(2, 9); set((s) => ({ ...s, groups: [...s.groups, { id, name: name.trim(), channels: [] }] })); return id; },
+  removeGroup(id: string) { set((s) => ({ ...s, groups: s.groups.filter((g) => g.id !== id) })); },
+  toggleGroupChannel(id: string, ch: string) { set((s) => ({ ...s, groups: s.groups.map((g) => g.id !== id ? g : { ...g, channels: g.channels.includes(ch) ? g.channels.filter((c) => c !== ch) : [...g.channels, ch] }) })); },
+  addPlaylist(name: string) { const id = Math.random().toString(36).slice(2, 9); set((s) => ({ ...s, playlists: [...s.playlists, { id, name: name.trim(), items: [] }] })); return id; },
+  removePlaylist(id: string) { set((s) => ({ ...s, playlists: s.playlists.filter((p) => p.id !== id) })); },
+  renamePlaylist(id: string, name: string) { set((s) => ({ ...s, playlists: s.playlists.map((p) => p.id === id ? { ...p, name: name.trim() || p.name } : p) })); },
+  togglePlaylistItem(id: string, m: Meta) { set((s) => ({ ...s, playlists: s.playlists.map((p) => p.id !== id ? p : { ...p, items: p.items.some((i) => i.id === m.id) ? p.items.filter((i) => i.id !== m.id) : [...p.items, { ...m, at: Date.now() }] }) })); },
+  movePlaylistItem(id: string, from: number, to: number) { set((s) => ({ ...s, playlists: s.playlists.map((p) => { if (p.id !== id) return p; const items = [...p.items]; const [x] = items.splice(from, 1); items.splice(to, 0, x); return { ...p, items }; }) })); },
   dismissPrompt(k: 'push' | 'bridge') { set((s) => ({ ...s, promptDismissed: { ...s.promptDismissed, [k]: Date.now() } })); },
   toggleSponsorBlock() { set((s) => ({ ...s, sponsorblock: !s.sponsorblock })); },
   toggleDeArrow() { set((s) => ({ ...s, dearrow: !s.dearrow })); },

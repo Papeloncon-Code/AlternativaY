@@ -9,6 +9,7 @@ import Search from './pages/Search';
 import Channel from './pages/Channel';
 import You, { YouList } from './pages/You';
 import { Navigate } from 'react-router-dom';
+import Playlist from './pages/Playlist';
 import Settings from './pages/Settings';
 import Bridge from './pages/Bridge';
 import { Empty } from './components/States';
@@ -28,6 +29,7 @@ const router = createBrowserRouter([
       { path: '/historial', element: <YouList kind="historial" /> },
       { path: '/ver-mas-tarde', element: <YouList kind="ver-mas-tarde" /> },
       { path: '/me-gusta', element: <YouList kind="me-gusta" /> },
+      { path: '/lista/:id', element: <Playlist /> },
       { path: '/biblioteca', element: <Navigate to="/tu" replace /> },
       { path: '/ajustes', element: <Settings /> },
       { path: '/puente', element: <Bridge /> },

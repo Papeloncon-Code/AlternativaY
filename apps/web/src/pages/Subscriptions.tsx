@@ -1,9 +1,9 @@
+import Avatar from '../components/Avatar';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { addChannel, fetchChannels, removeChannel, type Channel } from '../api';
 import { useAsync } from '../useAsync';
-import { useStore } from '../store';
-import { hue, initials } from '../format';
+import { actions, useStore } from '../store';
 import { Empty, ErrorBox } from '../components/States';
 import Icon from '../components/Icon';
 import BellMenu, { type Bell } from '../components/BellMenu';
@@ -85,9 +85,9 @@ export default function Subscriptions() {
           const st = STATUS[c.status] ?? STATUS.pending;
           return (
             <li key={c.id} className="channel">
-              <span className="avatar" style={{ background: `hsl(${hue(c.id)} 55% 42%)` }} aria-hidden="true">{initials(c.name)}</span>
+              <Link to={`/canal/${c.id}`} className="channel-av" aria-label={`Canal ${c.name}`}><Avatar name={c.name} id={c.id} size={40} /></Link>
               <div className="channel-main">
-                <span className="channel-name">{c.name}</span>
+                <Link to={`/canal/${c.id}`} className="channel-name">{c.name}</Link>
                 <span className="card-meta">{c.videos === 1 ? '1 vídeo reciente' : `${c.videos} vídeos recientes`}</span>
               </div>
               <span className={`status ${st.cls}`} title={st.help}><Icon name="bell" size={14} /> {st.label}</span>
@@ -96,6 +96,35 @@ export default function Subscriptions() {
           );
         })}
       </ul>
+
+      {items.length > 0 && <Groups channels={items.filter((c) => c.status !== 'invalid').map((c) => ({ id: c.id, name: c.name }))} />}
     </div>
+  );
+}
+
+// Grupos de suscripciones (A3, como los perfiles de FreeTube): cada grupo aparece como filtro en Principal.
+function Groups({ channels }: { channels: { id: string; name: string }[] }) {
+  const groups = useStore((s) => s.groups);
+  const [name, setName] = useState('');
+  return (
+    <section className="panel groups" aria-labelledby="h-groups">
+      <h2 id="h-groups"><Icon name="subs" size={18} /> Grupos</h2>
+      <p className="note">Agrupa canales (por ejemplo, “Noticias” o “Tecnología”) y fíltralos con un toque en Principal.</p>
+      <form className="row-btns" onSubmit={(e) => { e.preventDefault(); if (name.trim()) { actions.addGroup(name); setName(''); } }}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del grupo nuevo" maxLength={40} aria-label="Nombre del grupo nuevo" />
+        <button className="btn primary" disabled={!name.trim()}>Crear grupo</button>
+      </form>
+      {groups.map((g) => (
+        <div key={g.id} className="group">
+          <div className="group-head"><b>{g.name}</b><span className="card-meta">{g.channels.length} canales</span>
+            <button type="button" className="btn small" onClick={() => { if (confirm(`¿Borrar el grupo «${g.name}»? Los canales siguen en tus suscripciones.`)) actions.removeGroup(g.id); }}>Borrar</button></div>
+          <div className="chips" role="group" aria-label={`Canales del grupo ${g.name}`}>
+            {channels.map((c) => (
+              <button key={c.id} type="button" className={`chip${g.channels.includes(c.id) ? ' on' : ''}`} aria-pressed={g.channels.includes(c.id)} onClick={() => actions.toggleGroupChannel(g.id, c.id)}>{c.name}</button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </section>
   );
 }

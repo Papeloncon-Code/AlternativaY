@@ -20,9 +20,9 @@ async function api(request, env, url) {
       `SELECT v.video_id AS id, v.title, v.published_at AS publishedAt, v.channel_id AS channelId,
               COALESCE(c.label, v.channel_id) AS channel, v.first_source AS source, v.first_seen_at AS seenAt, v.kind AS kind
        FROM videos v LEFT JOIN channels c ON c.channel_id = v.channel_id
-       WHERE c.status IS NULL OR c.status <> 'removing'
+       WHERE (c.status IS NULL OR c.status <> 'removing') AND v.published_at < ?
        ORDER BY v.published_at DESC LIMIT ?`
-    ).bind(limit).all();
+    ).bind(Number(url.searchParams.get('before')) || 9e15, limit).all();
     return json({ items: results }, 200, { 'cache-control': 'public, max-age=60' });
   }
   if (url.pathname === '/api/channels' && request.method === 'GET') {

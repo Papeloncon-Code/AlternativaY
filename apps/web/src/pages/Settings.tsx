@@ -13,6 +13,8 @@ export default function Settings() {
   const sb = useStore((s) => s.sponsorblock);
   const da = useStore((s) => s.dearrow);
   const focus = useStore((s) => s.focus);
+  const words = useStore((s) => s.blockWords);
+  const [word, setWord] = useState('');
   const file = useRef<HTMLInputElement>(null);
   const { hash } = useLocation();
   useEffect(() => { if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' }); }, [hash]);
@@ -31,7 +33,7 @@ export default function Settings() {
     try {
       const j = JSON.parse(await f.text());
       if (j?.app !== 'todotube' || typeof j.data !== 'object' || !j.data) throw new Error('Este archivo no es una copia de TodoTube.');
-      const allowed = ['favorites', 'watchLater', 'history', 'progress', 'watched', 'hidden', 'notifHidden', 'searches', 'theme', 'autoplay', 'theater', 'sidebar', 'focus', 'sponsorblock', 'dearrow'];
+      const allowed = ['favorites', 'watchLater', 'history', 'progress', 'watched', 'hidden', 'notifHidden', 'searches', 'theme', 'autoplay', 'theater', 'sidebar', 'focus', 'sponsorblock', 'dearrow', 'blockWords', 'groups', 'playlists'];
       const data = Object.fromEntries(Object.entries(j.data).filter(([k]) => allowed.includes(k)));
       if (!confirm(`Se sustituirán tus datos de este navegador (historial, Me gusta, Ver más tarde…) por los de la copia del ${String(j.exportedAt ?? '').slice(0, 10) || 'archivo'}. ¿Continuar?`)) return;
       actions.importAll(data);
@@ -62,6 +64,17 @@ export default function Settings() {
           <input type="checkbox" role="switch" checked={da} onChange={() => actions.toggleDeArrow()} /></label>
         <label className="setting-row"><span><b>Modo Foco</b><small>Una sola columna con lo nuevo de tus canales, sin menú, filtros, Shorts ni recomendaciones.</small></span>
           <input type="checkbox" role="switch" checked={focus} onChange={() => actions.toggleFocus()} /></label>
+      </section>
+      <section className="panel" id="filtros">
+        <h2>Ocultar por palabras</h2>
+        <p className="note">Los vídeos cuyo título contenga alguna de estas palabras no aparecerán en Principal, Shorts ni “A continuación”.</p>
+        <form className="row-btns" onSubmit={(e) => { e.preventDefault(); actions.addBlockWord(word); setWord(''); }}>
+          <input value={word} onChange={(e) => setWord(e.target.value)} placeholder="Palabra o frase" maxLength={40} aria-label="Palabra o frase a ocultar" />
+          <button className="btn primary" disabled={!word.trim()}>Añadir</button>
+        </form>
+        {words.length > 0 && <div className="chips word-chips">{words.map((w) => (
+          <button key={w} type="button" className="chip on" onClick={() => actions.removeBlockWord(w)} aria-label={`Quitar «${w}»`}>{w} <Icon name="close" size={14} /></button>
+        ))}</div>}
       </section>
       <section className="panel" id="datos">
         <h2>Tus datos</h2>

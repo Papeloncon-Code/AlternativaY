@@ -8,14 +8,15 @@ import Avatar from './Avatar';
 import { prefetchVideo } from '../player/warm';
 import { shareVideo, toast } from '../toast';
 import { useBranding } from '../community';
+import { openSave } from './SaveDialog';
 
 type Props = {
   id: string; title: string; channel: string; channelId: string;
-  publishedAt?: number | null; isNew?: boolean; progress?: number; short?: boolean; compact?: boolean;
+  publishedAt?: number | null; isNew?: boolean; progress?: number; short?: boolean; compact?: boolean; list?: string;
 };
 
 // Tarjeta de vídeo con la estructura que la gente ya conoce: miniatura, avatar del canal, título en 2 líneas, canal y fecha, menú ⋮.
-export default function VideoCard({ id, title, channel, channelId, publishedAt, isNew, progress, short, compact }: Props) {
+export default function VideoCard({ id, title, channel, channelId, publishedAt, isNew, progress, short, compact, list }: Props) {
   const fav = useStore((s) => Boolean(s.favorites[id]));
   const later = useStore((s) => Boolean(s.watchLater[id]));
   const watched = useStore((s) => Boolean(s.watched[id]));
@@ -35,7 +36,7 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
   const [thumbFailed, setThumbFailed] = useState(false);
   const shownTitle = brand.title ?? title;
   const meta = { id, title, channel, channelId };
-  const href = short ? `/shorts/${id}` : `/ver/${id}`;
+  const href = short ? `/shorts/${id}` : `/ver/${id}${list ? `?lista=${list}` : ''}`;
   const pct = progress ?? (saved ? saved.pos / saved.dur : watched ? 1 : undefined);
 
   useEffect(() => {
@@ -70,6 +71,9 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
             <div className="menu" role="menu">
               <button type="button" role="menuitem" onClick={() => { actions.toggleWatchLater(meta); setMenu(false); }}>
                 <Icon name="clock" size={20} />{later ? 'Quitar de Ver más tarde' : 'Guardar en Ver más tarde'}
+              </button>
+              <button type="button" role="menuitem" onClick={() => { openSave(meta); setMenu(false); }}>
+                <Icon name="library" size={20} />Guardar en una lista
               </button>
               <button type="button" role="menuitem" onClick={() => { actions.toggleFavorite(meta); setMenu(false); }}>
                 <Icon name="like" size={20} />{fav ? 'Quitar de Me gusta' : 'Me gusta'}

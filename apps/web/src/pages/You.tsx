@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { actions, useStore } from '../store';
 import VideoCard from '../components/VideoCard';
 import Icon from '../components/Icon';
+import { thumb } from '../api';
 import { Empty } from '../components/States';
 
 type Kind = 'historial' | 'ver-mas-tarde' | 'me-gusta';
@@ -46,6 +47,25 @@ export default function You() {
       <Shelf kind="historial" icon="hist" />
       <Shelf kind="ver-mas-tarde" icon="clock" />
       <Shelf kind="me-gusta" icon="like" />
+      <Playlists />
     </div>
+  );
+}
+
+function Playlists() {
+  const lists = useStore((s) => s.playlists);
+  return (
+    <section className="shelf">
+      <div className="page-head-row"><h2><Icon name="library" size={22} /> Listas</h2>
+        <button type="button" className="btn" onClick={() => { const n = prompt('Nombre de la lista nueva'); if (n?.trim()) actions.addPlaylist(n); }}><Icon name="plus" size={18} /> Nueva lista</button></div>
+      {lists.length === 0 ? <p className="note">Crea listas para guardar vídeos y verlos en orden. Desde cualquier vídeo: ⋮ → “Guardar en una lista”.</p> : (
+        <div className="vgrid">{lists.map((p) => (
+          <Link key={p.id} to={`/lista/${p.id}`} className="pl-card">
+            <span className="pl-cover">{p.items[0] ? <img src={thumb(p.items[0].id)} alt="" loading="lazy" /> : <Icon name="library" size={32} />}<span className="pl-count">{p.items.length} vídeos</span></span>
+            <b>{p.name}</b><span className="vmeta">Ver lista completa</span>
+          </Link>
+        ))}</div>
+      )}
+    </section>
   );
 }

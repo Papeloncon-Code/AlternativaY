@@ -25,7 +25,7 @@ async function get<T>(path: string): Promise<T> {
   return r.json() as Promise<T>;
 }
 
-export const fetchFeed = (limit = 120) => get<{ items: Video[] }>(`/api/feed?limit=${limit}`).then((d) => d.items);
+export const fetchFeed = (limit = 120, before?: number) => get<{ items: Video[] }>(`/api/feed?limit=${limit}${before ? `&before=${before}` : ''}`).then((d) => d.items);
 export const fetchChannels = () => get<{ items: Channel[] }>('/api/channels').then((d) => d.items);
 
 export async function addChannel(input: string, label: string, ownerKey: string) {

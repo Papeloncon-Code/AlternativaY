@@ -1,3 +1,4 @@
+import { isBlocked } from '../filters';
 import { hasBridge } from '../bridge';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -23,7 +24,8 @@ export default function ShortsPlayer() {
   const [muted, setMuted] = useState(false);
   const handle = useRef<PlayerHandle | null>(null);
   const hidden = useStore((st) => st.hidden);
-  const list = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && (!hidden[v.id] || v.id === id)), [feed.data, hidden, id]);
+  const words = useStore((st) => st.blockWords);
+  const list = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && ((!hidden[v.id] && !isBlocked(v.title, words)) || v.id === id)), [feed.data, hidden, words, id]);
   const idx = list.findIndex((v) => v.id === id);
   const cur = list[idx];
   const fav = useStore((s) => Boolean(s.favorites[id]));

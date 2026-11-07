@@ -1,6 +1,8 @@
 import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useFeed } from '../data';
+import { feedMore, loadMoreFeed, useFeed } from '../data';
+import { isBlocked } from '../filters';
+import Sentinel from '../components/Sentinel';
 import type { Video } from '../api';
 import { useStore } from '../store';
 import VideoCard from '../components/VideoCard';
@@ -17,6 +19,9 @@ export default function Home() {
   const hidden = useStore((s) => s.hidden);
   const focus = useStore((s) => s.focus);
   const [chip, setChip] = useState('todos');
+  const words = useStore((s) => s.blockWords);
+  const groups = useStore((s) => s.groups);
+  const [shown, setShown] = useState(24);
 
   const channels = useMemo(() => {
     const m = new Map<string, string>();
@@ -26,7 +31,7 @@ export default function Home() {
   const visitPrev = useStore((s) => s.visitPrev);
   const progress = useStore((s) => s.progress);
   // Cada filtro solo aparece si cambia algo respecto a “Todos” (si da lo mismo, parece que el botón no funciona).
-  const base = useMemo(() => (feed.data ?? []).filter((v) => v.kind !== 'short' && !hidden[v.id]), [feed.data, hidden]);
+  const base = useMemo(() => (feed.data ?? []).filter((v) => v.kind !== 'short' && !hidden[v.id] && !isBlocked(v.title, words)), [feed.data, hidden, words]);
   const filters = useMemo(() => {
     const now = Date.now();
     const seen = (id: string) => Boolean(watched[id] || progress[id]);
@@ -41,16 +46,18 @@ export default function Home() {
   const chips = [
     { key: 'todos', label: 'Todos' },
     ...filters.map((x) => ({ key: x.key, label: x.label })),
+    ...groups.filter((g) => g.channels.length).map((g) => ({ key: `g:${g.id}`, label: g.name })),
     ...channels.map(([id, name]) => ({ key: `c:${id}`, label: name })),
   ];
   const valid = chips.some((c) => c.key === chip) ? chip : 'todos';
   const eff = focus ? 'todos' : valid; // en modo Foco: todo lo nuevo, sin filtros
   const videos = useMemo(() => {
     if (eff.startsWith('c:')) return base.filter((v) => v.channelId === eff.slice(2));
+    if (eff.startsWith('g:')) { const g = groups.find((x) => x.id === eff.slice(2)); return base.filter((v) => g?.channels.includes(v.channelId)); }
     const f = filters.find((x) => x.key === eff);
     return f ? base.filter(f.f) : base;
-  }, [base, eff, filters]);
-  const shorts = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && !hidden[v.id] && (!eff.startsWith('c:') || v.channelId === eff.slice(2))).slice(0, 12), [feed.data, eff, hidden]);
+  }, [base, eff, filters, groups]);
+  const shorts = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && !hidden[v.id] && !isBlocked(v.title, words) && (!eff.startsWith('c:') || v.channelId === eff.slice(2))).slice(0, 12), [feed.data, eff, hidden, words]);
   const firstRows = 8; // la fila de Shorts va después de las primeras filas, como en las apps de vídeo
 
   const shelf = !focus && shorts.length > 0 && (
@@ -63,8 +70,12 @@ export default function Home() {
   );
 
   return (
-    <div className="page">
-      {focus ? <h1 className="focus-title">Lo nuevo de tus canales</h1> : <Chips items={chips} value={valid} onChange={(k) => { setChip(k); window.scrollTo({ top: 0 }); }} />}
+    <div className="page" data-total={base.length}>
+      {focus ? <h1 className="focus-title">Lo nuevo de tus canales</h1> : <Chips items={chips} value={valid} onChange={(k) => { setChip(k); setShown(24); window.scrollTo({ top: 0 }); }} />}
+      {!focus && valid !== 'todos' && videos.length > 0 && (
+        <p className="filter-count" role="status">{videos.length === 1 ? '1 vídeo' : `${videos.length} vídeos`} · {chips.find((c) => c.key === valid)?.label}
+          <button type="button" className="link-btn" onClick={() => { setChip('todos'); setShown(24); }}>Quitar filtro</button></p>
+      )}
       {feed.loading && <SkeletonGrid n={8} />}
       {feed.error && <ErrorBox message={`No se pudieron cargar las novedades (${feed.error}).`} onRetry={feed.reload} />}
       {feed.data && feed.data.length === 0 && (
@@ -77,7 +88,10 @@ export default function Home() {
         <>
           <div className="vgrid">{videos.slice(0, firstRows).map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} isNew={v.source !== 'baseline'} />)}</div>
           {shelf}
-          <div className="vgrid">{videos.slice(firstRows).map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} isNew={v.source !== 'baseline'} />)}</div>
+          <div className="vgrid">{videos.slice(firstRows, shown).map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} isNew={v.source !== 'baseline'} />)}</div>
+          <Sentinel onVisible={() => { if (shown < videos.length) setShown((n) => n + 24); else void loadMoreFeed(); }} />
+          {feedMore().loading && <SkeletonGrid n={4} />}
+          {feedMore().done && shown >= videos.length && <p className="list-end">No hay más vídeos de tus canales.</p>}
         </>
       )}
       {videos.length === 0 && <Fragment>{shelf}</Fragment>}

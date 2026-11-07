@@ -16,6 +16,24 @@ function load<T>(c: Cache<T>, fn: () => Promise<T>, force = false) {
   c.promise.catch(() => {});
 }
 
+// Carga continua (H10): pide los siguientes vídeos más antiguos cuando llegas al final.
+const PAGE = 200;
+let moreState = { loading: false, done: false };
+export async function loadMoreFeed() {
+  const list = feedCache.data;
+  if (!list?.length || moreState.loading || moreState.done) return;
+  moreState = { ...moreState, loading: true }; listeners.forEach((l) => l());
+  try {
+    const last = Math.min(...list.map((v) => v.publishedAt ?? Infinity));
+    const next = await fetchFeed(PAGE, Number.isFinite(last) ? last : undefined);
+    const seen = new Set(list.map((v) => v.id));
+    feedCache.data = [...list, ...next.filter((v) => !seen.has(v.id))];
+    moreState = { loading: false, done: next.length < PAGE };
+  } catch { moreState = { ...moreState, loading: false }; }
+  listeners.forEach((l) => l());
+}
+export const feedMore = () => moreState;
+
 export function refreshAll() { load(feedCache, () => fetchFeed(200), true); load(chCache, fetchChannels, true); }
 
 export function useFeed() {

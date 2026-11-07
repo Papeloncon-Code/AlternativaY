@@ -7,14 +7,16 @@ test.beforeEach(async ({ page }) => { await noPrompts(page); });
 test('H1 · cada filtro visible cambia los resultados (si no, no se muestra)', async ({ page }) => {
   const ok = trackErrors(page);
   await page.goto('/'); await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });
-  const total = await page.locator('.vcard').count();
+  const total = Number(await page.locator('.page').getAttribute('data-total'));
   const chips = page.locator('.chips-scroll .chip');
   const n = await chips.count();
   for (let i = 1; i < n; i++) {
     const label = await chips.nth(i).textContent();
     await chips.nth(i).click();
     await expect(chips.nth(i)).toHaveAttribute('aria-pressed', 'true');
-    const count = await page.locator('.vcard').count();
+    // Se confirma visiblemente el filtro y su número de resultados (la primera pantalla puede coincidir).
+    await expect(page.locator('.filter-count')).toContainText(label!);
+    const count = Number((await page.locator('.filter-count').textContent())!.match(/\d+/)![0]);
     expect(count, `el filtro «${label}» debe cambiar los resultados`).not.toBe(total);
     expect(count, `el filtro «${label}» no debe dejar la página vacía`).toBeGreaterThan(0);
   }
