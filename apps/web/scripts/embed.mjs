@@ -2,8 +2,8 @@
 // que en este entorno falla porque el proxy sustituye el token temporal de subida (401).
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json', '.zip': 'application/zip', '.png': 'image/png' };
-const BINARY = new Set(['.zip', '.png']);
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.json': 'application/json', '.txt': 'text/plain; charset=utf-8', '.webmanifest': 'application/manifest+json', '.zip': 'application/zip', '.png': 'image/png', '.xpi': 'application/x-xpinstall' };
+const BINARY = new Set(['.zip', '.png', '.xpi']);
 const root = 'dist';
 const files = {};
 (function walk(dir) {

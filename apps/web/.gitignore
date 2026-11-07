@@ -4,3 +4,4 @@ dist/
 assets.generated.js
 test-results/
 playwright-report/
+dist-firefox/

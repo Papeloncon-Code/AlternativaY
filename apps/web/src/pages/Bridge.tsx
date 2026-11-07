@@ -1,3 +1,4 @@
+import { installOneClick, oneClickAvailable } from '../install';
 import { useTitle } from '../title';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -36,6 +37,13 @@ export default function Bridge() {
         </ul>
       </section>
 
+      {oneClickAvailable() && (
+        <section className="panel">
+          <h2>Instalar en Firefox</h2>
+          <p className="note">Un clic: Firefox te preguntará si quieres añadirlo, sin salir de esta página.</p>
+          <a className="btn primary" href="/todotube-puente.xpi" onClick={(e) => { e.preventDefault(); installOneClick(); }}>Añadir TodoTube Puente a Firefox</a>
+        </section>
+      )}
       <section className="panel">
         <h2>Instalar en Chrome, Edge o Brave (versión de prueba)</h2>
         <ol className="steps">

@@ -49,6 +49,18 @@
    - **Riesgo [I]:** las tiendas podrían rechazar un Puente relacionado con YouTube. La Chrome Web Store prohíbe expresamente facilitar descargas de YouTube; el Puente no descarga, pero la decisión es discrecional.
    - Mozilla firma también extensiones “no listadas” (sin ficha pública) tras una revisión automática [S].
 
-## 5. Decisiones pendientes del propietario
-- [ ] ¿Firmar el Puente en Mozilla (no listado) para la instalación en un clic en Firefox?
-- [ ] ¿Publicarlo en Chrome Web Store y Edge Add-ons, asumiendo el riesgo de rechazo?
+## 5. Decisiones del propietario
+- [x] **Firefox primero** (2026-11-07): firmar el Puente en Mozilla como “no listado”.
+- [ ] Chrome Web Store y Edge Add-ons: más adelante.
+
+## 6. Preparación para Mozilla (hecha)
+| Requisito | Fuente | Estado |
+|---|---|---|
+| `browser_specific_settings.gecko.id` obligatorio para firmar MV3 | [MDN](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/browser_specific_settings) [V] | ✅ `puente@todotube.app` |
+| `data_collection_permissions` obligatorio en envíos nuevos desde el 3-11-2025; si no se recoge nada: `"required": ["none"]` | [MDN](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/browser_specific_settings), [Extension Workshop](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/) [V] | ✅ El Puente no envía datos a TodoTube ni a terceros: solo hace, desde tu navegador, las peticiones que pide la web a los servidores de vídeo |
+| Firefox 127+ muestra y concede los permisos de sitio en el propio diálogo de instalación | [MDN host_permissions](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/host_permissions) [V] | ✅ `strict_min_version` 128 |
+| Paquete sin `background.service_worker` (Firefox usa `scripts`) | `web-ext lint` | ✅ 0 errores, 0 avisos |
+| Firma “no listada”: AMO → *Submit a New Add-on* → **On your own**; revisión automática, hasta 24 h | [Extension Workshop](https://extensionworkshop.com/documentation/publish/submitting-an-add-on/) [V] | Pendiente del propietario |
+| Servir el `.xpi` firmado con `Content-Type: application/x-xpinstall` | [Extension Workshop](https://extensionworkshop.com/documentation/publish/self-distribution/) [V] | ✅ preparado: se publica solo cuando exista `apps/bridge/firmado/todotube-puente.xpi` |
+
+**No verificado [NV]:** si Firefox activa el Puente en la pestaña ya abierta justo después de instalarlo. Por eso, si no se anuncia en 60 s, la web ofrece «Recargar».

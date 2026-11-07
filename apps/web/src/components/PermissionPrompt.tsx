@@ -5,6 +5,7 @@ import { actions, getState, useStore } from '../store';
 import { currentSubscription, enablePush, pushSupported } from '../push';
 import { whenBridge } from '../bridge';
 import { toast } from '../toast';
+import { installOneClick } from '../install';
 
 const AGAIN = 14 * 86_400_000; // si dices “Ahora no”, no volvemos a preguntar en 14 días
 
@@ -55,7 +56,7 @@ export default function PermissionPrompt() {
 
   if (!ask) return null;
   const later = () => { actions.dismissPrompt(ask); setAsk(null); };
-  function accept() { setAsk(null); actions.dismissPrompt('bridge'); navigate('/puente'); }
+  function accept() { setAsk(null); actions.dismissPrompt('bridge'); if (!installOneClick()) navigate('/puente'); }
   const push = false;
   return (
     <div className="perm" role="dialog" aria-labelledby="perm-t" aria-describedby="perm-d">
