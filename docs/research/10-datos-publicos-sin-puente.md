@@ -22,7 +22,7 @@ La duración y la insignia de verificado siguen necesitando el Puente.
 ## 2. Vista previa del canal: cómo se lee sin abusar
 - La página del canal pesa ~2,6 MB y `og:image` aparece hacia el byte 835 000 [V: medido].
 - El servidor la lee por partes y **cancela la descarga** en cuanto tiene la foto y el nombre: ~0,8 MB por canal y día.
-- Va en una **tarea programada aparte** (cada 10 min, un canal cada vez), para no afectar a los avisos si algún día excede el tiempo de CPU.
+- Va en una **tarea programada aparte** (cada 10 min, hasta 5 canales cada vez), para no afectar a los avisos si algún día excede el tiempo de CPU.
 - Solo acepta fotos de `yt3.googleusercontent.com` / `yt3.ggpht.com` y pide el tamaño 176 px.
 - Si YouTube responde con error o la bloquea, se anota el intento y se muestran las iniciales: como mucho un intento al día por canal.
 - Pruebas: `spikes/websub/test/preview.test.mjs` (etiquetas partidas entre trozos, cancelación, CDN no permitida, errores).

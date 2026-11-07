@@ -171,7 +171,7 @@ async function pollRss(env, channelId, baseline, now) {
 // Foto y nombre del canal desde sus metadatos públicos de vista previa (og:image, og:title), como hacen las apps de
 // mensajería al compartir un enlace. Constitución §I.2, enmienda 2026-11-07: una vez al día por canal y nada más.
 // La página pesa ~2,6 MB y og:image está hacia el byte 835 000: se lee por partes y se corta en cuanto aparece.
-// Una foto de canal cada 10 minutos (desfasado del cron principal); cada canal como mucho una vez al día.
+// Fotos de canal cada 10 minutos (desfasado del cron principal), hasta 5 por vez; cada canal como mucho una vez al día.
 export const PREVIEW_CRON = '3-59/10 * * * *';
 const AVATAR_HOST = /^yt[34]\.(ggpht|googleusercontent)\.com$/;
 const after = (buf, key) => {
@@ -207,15 +207,17 @@ export async function readChannelPreview(fetchFn, channelId) {
 }
 
 async function refreshChannelPreview(env, now) {
-  const ch = await env.DB.prepare(
-    "SELECT channel_id FROM channels WHERE status IN ('requested','verified','pending') AND (avatar_at IS NULL OR avatar_at < ?) ORDER BY COALESCE(avatar_at, 0) ASC LIMIT 1"
-  ).bind(now - 24 * 3600 * 1000).first();
-  if (!ch) return;
-  let res = {};
-  try { res = await readChannelPreview(fetch, ch.channel_id); } catch { /* red */ }
-  // Se anota la fecha aunque falle: como mucho un intento al día por canal (si YouTube lo bloquea, quedan iniciales).
-  await env.DB.prepare('UPDATE channels SET avatar = COALESCE(?, avatar), avatar_at = ?, label = COALESCE(label, ?) WHERE channel_id = ?')
-    .bind(res.avatar ?? null, now, res.name ?? null, ch.channel_id).run();
+  // Hasta 5 canales por ejecución (relleno inicial en ~30 min); cada canal, como mucho una vez al día.
+  const { results } = await env.DB.prepare(
+    "SELECT channel_id FROM channels WHERE status IN ('requested','verified','pending') AND (avatar_at IS NULL OR avatar_at < ?) ORDER BY COALESCE(avatar_at, 0) ASC LIMIT 5"
+  ).bind(now - 24 * 3600 * 1000).all();
+  for (const ch of results) {
+    let res = {};
+    try { res = await readChannelPreview(fetch, ch.channel_id); } catch { /* red */ }
+    // Se anota la fecha aunque falle: como mucho un intento al día por canal (si YouTube lo bloquea, quedan iniciales).
+    await env.DB.prepare('UPDATE channels SET avatar = COALESCE(?, avatar), avatar_at = ?, label = COALESCE(label, ?) WHERE channel_id = ?')
+      .bind(res.avatar ?? null, now, res.name ?? null, ch.channel_id).run();
+  }
 }
 
 async function cron(env) {
