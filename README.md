@@ -37,6 +37,7 @@ Riesgos aceptados y límites (nunca DRM, nunca extracción en servidores): [ADR-
 | 18 | Riesgos y mitigación | [plan.md](specs/001-plataforma/plan.md) §4 · [05-legal](docs/research/05-legal-y-viabilidad.md) §6 |
 | 19 | Tareas por prioridad | [specs/002-mvp/tasks.md](specs/002-mvp/tasks.md) |
 | — | Constitución (principios) | [specs/000-constitucion/constitucion.md](specs/000-constitucion/constitucion.md) |
+| — | Instalar el Puente con un clic (investigación) | [docs/research/09-instalar-el-puente-con-un-clic.md](docs/research/09-instalar-el-puente-con-un-clic.md) |
 | — | Metodología, registro y limitaciones | [docs/00-metodologia-y-registro.md](docs/00-metodologia-y-registro.md) |
 
 ## Decisiones pendientes del propietario
@@ -44,6 +45,7 @@ Riesgos aceptados y límites (nunca DRM, nunca extracción en servidores): [ADR-
 2. ~~Nombre~~ → **TodoTube** (ADR-008). Pendiente: comprobar el registro de marcas y el dominio.
 3. Licencia (ADR-004, propuesta en `plan.md` §1).
 4. ~~Equipo~~ → **una sola persona** (escenario E1 del roadmap).
+5. Instalar TodoTube Puente en un clic: firmarlo en Mozilla (Firefox) y/o publicarlo en Chrome Web Store y Edge Add-ons. Investigación: [docs/research/09](docs/research/09-instalar-el-puente-con-un-clic.md).
 
 ## Registro de decisiones (ADR)
 | ADR | Decisión | Estado |

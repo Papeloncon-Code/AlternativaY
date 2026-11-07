@@ -137,12 +137,24 @@ test('L3 · foto real del canal cuando se conoce; iniciales si falla', async ({ 
   await expect(page.locator(`.side-item[href="/canal/${chId}"] img.avatar`)).toBeVisible();
 });
 
-test('Permisos · tarjeta propia antes del diálogo del navegador; “Ahora no” la cierra', async ({ browser }) => {
+test('Permisos · avisos con el diálogo nativo al llegar (como YouTube); luego la tarjeta del Puente', async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 } });
   const page = await ctx.newPage();
+  // Se registra cada petición del diálogo nativo y se simula que la persona pulsa «Bloquear».
+  await page.addInitScript(() => {
+    (window as any).__asked = 0;
+    let state: NotificationPermission = 'default'; // primera visita: el navegador aún no ha preguntado
+    Object.defineProperty(Notification, 'permission', { get: () => state, configurable: true });
+    Notification.requestPermission = async () => { (window as any).__asked++; state = 'denied'; return 'denied'; };
+  });
   await page.goto('/');
+  await expect.poll(() => page.evaluate(() => (window as any).__asked), { timeout: 10_000 }).toBe(1);
+  await expect(page.locator('.perm')).toHaveCount(0); // una petición por visita
+  await page.reload();
   const card = page.locator('.perm');
   await expect(card).toBeVisible({ timeout: 10_000 });
+  await expect(card).toContainText('sin anuncios');
+  expect(await page.evaluate(() => (window as any).__asked)).toBe(0); // tras «Bloquear» no se vuelve a pedir
   await card.getByRole('button', { name: 'Ahora no' }).click();
   await expect(card).toHaveCount(0);
   await ctx.close();
