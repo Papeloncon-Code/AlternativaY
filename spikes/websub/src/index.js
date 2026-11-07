@@ -100,7 +100,8 @@ async function pollRss(env, channelId, baseline, now) {
   const r = await fetch(RSS(channelId), { cf: { cacheTtl: 0 } });
   if (r.status === 404) return { invalid: true };
   if (!r.ok) return { error: `rss ${r.status}` };
-  const { entries } = parseAtom(await r.text(), baseline ? 15 : 5);
+  // El RSS público trae como máximo ~15 entradas: se procesan todas para no perder subidas en ráfaga.
+  const { entries } = parseAtom(await r.text());
   let fresh = 0;
   for (const e of entries) {
     e.channelId ||= channelId;
@@ -124,21 +125,27 @@ async function cron(env) {
   const stats = { subscribed: 0, renewed: 0, polled: 0, new_from_rss: 0, error: null };
   try {
     // 1. Canales nuevos: línea base por RSS (para no contar vídeos viejos como "nuevos") + suscripción.
-    const pending = await env.DB.prepare("SELECT channel_id FROM channels WHERE status='pending' LIMIT 5").all();
-    for (const { channel_id } of pending.results) {
+    const pending = await env.DB.prepare("SELECT channel_id, secret, last_polled_at FROM channels WHERE status='pending' LIMIT 5").all();
+    for (const { channel_id, secret: oldSecret, last_polled_at } of pending.results) {
       if (!CHANNEL_RE.test(channel_id)) {
         await env.DB.prepare("UPDATE channels SET status='invalid', last_error='formato' WHERE channel_id=?").bind(channel_id).run();
         continue;
       }
-      const base = await pollRss(env, channel_id, true, now);
+      // La línea base se hace UNA sola vez por canal (last_polled_at NULL). En los reintentos tras un error
+      // del hub se sondea en modo normal, para que los vídeos publicados entre intentos cuenten como nuevos.
+      const base = await pollRss(env, channel_id, last_polled_at == null, now);
       if (base.invalid) {
         await env.DB.prepare("UPDATE channels SET status='invalid', last_error='RSS 404' WHERE channel_id=?").bind(channel_id).run();
         continue;
       }
-      const secret = randomHex();
+      if (base.error && last_polled_at == null) {
+        await env.DB.prepare('UPDATE channels SET last_error=? WHERE channel_id=?').bind(base.error, channel_id).run();
+        continue; // sin línea base no se suscribe; se reintenta en la próxima ejecución
+      }
+      const secret = oldSecret || randomHex();
       const st = await subscribe(env, channel_id, secret);
       await env.DB.prepare("UPDATE channels SET secret=?, status=?, requested_at=?, last_polled_at=?, last_error=? WHERE channel_id=?")
-        .bind(secret, st === 202 ? 'requested' : 'pending', now, now, st === 202 ? (base.error || null) : `hub ${st}`, channel_id).run();
+        .bind(secret, st === 202 ? 'requested' : 'pending', now, now, st === 202 ? null : `hub ${st}`, channel_id).run();
       if (st === 202) stats.subscribed++;
     }
     // 2. Renovar leases que caducan en < 24 h (o solicitudes sin verificar tras 1 h).
