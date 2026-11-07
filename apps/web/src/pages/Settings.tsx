@@ -1,3 +1,4 @@
+import { useTitle } from '../title';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { toast } from '../toast';
@@ -10,6 +11,7 @@ export default function Settings() {
   const ownerKey = useStore((s) => s.ownerKey);
   const [key, setKey] = useState(ownerKey);
   const [saved, setSaved] = useState(false);
+  useTitle('Ajustes');
   const sb = useStore((s) => s.sponsorblock);
   const da = useStore((s) => s.dearrow);
   const focus = useStore((s) => s.focus);
@@ -31,7 +33,7 @@ export default function Settings() {
   }
   async function importData(f: File) {
     try {
-      const j = JSON.parse(await f.text());
+      let j; try { j = JSON.parse(await f.text()); } catch { throw new Error('Este archivo no es una copia de TodoTube.'); }
       if (j?.app !== 'todotube' || typeof j.data !== 'object' || !j.data) throw new Error('Este archivo no es una copia de TodoTube.');
       const allowed = ['favorites', 'watchLater', 'history', 'progress', 'watched', 'hidden', 'notifHidden', 'searches', 'theme', 'autoplay', 'theater', 'sidebar', 'focus', 'sponsorblock', 'dearrow', 'blockWords', 'groups', 'playlists'];
       const data = Object.fromEntries(Object.entries(j.data).filter(([k]) => allowed.includes(k)));
@@ -87,7 +89,7 @@ export default function Settings() {
       </section>
       <section className="panel">
         <h2>Clave de propietario</h2>
-        <p className="note">En la v0.1 no hay cuentas: esta clave permite añadir canales. Se guarda solo en este navegador.</p>
+        <p className="note">Todavía no hay cuentas: esta clave permite seguir canales y cambiar sus avisos. Se guarda solo en este navegador.</p>
         <form onSubmit={(e) => { e.preventDefault(); actions.setOwnerKey(key.trim()); setSaved(true); }}>
           <label>Clave<input type="password" value={key} onChange={(e) => { setKey(e.target.value); setSaved(false); }} autoComplete="off" /></label>
           <button className="btn primary">Guardar</button>
@@ -96,7 +98,7 @@ export default function Settings() {
       </section>
       <section className="panel">
         <h2>Acerca de</h2>
-        <p className="note">TodoTube Web v0.1. Las novedades llegan al momento en cuanto tus canales publican. Tus favoritos e historial se quedan en este navegador.</p>
+        <p className="note">TodoTube Web v0.2. Las novedades llegan al momento en cuanto tus canales publican. Tus favoritos e historial se quedan en este navegador.</p>
       </section>
     </div>
   );

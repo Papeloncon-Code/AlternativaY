@@ -10,6 +10,7 @@ type Props = { id: string; meta: Meta; startAt: number; onEnded?: () => void; on
 export default function OfficialPlayer({ id, meta, startAt, onEnded, onReady, loop }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
   const metaRef = useRef(meta);
   metaRef.current = meta;
   const cb = useRef({ onEnded, onReady });
@@ -51,7 +52,7 @@ export default function OfficialPlayer({ id, meta, startAt, onEnded, onReady, lo
       });
     }).catch((e: Error) => setError(e.message));
     return () => { cancelled = true; window.clearInterval(timer); if (player) { save(); player.destroy?.(); } };
-  }, [id, startAt, loop]);
+  }, [id, startAt, loop, retry]);
 
-  return error ? <ErrorBox message={error} /> : <div ref={hostRef} className="player-host" />;
+  return error ? <ErrorBox message={error} onRetry={() => { setError(''); setRetry((n) => n + 1); }} /> : <div ref={hostRef} className="player-host" />;
 }

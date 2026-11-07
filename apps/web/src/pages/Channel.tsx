@@ -1,3 +1,4 @@
+import { useTitle } from '../title';
 import { useParams } from 'react-router-dom';
 import { useChannels, useFeed } from '../data';
 import Avatar from '../components/Avatar';
@@ -20,6 +21,7 @@ export default function Channel() {
   const c = channels.data?.find((x) => x.id === id);
   const vids = (feed.data ?? []).filter((v) => v.channelId === id);
   const name = c?.name ?? vids[0]?.channel ?? 'Canal';
+  useTitle(name);
   const act = async (fn: () => Promise<unknown>) => { try { if (!ownerKey) throw new Error('Pon tu clave de propietario en Ajustes.'); await fn(); channels.reload(); } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); } };
   return (
     <div className="page">

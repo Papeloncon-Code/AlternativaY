@@ -1,3 +1,4 @@
+import { useTitle } from '../title';
 import { Link } from 'react-router-dom';
 import { actions, useStore } from '../store';
 import VideoCard from '../components/VideoCard';
@@ -17,6 +18,7 @@ function useList(kind: Kind) {
 }
 
 export function YouList({ kind }: { kind: Kind }) {
+  useTitle(TITLES[kind]);
   const items = useList(kind);
   return (
     <div className="page">
@@ -41,6 +43,7 @@ function Shelf({ kind, icon }: { kind: Kind; icon: string }) {
 }
 
 export default function You() {
+  useTitle('Tú');
   return (
     <div className="page">
       <h1 className="page-title">Tú</h1>

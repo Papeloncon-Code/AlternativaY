@@ -12,5 +12,5 @@ INSERT OR IGNORE INTO channels (channel_id, label) VALUES
  ('UC16niRr50-MSBwiO3YDb3RA','BBC News'),
  ('UCNye-wNBqNL5ZzHSJj3l8Bg','Al Jazeera English'),
  ('UCddiUEpeqJcYeBxX1IVBKvQ','The Verge'),
- ('UCVHFbqXqoYvEWM1Ddxl0QDg','Android Authority'),
- ('UCOmcA3f_RrH6b9NmcNa4tdg','Lofi Girl (directos)');
+ ('UCVHFbqXqoYvEWM1Ddxl0QDg','Android Developers'),
+ ('UCOmcA3f_RrH6b9NmcNa4tdg','CNET');

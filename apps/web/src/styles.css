@@ -572,3 +572,51 @@ img.avatar { object-fit: cover; background: var(--chip); }
 .player-dock.mini.vertical .mini-cover { aspect-ratio: 9 / 16; }
 @media (max-width: 792px) { .mini-cover { width: 128px; } .player-dock.mini.vertical .mini-cover { aspect-ratio: 16 / 9; } }
 @media (max-width: 792px) { .mini-expand { display: none; } }
+
+/* ---- Correcciones de la revisión independiente (QA 2026-11-07) ---- */
+/* #1: la columna “A continuación” ocupa dos filas y estiraba la primera: el título quedaba 700 px por debajo del vídeo */
+.watch-layout { grid-template-rows: auto 1fr; }
+/* #12 y #13: el reproductor no llegaba al borde en modo cine ni en el móvil (max-width: 100% anulaba los márgenes negativos) */
+.watch-layout.theater .player-frame:not(.vertical) { max-width: none; }
+/* #11: columnas según el ancho real del contenido, como las apps de vídeo (1 → 6) */
+.main { container-type: inline-size; }
+.vgrid { --cols: 1; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); }
+@container (min-width: 480px) { .vgrid { --cols: 2; } }
+@container (min-width: 860px) { .vgrid { --cols: 3; } }
+@container (min-width: 1140px) { .vgrid { --cols: 4; } }
+@container (min-width: 1520px) { .vgrid { --cols: 5; } }
+@container (min-width: 2000px) { .vgrid { --cols: 6; } }
+/* #9: el “hace X” de los avisos quedaba cortado por el límite de 3 líneas */
+.notif-text { display: flex; flex-direction: column; -webkit-line-clamp: unset; overflow: visible; }
+.notif-line { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+/* #17: el botón Crear se salía del diálogo */
+.save-new input { min-width: 0; width: auto; }
+/* Interruptores a la derecha de su descripción (la regla general de label los ponía debajo) */
+.setting-row { flex-direction: row; color: var(--text); }
+.filter-count { flex-wrap: wrap; }
+@media (max-width: 792px) {
+  .player-frame { max-width: none; }
+  /* #3: avisos a todo el ancho, debajo de la barra */
+  .notif-panel { position: fixed; left: 8px; right: 8px; top: calc(var(--top) - 4px); width: auto; max-height: calc(100vh - 140px); }
+  /* #2: la fila del canal no cabe: el estado va en la línea de datos y la campanita se compacta */
+  .channel .status { display: none; }
+  .channel .bell-btn span { display: none; }
+  /* #13: título en dos líneas y acciones en una fila desplazable */
+  .watch-title { font-size: 18px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .watch-actions { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .watch-actions .btn { flex: none; }
+  .watch-row { flex-wrap: wrap; }
+}
+@media (max-width: 792px) {
+  .shorts-stage.official .short-wrap { flex-direction: column; align-items: stretch; gap: 0; }
+  .shorts-stage.official .short-player { height: auto; flex: 1; min-height: 0; }
+  .shorts-stage.official .short-actions { position: static; flex-direction: row; justify-content: space-around; padding: 8px 16px; color: var(--text); }
+  .shorts-stage.official .short-actions .round { background: var(--chip); color: var(--text); }
+  .shorts-stage.official .short-actions span { margin: 0; }
+}
+.search-q { color: var(--text-2); font-size: 14px; margin: 8px 0; }
+.menu.up { top: auto; bottom: 34px; }
+.bell-lock { margin: 4px 16px 8px; font-size: 14px; color: var(--text-2); line-height: 1.45; max-width: 260px; }
+.bell-lock a { color: var(--new); }
+.bell-item:disabled { opacity: .45; cursor: not-allowed; }
+.short .card-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

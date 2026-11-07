@@ -24,6 +24,7 @@ export default function SearchBox({ mobile, onClose }: { mobile: boolean; onClos
   const [q, setQ] = useState(new URLSearchParams(location.search).get('q') ?? '');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  const [typed, setTyped] = useState<string | null>(null); // lo que escribiste antes de moverte con ↑/↓
   const box = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -38,8 +39,9 @@ export default function SearchBox({ mobile, onClose }: { mobile: boolean; onClos
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
 
+  const query = typed ?? q;
   const sugs = useMemo<Sug[]>(() => {
-    const t = norm(q.trim());
+    const t = norm(query.trim());
     if (!t) return recent.slice(0, 8).map((text) => ({ kind: 'recent', text }));
     const terms = t.split(/\s+/);
     // Como en los buscadores de vídeo: cada palabra escrita debe ser el comienzo de una palabra del texto.
@@ -54,11 +56,11 @@ export default function SearchBox({ mobile, onClose }: { mobile: boolean; onClos
       seen.add(v.id);
       out.push({ kind: 'video', text: v.title!, to: v.kind === 'short' ? `/shorts/${v.id}` : `/ver/${v.id}` });
     });
-    if (!out.length) out.push({ kind: 'query', text: q.trim() });
+    if (!out.length) out.push({ kind: 'query', text: query.trim() });
     return out;
-  }, [q, recent, feed.data, channels.data]);
+  }, [query, recent, feed.data, channels.data]);
 
-  useEffect(() => setActive(-1), [q]);
+
   const show = open && sugs.length > 0;
 
   function runSearch(text: string) {
@@ -87,12 +89,20 @@ export default function SearchBox({ mobile, onClose }: { mobile: boolean; onClos
   function onKey(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'Escape') {
       e.preventDefault(); // el navegador borraría el texto y volvería a abrir las sugerencias
+      if (typed != null) { setQ(typed); setTyped(null); setActive(-1); }
       if (show) setOpen(false); else { (e.target as HTMLInputElement).blur(); onClose(); }
       return;
     }
     if (!sugs.length) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((a) => (a + 1) % sugs.length); }
-    if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => (a <= 0 ? sugs.length - 1 : a - 1)); }
+    const move = (n: number) => {
+      const base = typed ?? q;
+      if (typed == null) setTyped(q);
+      setActive(n);
+      const sg = sugs[n];
+      setQ(n < 0 ? base : sg && (sg.kind === 'recent' || sg.kind === 'query') ? sg.text : base);
+    };
+    if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); move(active + 1 >= sugs.length ? -1 : active + 1); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); move(active <= -1 ? sugs.length - 1 : active - 1); }
   }
 
   return (
@@ -102,7 +112,7 @@ export default function SearchBox({ mobile, onClose }: { mobile: boolean; onClos
         <input id="q" type="search" placeholder="Buscar" value={q} autoComplete="off"
           aria-label="Buscar vídeos y canales" role="combobox" aria-expanded={show} aria-controls="q-list" aria-autocomplete="list"
           aria-activedescendant={active >= 0 ? `q-opt-${active}` : undefined}
-          onChange={(e) => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={onKey} />
+          onChange={(e) => { setQ(e.target.value); setTyped(null); setActive(-1); setOpen(true); }} onFocus={() => setOpen(true)} onKeyDown={onKey} />
         {show && (
           <ul id="q-list" className="suggest" role="listbox" aria-label="Sugerencias">
             {sugs.map((s, i) => (

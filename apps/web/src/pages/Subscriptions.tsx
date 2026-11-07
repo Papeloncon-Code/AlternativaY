@@ -1,3 +1,4 @@
+import { useTitle } from '../title';
 import Avatar from '../components/Avatar';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
@@ -53,6 +54,7 @@ export default function Subscriptions() {
   const order = { verified: 0, requested: 1, pending: 2, invalid: 3 } as const;
   const items = [...(list.data ?? [])].sort((a, b) => (order[a.status] ?? 2) - (order[b.status] ?? 2));
   const active = items.filter((c) => c.status === 'verified').length;
+  useTitle('Suscripciones');
 
   return (
     <div className="page">
@@ -75,7 +77,7 @@ export default function Subscriptions() {
         {!ownerKey && <p className="note">Para añadir canales en esta versión, pon tu clave de propietario en <Link to="/ajustes">Ajustes</Link>.</p>}
         <button className="btn primary" disabled={busy || !ownerKey}>{busy ? 'Añadiendo…' : 'Seguir'}</button>
         {msg && <p className={msg.ok ? 'ok-text' : 'bad-text'} role="status">{msg.text}</p>}
-        <p className="note">Próximamente: importar todas tus suscripciones automáticamente desde la app de Android (ADR-007).</p>
+        <p className="note">Próximamente: importar todas tus suscripciones de una vez.</p>
       </form>
 
       {list.error && <ErrorBox message={`No se pudo cargar la lista (${list.error}).`} onRetry={list.reload} />}

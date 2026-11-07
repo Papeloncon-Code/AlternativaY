@@ -1,3 +1,5 @@
+import { useOEmbed } from '../oembed';
+import { useTitle } from '../title';
 import { openSave } from '../components/SaveDialog';
 import { isBlocked } from '../filters';
 import { hasBridge } from '../bridge';
@@ -55,12 +57,15 @@ export default function Watch() {
   const listIdx = plist ? plist.items.findIndex((i) => i.id === id) : -1;
   const listMeta = listIdx >= 0 ? plist!.items[listIdx] : undefined;
   const isShort = params.get('short') === '1' || video?.kind === 'short';
+  // Vídeo abierto por enlace, fuera de tus canales: título y canal por oEmbed (sin Puente) (#24).
+  const oe = useOEmbed(id, !!feed.data && !video && !saved && !navMeta && !listMeta);
   const meta: Meta = useMemo(() => ({
-    id, title: video?.title ?? saved?.title ?? navMeta?.title ?? listMeta?.title ?? 'Vídeo', channel: video?.channel ?? saved?.channel ?? navMeta?.channel ?? listMeta?.channel ?? '', channelId: video?.channelId ?? saved?.channelId ?? navMeta?.channelId ?? listMeta?.channelId ?? '',
-  }), [id, video, saved, navMeta, listMeta]);
+    id, title: video?.title ?? saved?.title ?? navMeta?.title ?? listMeta?.title ?? oe?.title ?? 'Vídeo', channel: video?.channel ?? saved?.channel ?? navMeta?.channel ?? listMeta?.channel ?? oe?.author ?? '', channelId: video?.channelId ?? saved?.channelId ?? navMeta?.channelId ?? listMeta?.channelId ?? '',
+  }), [id, video, saved, navMeta, listMeta, oe]);
   const startAt = useMemo(() => (saved ? Math.max(0, saved.pos - 3) : 0), [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const validId = ID_RE.test(id);
   const channel = channels.data?.find((c) => c.id === meta.channelId);
+  useTitle(meta.title !== 'Vídeo' ? meta.title : null);
 
   const all = (feed.data ?? []).filter((v) => v.id !== id && v.kind !== 'short' && !hidden[v.id] && !isBlocked(v.title, words));
   const next = plist
@@ -161,15 +166,15 @@ export default function Watch() {
           {details?.description && <button type="button" className="desc-toggle" onClick={(e) => { e.stopPropagation(); setDescOpen((o) => !o); }}>{descOpen ? 'Mostrar menos' : '…más'}</button>}
         </div>
         {fallback && <p className="bridge-hint">El reproductor TodoTube no pudo cargar este vídeo ({fallback}); se usa el reproductor de reserva.</p>}
-        {!video && !feed.loading && !saved && !navMeta && !listMeta && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir a Principal</Link></p>}
+        {!video && !feed.loading && !saved && !navMeta && !listMeta && !oe && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir a Principal</Link></p>}
       </div>
-      <aside className="watch-side" aria-label="A continuación">
+      {validId && <aside className="watch-side" aria-label="A continuación">
         <div className="side-head">
           <b>{plist ? `${plist.name} · ${listIdx + 1}/${plist.items.length}` : 'A continuación'}</b>
           <label className="switch"><input id="autoplay" type="checkbox" checked={autoplay} onChange={() => actions.toggleAutoplay()} /><span>Reproducción automática</span></label>
         </div>
         {next.map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} compact list={listId ?? undefined} />)}
-      </aside>
+      </aside>}
     </div>
   );
 }

@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import ShortCard from '../components/ShortCard';
+import { thumb, type Video } from '../api';
+import { ago } from '../format';
 import { useFeed, useChannels, refreshAll } from '../data';
-import VideoCard from '../components/VideoCard';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import { Empty, SkeletonGrid } from '../components/States';
 import { useBridge } from '../bridge';
 import { addChannel } from '../api';
+import { useTitle } from '../title';
 import { getState } from '../store';
 import { setAvatar } from '../avatars';
 import { toast } from '../toast';
@@ -28,6 +31,7 @@ export default function Search() {
   const vids = useMemo(() => (feed.data ?? []).filter((v) => match(`${v.title} ${v.channel}`)), [feed.data, q]); // eslint-disable-line react-hooks/exhaustive-deps
   const chans = useMemo(() => (channels.data ?? []).filter((c) => match(c.name)), [channels.data, q]); // eslint-disable-line react-hooks/exhaustive-deps
   const followed = new Set((channels.data ?? []).map((c) => c.id));
+  useTitle(q ? `${q} - Buscar` : 'Buscar');
 
   useEffect(() => {
     if (!bridge || !q.trim()) return;
@@ -63,7 +67,12 @@ export default function Search() {
               : <button type="button" className="btn primary" onClick={() => void follow(c)}>Seguir</button>}
           </div>
         ))}
-        {r && r.videos.map((v) => (
+        {r && r.videos.some((v) => v.short) && (
+          <section className="shelf" aria-label="Shorts"><h2><Icon name="shorts" size={22} /> Shorts</h2>
+            <div className="shorts-row">{r.videos.filter((v) => v.short).map((v) => <ShortCard key={v.id} id={v.id} title={v.title} channel={v.channel} publishedAt={null} />)}</div>
+          </section>
+        )}
+        {r && r.videos.filter((v) => !v.short).map((v) => (
           <article key={v.id} className="sresult">
             <Link to={`/ver/${v.id}`} state={{ meta: { id: v.id, title: v.title, channel: v.channel, channelId: v.channelId } }} className="vthumb">
               <img src={`https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`} alt="" loading="lazy" width={480} height={270} />
@@ -81,8 +90,12 @@ export default function Search() {
     );
   }
 
+  if (!q.trim()) return <Navigate to="/" replace />;
+  const localVideos = vids.filter((v) => v.kind !== 'short');
+  const localShorts = vids.filter((v) => v.kind === 'short');
   return (
     <div className="page narrow-list">
+      <p className="search-q">Resultados de «{q}»</p>
       <div className="search-scope">
         <Icon name="search2" size={20} />
         <p>Ahora se busca solo en lo que publican los <b>{(channels.data ?? []).length} canales que sigues</b>. Para buscar en todo, como en cualquier app de vídeo, instala <b>TodoTube Puente</b>.</p>
@@ -92,7 +105,26 @@ export default function Search() {
         <Link key={c.id} to={`/canal/${c.id}`} className="search-channel"><Avatar name={c.name} id={c.id} size={88} /><span className="sc-info"><b>{c.name}</b><small>{c.videos} vídeos recientes</small></span></Link>
       ))}
       {vids.length === 0 && chans.length === 0 && <Empty title={`Ninguno de tus canales ha publicado nada sobre «${q}»`}><p>Con TodoTube Puente podrás buscar en todo y seguir canales nuevos desde aquí.</p></Empty>}
-      <div className="vgrid">{vids.map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} short={v.kind === 'short'} />)}</div>
+      {localShorts.length > 0 && (
+        <section className="shelf" aria-label="Shorts"><h2><Icon name="shorts" size={22} /> Shorts</h2>
+          <div className="shorts-row">{localShorts.map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} />)}</div>
+        </section>
+      )}
+      {localVideos.map((v) => <LocalRow key={v.id} v={v} />)}
     </div>
+  );
+}
+
+// Resultado en fila, como en los buscadores de vídeo: miniatura grande a la izquierda y los datos a la derecha.
+function LocalRow({ v }: { v: Video }) {
+  return (
+    <article className="sresult">
+      <Link to={`/ver/${v.id}`} className="vthumb"><img src={thumb(v.id)} alt="" loading="lazy" width={480} height={270} /></Link>
+      <div className="sr-text">
+        <Link to={`/ver/${v.id}`} className="vtitle">{v.title ?? v.id}</Link>
+        <span className="vmeta">{v.publishedAt ? ago(v.publishedAt) : ''}</span>
+        <Link to={`/canal/${v.channelId}`} className="sr-chan"><Avatar name={v.channel} id={v.channelId} size={24} /> {v.channel}</Link>
+      </div>
+    </article>
   );
 }

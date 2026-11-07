@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, ScrollRestoration, useLocation } from 'react-router-dom';
 import Icon from './Icon';
 import Logo from './Logo';
 import Avatar from './Avatar';
@@ -91,7 +91,7 @@ function Notifications() {
                 <Link to={v.kind === 'short' ? `/shorts/${v.id}` : `/ver/${v.id}`} onClick={() => setOpen(false)} className="notif-item">
                   <span className={`notif-dot${v.seenAt > openedSeenAt ? '' : ' seen'}`} aria-hidden="true" />
                   <Avatar name={v.channel} id={v.channelId} size={40} />
-                  <span className="notif-text"><b>{v.channel}</b> ha subido{v.kind === 'short' ? ' un Short' : ''}: {v.title}<small>{ago(v.seenAt)}</small></span>
+                  <span className="notif-text"><span className="notif-line"><b>{v.channel}</b> ha subido{v.kind === 'short' ? ' un Short' : ''}: {v.title}</span><small>{ago(v.seenAt)}</small></span>
                   <img src={thumb(v.id)} alt="" width={86} height={48} loading="lazy" />
                 </Link>
                 <button type="button" className="icon-btn notif-kebab" aria-label="Opciones del aviso" aria-haspopup="menu" aria-expanded={menuFor === v.id}
@@ -124,6 +124,7 @@ export default function Layout() {
   const isWatch = location.pathname.startsWith('/ver/');
   const [drawer, setDrawer] = useState(false);
   useEffect(() => { setDrawer(false); }, [location.pathname]);
+  useEffect(() => { if (!drawer) return; const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawer(false); }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k); }, [drawer]);
   const onMenu = () => (isWatch || window.innerWidth <= 1312 ? setDrawer((d) => !d) : actions.toggleSidebar());
   const freshBy = useMemo(() => {
     const m = new Set<string>();
@@ -159,7 +160,7 @@ export default function Layout() {
         </div>
         <SearchBox mobile={mobileSearch} onClose={() => setMobileSearch(false)} />
         <div className="top-right">
-          <button type="button" className="icon-btn only-mobile" aria-label="Buscar" onClick={() => setMobileSearch(true)}><Icon name="search2" size={22} /></button>
+          <button type="button" className="icon-btn only-mobile" aria-label="Buscar" onClick={() => { setMobileSearch(true); setTimeout(() => (document.getElementById('q') as HTMLInputElement | null)?.focus(), 0); }}><Icon name="search2" size={22} /></button>
           <button type="button" className={`icon-btn focus-btn${focus ? ' on' : ''}`} aria-pressed={focus} aria-label="Modo Foco" title="Modo Foco"
             onClick={() => { actions.toggleFocus(); toast(focus ? 'Modo Foco desactivado' : 'Modo Foco: solo lo nuevo de tus canales'); }}><Icon name="focusmode" size={22} /></button>
           <Notifications />
@@ -206,6 +207,7 @@ export default function Layout() {
       {drawer && <button type="button" className="scrim" aria-label="Cerrar menú" onClick={() => setDrawer(false)} />}
 
       <main id="main" className="main"><Outlet /></main>
+      <ScrollRestoration />
       <Toaster />
       <PermissionPrompt />
       <SaveDialogHost />

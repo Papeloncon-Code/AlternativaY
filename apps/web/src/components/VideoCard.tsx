@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { thumb } from '../api';
 import { ago } from '../format';
@@ -22,6 +22,8 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
   const watched = useStore((s) => Boolean(s.watched[id]));
   const saved = useStore((s) => s.progress[id]);
   const [menu, setMenu] = useState(false);
+  const [up, setUp] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const ref = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLElement>(null);
   const daOn = useStore((s) => s.dearrow);
@@ -39,6 +41,13 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
   const href = short ? `/shorts/${id}` : `/ver/${id}${list ? `?lista=${list}` : ''}`;
   const pct = progress ?? (saved ? saved.pos / saved.dur : watched ? 1 : undefined);
 
+  // Si no cabe debajo (barra inferior del móvil o final de la pantalla), el menú se abre hacia arriba (#16).
+  useLayoutEffect(() => {
+    if (!menu) { setUp(false); return; }
+    const r = menuRef.current?.getBoundingClientRect();
+    const bar = document.querySelector('.bottombar')?.getBoundingClientRect().height ?? 0;
+    if (r && r.bottom > window.innerHeight - bar - 8) setUp(true);
+  }, [menu]);
   useEffect(() => {
     if (!menu) return;
     const close = (e: MouseEvent | KeyboardEvent) => {
@@ -68,14 +77,14 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
             <Icon name="more" size={22} />
           </button>
           {menu && (
-            <div className="menu" role="menu">
-              <button type="button" role="menuitem" onClick={() => { actions.toggleWatchLater(meta); setMenu(false); }}>
+            <div className={`menu${up ? ' up' : ''}`} role="menu" ref={menuRef}>
+              <button type="button" role="menuitem" onClick={() => { actions.toggleWatchLater(meta); setMenu(false); toast(later ? 'Quitado de Ver más tarde' : 'Guardado en Ver más tarde'); }}>
                 <Icon name="clock" size={20} />{later ? 'Quitar de Ver más tarde' : 'Guardar en Ver más tarde'}
               </button>
               <button type="button" role="menuitem" onClick={() => { openSave(meta); setMenu(false); }}>
                 <Icon name="library" size={20} />Guardar en una lista
               </button>
-              <button type="button" role="menuitem" onClick={() => { actions.toggleFavorite(meta); setMenu(false); }}>
+              <button type="button" role="menuitem" onClick={() => { actions.toggleFavorite(meta); setMenu(false); toast(fav ? 'Quitado de Me gusta' : 'Añadido a Me gusta'); }}>
                 <Icon name="like" size={20} />{fav ? 'Quitar de Me gusta' : 'Me gusta'}
               </button>
               <button type="button" role="menuitem" onClick={() => { actions.toggleWatched(id); setMenu(false); }}>

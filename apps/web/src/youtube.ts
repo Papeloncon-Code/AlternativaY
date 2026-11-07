@@ -13,7 +13,7 @@ export function loadYouTubeApi(): Promise<any> {
       const s = document.createElement('script');
       s.src = 'https://www.youtube.com/iframe_api';
       s.async = true;
-      s.onerror = () => { ready = null; reject(new Error('No se pudo cargar el reproductor de YouTube')); };
+      s.onerror = () => { ready = null; reject(new Error('No se pudo cargar el reproductor. Revisa tu conexión.')); };
       document.head.appendChild(s);
     });
   }

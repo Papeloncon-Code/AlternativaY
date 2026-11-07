@@ -1,3 +1,4 @@
+import { useTitle } from '../title';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { actions, useStore } from '../store';
 import { thumb } from '../api';
@@ -10,6 +11,7 @@ export default function Playlist() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const p = useStore((s) => s.playlists.find((x) => x.id === id));
+  useTitle(p?.name ?? 'Lista');
   if (!p) return <div className="page"><Empty title="Esta lista no existe"><Link className="btn" to="/tu">Ir a Tú</Link></Empty></div>;
   const first = p.items[0];
   return (

@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, Link, RouterProvider } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Watch from './pages/Watch';
@@ -33,7 +33,7 @@ const router = createBrowserRouter([
       { path: '/biblioteca', element: <Navigate to="/tu" replace /> },
       { path: '/ajustes', element: <Settings /> },
       { path: '/puente', element: <Bridge /> },
-      { path: '*', element: <div className="page"><Empty title="Página no encontrada" /></div> },
+      { path: '*', element: <div className="page"><Empty title="Esta página no existe"><p>Puede que el enlace esté mal escrito o que la página ya no esté.</p><Link className="btn primary" to="/">Ir a Principal</Link></Empty></div> },
     ],
   },
 ]);

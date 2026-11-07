@@ -1,9 +1,11 @@
+import { useTitle } from '../title';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const detect = () => !!(window as unknown as { todotubeBridge?: { installed?: boolean } }).todotubeBridge?.installed;
 
 export default function Bridge() {
+  useTitle('TodoTube Puente');
   const [installed, setInstalled] = useState(detect());
   useEffect(() => {
     const on = () => setInstalled(true);
