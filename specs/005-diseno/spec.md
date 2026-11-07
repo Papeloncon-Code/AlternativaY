@@ -88,3 +88,35 @@ El propietario mostró capturas de YouTube (escritorio, tema oscuro) y pidió qu
 | CA-D2 | ✅ Tokens claro/oscuro; sin desplazamiento horizontal en 1440, 1100 y 390 px; 0 errores de JavaScript (Playwright) |
 
 Pendiente (necesita el puente o Android): duración, visitas, foto real del canal y “EN VIVO” en las miniaturas.
+
+## Pasada de sistema de diseño (2026-11-07): skills Taste y Müller-Brockmann
+
+### Qué se estudió y qué aplica
+Se leyeron completos [taste-skill](https://github.com/leonxlnx/taste-skill) (`SKILL.md`, `references/system.md`, `references/motion.md`) y la skill *Müller-Brockmann Grid Systems* de [hyperagent-public-skills](https://github.com/alex-hyperagent/hyperagent-public-skills). No se ejecutó ningún script de ellas.
+
+| Regla | ¿Aplica a TodoTube? | Por qué |
+|---|---|---|
+| Taste: hero, una sección por pantalla, fotos reales, efectos | ❌ | Es para webs de empresa y landing pages; TodoTube es una app. Servirá para la futura página de presentación |
+| Taste: **un solo sistema** (una escala de espacios, radios, botones, enlaces) | ✅ | Aplicado |
+| Taste: capa de interacción (entrar 140 ms, salir 200 ms, pulsar 90 ms, sin rebotes; foco visible; nada se anima al hacer scroll; movimiento reducido) | ✅ | Aplicado |
+| Taste: texto gris ≥ 4,5:1, nada por debajo de 13 px | ✅ con excepción | Mínimo 12 px; etiquetas del menú estrecho y número de la campana a 11 px (convención de apps de vídeo, que usan 10 px) |
+| Müller-Brockmann: **una fuente de verdad** en `:root`, bordes iguales, espaciado múltiplo de la unidad, **medir en vez de mirar** | ✅ | Aplicado y medido con Playwright |
+| Müller-Brockmann: retícula de línea base editorial, superposición conmutable, alineación óptica de titulares grandes | ❌ | Pensado para páginas editoriales con titulares de 100+ px; en una cuadrícula de vídeos dinámica no aporta |
+
+Las galerías del archivo del propietario (godly, land-book, landdding, cta.gallery, footer.design, supahero, motionsites…) son casi todas de **landing pages**: se usarán para la página de presentación y la de instalación del Puente, no para la app. *No se han revisado una a una todavía.*
+
+### Resultado medido (antes → después)
+| Medida | Antes | Después |
+|---|---|---|
+| Tamaños de letra distintos | 12 | **7** (11 · 12 · 14 · 16 · 20 · 24 · 32) |
+| Radios distintos | 10 | **4** (4 · 8 · 12 · pastilla) |
+| Espaciados fuera de escala (5, 9, 10, 14, 18, 28 px…) | 19 usos | **0** (múltiplos de 4) |
+| Transiciones distintas | 5 sueltas | **1 capa** con tokens `--m-in/--m-out/--m-press/--ease` |
+| Contraste del “Deshacer” de los avisos breves | 2,29 : 1 / 3,28 : 1 ❌ | **5,17 : 1 / 7,40 : 1** ✅ |
+| Interruptor encendido en tema claro (lima sobre blanco) | 1,29 : 1 ❌ | **7,08 : 1** ✅ (verde oscuro) |
+| “Suscripciones” en el menú estrecho | se salía (74 px en 64) | cabe (72 en 72; menú de 80 px) |
+| Bordes laterales de la cuadrícula a 1280 px | 24 / 24 px | 24 / 24 px ✅ |
+
+Regresiones detectadas al comparar capturas antes/después y corregidas: los botones de tema saltaban de línea en móvil (relleno del panel) y la insignia “Nuevo” crecía 8 px.
+
+**Pendiente:** el enlace del nombre del canal en las tarjetas mide 20 px de alto (WCAG 2.5.8 pide 24 px); validar CA-D3 con 3 personas.
