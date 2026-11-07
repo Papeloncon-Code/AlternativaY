@@ -22,7 +22,7 @@ function getInnertube() {
   return innertubePromise;
 }
 
-export type LoadInfo = { title: string; author: string; isLive: boolean };
+export type LoadInfo = { title: string; author: string; isLive: boolean; views?: number; description?: string; lengthSeconds?: number };
 
 // ---- Carga rápida (docs/research/08): todo lo que se puede preparar antes del clic ----
 type Cached = { at: number; response: Awaited<ReturnType<Innertube['actions']['execute']>> };
@@ -181,7 +181,8 @@ export class TodoTubePlayer {
     if (!manifest) throw new Error('No se encontró una forma de reproducir este vídeo.');
 
     await player.load(manifest, startTime > 0 ? startTime : undefined);
-    return { title: info.basic_info.title ?? '', author: info.basic_info.author ?? '', isLive };
+    const bi = info.basic_info as { view_count?: number; short_description?: string; duration?: number };
+    return { title: info.basic_info.title ?? '', author: info.basic_info.author ?? '', isLive, views: bi.view_count, description: bi.short_description, lengthSeconds: bi.duration };
   }
 
   private async mint(): Promise<void> {

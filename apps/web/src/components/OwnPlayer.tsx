@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { actions, type Meta } from '../store';
+import type { PlayerHandle, VideoDetails } from '../player/handle';
 
 // Reproductor propio (Shaka + SABR) a través de TodoTube Puente. Se carga bajo demanda: no pesa a quien no tiene el puente.
-export default function OwnPlayer({ id, meta, startAt, onFail }: { id: string; meta: Meta; startAt: number; onFail: (reason: string) => void }) {
+type Props = { id: string; meta: Meta; startAt: number; onFail: (reason: string) => void; onEnded?: () => void; onReady?: (h: PlayerHandle) => void; onDetails?: (d: VideoDetails) => void; loop?: boolean };
+
+export default function OwnPlayer({ id, meta, startAt, onFail, onEnded, onReady, onDetails, loop }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [status, setStatus] = useState<'cargando' | 'listo'>('cargando');
@@ -10,6 +13,8 @@ export default function OwnPlayer({ id, meta, startAt, onFail }: { id: string; m
   metaRef.current = meta;
   const failRef = useRef(onFail);
   failRef.current = onFail;
+  const cb = useRef({ onEnded, onReady, onDetails });
+  cb.current = { onEnded, onReady, onDetails };
 
   useEffect(() => {
     let destroyed = false;
@@ -25,6 +30,16 @@ export default function OwnPlayer({ id, meta, startAt, onFail }: { id: string; m
     video.addEventListener('pause', save);
     video.addEventListener('playing', onPlay, { once: true });
     video.addEventListener('loadeddata', onFirstFrame, { once: true });
+    const onEnd = () => { save(); if (loop) { video.currentTime = 0; video.play().catch(() => {}); } else cb.current.onEnded?.(); };
+    video.addEventListener('ended', onEnd);
+    const handle: PlayerHandle = {
+      togglePlay: () => (video.paused ? video.play().catch(() => {}) : video.pause()),
+      seekBy: (sec) => { video.currentTime = Math.max(0, Math.min((video.duration || 0) - 0.5, video.currentTime + sec)); },
+      seekToFraction: (f) => { if (video.duration) video.currentTime = video.duration * f; },
+      toggleMute: () => { video.muted = !video.muted; },
+      changeRate: (d) => { const r = Math.min(3, Math.max(0.25, +(video.playbackRate + d).toFixed(2))); video.playbackRate = r; return r; },
+      restart: () => { video.currentTime = 0; video.play().catch(() => {}); },
+    };
 
     (async () => {
       try {
@@ -33,9 +48,11 @@ export default function OwnPlayer({ id, meta, startAt, onFail }: { id: string; m
         const p = new TodoTubePlayer();
         instance = p;
         await p.attach(video, containerRef.current!);
-        await p.load(id, startAt);
+        const info = await p.load(id, startAt);
         if (destroyed) return;
         setStatus('listo');
+        cb.current.onReady?.(handle);
+        cb.current.onDetails?.(info);
         video.play().catch(() => { /* el navegador puede exigir un toque para reproducir con sonido */ });
       } catch (e) {
         console.error('[TodoTube] Reproductor propio falló', e);
@@ -48,9 +65,10 @@ export default function OwnPlayer({ id, meta, startAt, onFail }: { id: string; m
       save();
       video.removeEventListener('timeupdate', onTime);
       video.removeEventListener('pause', save);
+      video.removeEventListener('ended', onEnd);
       instance?.destroy();
     };
-  }, [id, startAt]);
+  }, [id, startAt, loop]);
 
   return (
     <div ref={containerRef} className="own-player" data-status={status}>

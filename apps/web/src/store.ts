@@ -10,6 +10,11 @@ type State = {
   watchLater: Record<string, Meta & { at: number }>;
   sidebar: 'full' | 'mini';
   notifSeenAt: number;
+  theater: boolean;
+  autoplay: boolean;
+  hidden: Record<string, number>;
+  searches: string[];
+  focus: boolean;
   progress: Record<string, Progress>;
   history: HistoryEntry[];
   watched: Record<string, number>;
@@ -18,7 +23,7 @@ type State = {
 };
 
 const KEY = 'todotube:v1';
-const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system' };
+const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system' };
 
 function load(): State {
   try {
@@ -41,6 +46,8 @@ function set(updater: (s: State) => State) {
   }
   listeners.forEach((l) => l());
 }
+
+export const getState = () => state;
 
 export function useStore<T>(selector: (s: State) => T): T {
   return useSyncExternalStore(
@@ -99,6 +106,14 @@ export const actions = {
       return { ...s, watchLater };
     });
   },
+  toggleTheater() { set((s) => ({ ...s, theater: !s.theater })); },
+  toggleAutoplay() { set((s) => ({ ...s, autoplay: !s.autoplay })); },
+  toggleFocus() { set((s) => ({ ...s, focus: !s.focus })); },
+  hideVideo(id: string) { set((s) => ({ ...s, hidden: { ...s.hidden, [id]: Date.now() } })); },
+  unhideVideo(id: string) { set((s) => { const hidden = { ...s.hidden }; delete hidden[id]; return { ...s, hidden }; }); },
+  addSearch(q: string) { set((s) => ({ ...s, searches: [q, ...s.searches.filter((x) => x.toLowerCase() !== q.toLowerCase())].slice(0, 12) })); },
+  removeSearch(q: string) { set((s) => ({ ...s, searches: s.searches.filter((x) => x !== q) })); },
+  importAll(data: Partial<State>) { set((s) => ({ ...s, ...data })); },
   markNotificationsSeen() {
     set((s) => ({ ...s, notifSeenAt: Date.now() }));
   },

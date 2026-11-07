@@ -7,6 +7,7 @@ import { useStore, actions } from '../store';
 import { useChannels, useFeed } from '../data';
 import { ago } from '../format';
 import { thumb } from '../api';
+import { Toaster } from '../toast';
 
 const MAIN = [
   { to: '/', label: 'Principal', icon: 'home', end: true },
@@ -84,6 +85,9 @@ export default function Layout() {
   const [q, setQ] = useState(new URLSearchParams(location.search).get('q') ?? '');
   const [mobileSearch, setMobileSearch] = useState(false);
   const isWatch = location.pathname.startsWith('/ver/');
+  const [drawer, setDrawer] = useState(false);
+  useEffect(() => { setDrawer(false); }, [location.pathname]);
+  const onMenu = () => (isWatch || window.innerWidth <= 1312 ? setDrawer((d) => !d) : actions.toggleSidebar());
   const freshBy = useMemo(() => {
     const m = new Set<string>();
     (feed.data ?? []).forEach((v) => { if (v.source !== 'baseline' && Date.now() - v.seenAt < DAY) m.add(v.channelId); });
@@ -91,6 +95,19 @@ export default function Layout() {
   }, [feed.data]);
   const subs = (channels.data ?? []).filter((c) => c.status !== 'invalid');
   const [allSubs, setAllSubs] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (e.key === '/' && !(t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))) {
+        e.preventDefault();
+        if (window.innerWidth <= 792) setMobileSearch(true);
+        setTimeout(() => (document.getElementById('q') as HTMLInputElement | null)?.focus(), 0);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   function search(e: FormEvent) {
     e.preventDefault();
@@ -100,11 +117,11 @@ export default function Layout() {
 
   const mode = isWatch ? 'overlay' : sidebar;
   return (
-    <div className={`app side-${mode}`}>
+    <div className={`app side-${mode}${drawer ? ' drawer-open' : ''}`}>
       <a className="skip" href="#main">Saltar al contenido</a>
       <header className={`topbar${mobileSearch ? ' searching' : ''}`}>
         <div className="top-left">
-          <button type="button" className="icon-btn menu-btn" aria-label="Menú" onClick={() => actions.toggleSidebar()}><Icon name="menu" size={22} /></button>
+          <button type="button" className="icon-btn menu-btn" aria-label="Menú" aria-expanded={isWatch ? drawer : undefined} onClick={onMenu}><Icon name="menu" size={22} /></button>
           <Link to="/" className="logo-link" aria-label="TodoTube, inicio"><Logo /></Link>
         </div>
         <form className="search" role="search" onSubmit={search}>
@@ -154,9 +171,10 @@ export default function Layout() {
         </div>
         <p className="side-foot">TodoTube · web v0.2</p>
       </aside>
-      {mode === 'overlay' && sidebar === 'full' && <button type="button" className="scrim" aria-label="Cerrar menú" onClick={() => actions.toggleSidebar()} />}
+      {drawer && <button type="button" className="scrim" aria-label="Cerrar menú" onClick={() => setDrawer(false)} />}
 
       <main id="main" className="main"><Outlet /></main>
+      <Toaster />
 
       <nav className="bottombar" aria-label="Principal">
         {[...MAIN, { to: '/tu', label: 'Tú', icon: 'user', end: false }].map((i) => (
