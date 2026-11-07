@@ -27,7 +27,7 @@ export default function OfficialPlayer({ id, meta, startAt, onEnded, onReady, lo
       player = new YT.Player(el, {
         host: 'https://www.youtube-nocookie.com',
         videoId: id,
-        playerVars: { start: Math.floor(startAt), rel: 0, playsinline: 1, autoplay: 1, ...(loop ? { loop: 1, playlist: id } : {}) },
+        playerVars: { start: Math.floor(startAt), rel: 0, playsinline: 1, autoplay: 1, ...(loop ? { loop: 1, playlist: id, controls: 0, disablekb: 1, iv_load_policy: 3, fs: 0 } : {}) },
         events: {
           onReady: () => {
             cb.current.onReady?.({

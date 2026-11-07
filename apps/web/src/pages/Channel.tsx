@@ -16,6 +16,7 @@ export default function Channel() {
   const feed = useFeed();
   const ownerKey = useStore((s) => s.ownerKey);
   const [msg, setMsg] = useState('');
+  const [tab, setTab] = useState<'videos' | 'shorts'>('videos');
   const c = channels.data?.find((x) => x.id === id);
   const vids = (feed.data ?? []).filter((v) => v.channelId === id);
   const name = c?.name ?? vids[0]?.channel ?? 'Canal';
@@ -31,11 +32,19 @@ export default function Channel() {
           {msg && <p className="bad-text">{msg}</p>}
         </div>
       </header>
-      {vids.length === 0 && <Empty title="Sin vídeos recientes" />}
-      {vids.some((v) => v.kind === 'short') && (
-        <section className="shelf"><h2>Shorts</h2><div className="shorts-row">{vids.filter((v) => v.kind === 'short').map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} />)}</div></section>
-      )}
-      <div className="vgrid">{vids.filter((v) => v.kind !== 'short').map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} />)}</div>
+      <div className="tabs-bar" role="tablist" aria-label="Contenido del canal">
+        {(['videos', 'shorts'] as const).map((t) => (
+          <button key={t} type="button" role="tab" aria-selected={tab === t} className={`tab-btn${tab === t ? ' on' : ''}`} onClick={() => setTab(t)}>
+            {t === 'videos' ? `Vídeos (${vids.filter((v) => v.kind !== 'short').length})` : `Shorts (${vids.filter((v) => v.kind === 'short').length})`}
+          </button>
+        ))}
+      </div>
+      {tab === 'videos' && (vids.some((v) => v.kind !== 'short')
+        ? <div className="vgrid">{vids.filter((v) => v.kind !== 'short').map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} />)}</div>
+        : <Empty title="Sin vídeos recientes" />)}
+      {tab === 'shorts' && (vids.some((v) => v.kind === 'short')
+        ? <div className="shorts-grid">{vids.filter((v) => v.kind === 'short').map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} />)}</div>
+        : <Empty title="Sin Shorts recientes" />)}
     </div>
   );
 }

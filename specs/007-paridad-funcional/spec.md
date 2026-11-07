@@ -15,7 +15,7 @@
 | P3 | Buscador con botón; Enter busca | ✅ | Busca en tus canales; búsqueda global 🔌 |
 | P4 | Sugerencias mientras escribes | ❌ | Títulos y canales locales; global 🔌 |
 | P5 | Búsquedas recientes (con borrar) | ❌ | |
-| P6 | Atajo `/` para enfocar el buscador | ❌ | |
+| P6 | Atajo `/` para enfocar el buscador | ✅ | |
 | P7 | Búsqueda por voz | ❌ | Web Speech API (Chrome); baja prioridad |
 | P8 | Campana con contador de no vistos | ✅ | Se pone a cero al abrir (arreglado 2026-11-07) |
 | P9 | Panel de avisos: miniatura, “X ha subido: …”, hace cuánto, ⋮ por aviso | 🟡 | Falta ⋮ (ocultar aviso, apagar avisos del canal) |
@@ -52,12 +52,12 @@
 | # | Función | TodoTube | Nota |
 |---|---|---|---|
 | W1 | Reproductor grande + columna “A continuación” a la derecha | ✅ | |
-| W2 | Título, canal con avatar y botón **Suscrito 🔔** | 🟡 | Falta la campanita en esta pantalla |
-| W3 | Me gusta, Compartir (copiar enlace), Guardar | 🟡 | Falta Compartir |
-| W4 | Visitas, fecha y **descripción** desplegable | ❌ 🔌 | El reproductor propio ya recibe esos datos: falta mostrarlos |
-| W5 | **Reproducción automática del siguiente** (cuenta atrás, cancelable) | ❌ | |
-| W6 | Atajos de teclado: K/espacio, J/L ±10 s, F, M, flechas, `<`/`>` velocidad | ❌ | Propios en el reproductor TodoTube; el oficial trae los suyos |
-| W7 | Modo cine (reproductor a todo el ancho) | ❌ | |
+| W2 | Título, canal con avatar y botón **Suscrito 🔔** | ✅ | |
+| W3 | Me gusta, Compartir (copiar enlace), Guardar | ✅ | |
+| W4 | Visitas, fecha y **descripción** desplegable | 🟡 🔌 | Se muestran con el reproductor propio; sin puente, invitación a instalarlo |
+| W5 | **Reproducción automática del siguiente** (cuenta atrás, cancelable) | ✅ | 8 s, interruptor en el reproductor |
+| W6 | Atajos de teclado: K/espacio, J/L ±10 s, F, M, flechas, `<`/`>` velocidad | ✅ | También 0–9, T (cine) y Mayús+N (siguiente) |
+| W7 | Modo cine (reproductor a todo el ancho) | ✅ | |
 | W8 | Mini reproductor al navegar fuera del vídeo | ❌ | |
 | W9 | Reanudar donde lo dejaste | ✅ | |
 | W10 | Capítulos en la barra | ❌ 🔌 | |
@@ -67,17 +67,17 @@
 ## 5. Shorts
 | # | Función | TodoTube | Nota |
 |---|---|---|---|
-| S1 | Reproductor vertical a pantalla completa | 🟡 | El reproductor se adapta a vertical |
-| S2 | **Deslizar arriba/abajo** para pasar al siguiente Short (teclas ↑/↓) | ❌ | |
-| S3 | Bucle automático al terminar | ❌ | |
-| S4 | Botones laterales: Me gusta, Compartir, canal | ❌ | |
+| S1 | Reproductor vertical a pantalla completa | ✅ | `/shorts/:id`; “Shorts” del menú abre directamente el reproductor (2026-11-07) |
+| S2 | **Deslizar arriba/abajo** para pasar al siguiente Short (teclas ↑/↓) | ✅ | Teclas, rueda, deslizar y flechas. Capa de gestos sobre el vídeo (el iframe se tragaba la rueda y los toques). Verificado con Playwright en escritorio e iPhone 13 |
+| S3 | Bucle automático al terminar | ✅ | En los dos reproductores; comprobación de reproducción real pendiente del propietario |
+| S4 | Botones laterales: Me gusta, Compartir, canal | ✅ | Más tocar para pausar y botón de sonido propio |
 | S5 | Página Shorts con todos los de tus canales | ✅ | |
 
 ## 6. Canal
 | # | Función | TodoTube | Nota |
 |---|---|---|---|
 | C1 | Cabecera: avatar, nombre, suscrito 🔔 | ✅ | Banner y avatar reales 🔌 |
-| C2 | Pestañas Inicio / Vídeos / Shorts / En directo | 🟡 | Hoy: Shorts + vídeos en una sola vista |
+| C2 | Pestañas Inicio / Vídeos / Shorts / En directo | 🟡 | Vídeos y Shorts separados con contador ✅; “En directo” 🔌 |
 | C3 | Orden: más recientes / populares | ❌ 🔌 | |
 
 ## 7. Suscripciones (pantalla)

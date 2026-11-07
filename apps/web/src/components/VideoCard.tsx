@@ -21,7 +21,7 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
   const [menu, setMenu] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const meta = { id, title, channel, channelId };
-  const href = `/ver/${id}${short ? '?short=1' : ''}`;
+  const href = short ? `/shorts/${id}` : `/ver/${id}`;
   const pct = progress ?? (saved ? saved.pos / saved.dur : watched ? 1 : undefined);
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import Home from './pages/Home';
 import Watch from './pages/Watch';
 import Subscriptions from './pages/Subscriptions';
 import Shorts from './pages/Shorts';
+import ShortsPlayer from './pages/ShortsPlayer';
 import Search from './pages/Search';
 import Channel from './pages/Channel';
 import You, { YouList } from './pages/You';
@@ -20,6 +21,7 @@ const router = createBrowserRouter([
       { path: '/ver/:id', element: <Watch /> },
       { path: '/suscripciones', element: <Subscriptions /> },
       { path: '/shorts', element: <Shorts /> },
+      { path: '/shorts/:id', element: <ShortsPlayer /> },
       { path: '/buscar', element: <Search /> },
       { path: '/canal/:id', element: <Channel /> },
       { path: '/tu', element: <You /> },

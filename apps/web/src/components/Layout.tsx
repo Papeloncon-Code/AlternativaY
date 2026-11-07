@@ -60,7 +60,7 @@ function Notifications() {
           <ul>
             {items.map((v) => (
               <li key={v.id}>
-                <Link to={`/ver/${v.id}${v.kind === 'short' ? '?short=1' : ''}`} onClick={() => setOpen(false)} className="notif-item">
+                <Link to={v.kind === 'short' ? `/shorts/${v.id}` : `/ver/${v.id}`} onClick={() => setOpen(false)} className="notif-item">
                   <span className={`notif-dot${v.seenAt > openedSeenAt ? '' : ' seen'}`} aria-hidden="true" />
                   <Avatar name={v.channel} id={v.channelId} size={40} />
                   <span className="notif-text"><b>{v.channel}</b> ha subido: {v.title}<small>{ago(v.seenAt)}</small></span>
