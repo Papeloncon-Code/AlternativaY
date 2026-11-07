@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "TodoTube Puente",
+  "version": "0.1.0",
+  "description": "Permite que la web de TodoTube reproduzca vídeos con su propio reproductor. Solo actúa en TodoTube.",
+  "permissions": ["declarativeNetRequest"],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://youtube.com/*",
+    "https://youtubei.googleapis.com/*",
+    "https://jnn-pa.googleapis.com/*",
+    "https://*.googlevideo.com/*",
+    "https://i.ytimg.com/*",
+    "https://yt3.ggpht.com/*"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [{ "id": "todotube", "enabled": true, "path": "rules.json" }]
+  },
+  "background": {
+    "service_worker": "background.js",
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://todotube.papelon.workers.dev/*", "http://localhost/*", "http://127.0.0.1/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": ["https://todotube.papelon.workers.dev/*", "http://localhost/*", "http://127.0.0.1/*"]
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": { "id": "puente@todotube.app", "strict_min_version": "128.0" }
+  }
+}

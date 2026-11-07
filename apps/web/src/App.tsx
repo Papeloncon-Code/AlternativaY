@@ -5,6 +5,7 @@ import Watch from './pages/Watch';
 import Subscriptions from './pages/Subscriptions';
 import Library from './pages/Library';
 import Settings from './pages/Settings';
+import Bridge from './pages/Bridge';
 import { Empty } from './components/States';
 
 const router = createBrowserRouter([
@@ -16,6 +17,7 @@ const router = createBrowserRouter([
       { path: '/suscripciones', element: <Subscriptions /> },
       { path: '/biblioteca', element: <Library /> },
       { path: '/ajustes', element: <Settings /> },
+      { path: '/puente', element: <Bridge /> },
       { path: '*', element: <div className="page"><Empty title="Página no encontrada" /></div> },
     ],
   },

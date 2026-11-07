@@ -68,7 +68,8 @@ export default {
     const file = ASSETS[url.pathname];
     if (file) {
       const immutable = url.pathname.startsWith('/assets/');
-      return new Response(file.body, { headers: { 'content-type': file.type, 'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=300' } });
+      const body = file.b64 ? Uint8Array.from(atob(file.body), (c) => c.charCodeAt(0)) : file.body;
+      return new Response(body, { headers: { 'content-type': file.type, ...(file.b64 ? { 'content-disposition': `attachment; filename="${url.pathname.slice(1)}"` } : {}), 'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=300' } });
     }
     // SPA: cualquier otra ruta devuelve index.html
     return new Response(ASSETS['/index.html'].body, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' } });

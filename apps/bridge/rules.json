@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "condition": {
+      "initiatorDomains": ["todotube.papelon.workers.dev", "localhost", "127.0.0.1"],
+      "resourceTypes": ["xmlhttprequest"],
+      "urlFilter": "||googlevideo.com/"
+    },
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        { "header": "origin", "operation": "set", "value": "https://www.youtube.com" },
+        { "header": "referer", "operation": "set", "value": "https://www.youtube.com/" }
+      ],
+      "responseHeaders": [
+        { "header": "Access-Control-Allow-Origin", "operation": "set", "value": "*" },
+        { "header": "Access-Control-Allow-Methods", "operation": "set", "value": "GET, HEAD, POST, OPTIONS" },
+        { "header": "Access-Control-Expose-Headers", "operation": "set", "value": "*" }
+      ]
+    }
+  }
+]
