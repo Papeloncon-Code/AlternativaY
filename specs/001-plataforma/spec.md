@@ -96,34 +96,34 @@ Prioridades:
 - **E**: experimental.
 - **S**: especulativo.
 
-**Mantenimiento:** coste estimado relativo (Bajo, Medio o Alto).
+**Implementación, tecnologías, dificultad y mantenimiento:** se movieron a `plan.md` §6 (separación qué/cómo, 2026-11-07).
 
-| Funcionalidad | Problema que resuelve | Beneficio | ¿Existe? | Implementación | Tecnologías | Dific. | Mant. | Prior. | Límites legales/técnicos | Viab. |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Biblioteca universal | Contenido disperso en 5 apps | Un solo lugar | Parcial (Grayjay) | Modelo `MediaItem` común; conectores | Room/SQLite, Postgres | M | M | P0 | Solo fuentes legítimas | A |
-| Sincronización local-first | Datos atrapados en un dispositivo | Continuidad móvil ↔ web | Mal resuelta (doc 03) | Registro de operaciones + HLC + LWW por campo | Kotlin, TS, Postgres | A | M | P0 | — | A |
-| Marcadores por minuto | No se puede volver a “ese momento” | Estudio y referencia | No (en clientes) | Entidad `Bookmark(itemId, posMs, nota)` | — | B | B | P1 | — | A |
-| Perfiles de calidad | Datos móviles frente a wifi | Ahorro | Parcial | Reglas por red/batería → selección de pista | Media3 TrackSelector | B | B | P1 | — | A |
-| Normalización de volumen | Saltos de volumen entre fuentes | Confort | Flow | `LoudnessEnhancer`/audio processor Media3; web: WebAudio | Media3, WebAudio | M | B | P1 | Ninguno | A |
-| Ecualizador | Calidad de audio | Personalización | Flow | `Equalizer` de Android; web: BiquadFilter | — | B | B | P2 | — | A |
-| Recorte de silencios | Podcasts más ágiles | Ahorro de tiempo | Apps de podcast (no clientes de vídeo) | `SilenceSkippingAudioProcessor` (Media3) | Media3 | B | B | P1 | — | A |
-| Subtítulos avanzados | Legibilidad | Accesibilidad | Flow | `CaptionStyleCompat`; tamaño, fondo, posición; WebVTT en la web | Media3, `<track>` | B | B | P1 | Los de YouTube no son accesibles | A |
-| Control multidispositivo | “Sigue en el portátil” | Continuidad | ReVanced/YouTube oficial | Canal de presencia por WebSocket a través del servidor de sincronización | WS, protocolo propio | M | M | P2 | — | A |
-| Cast | Ver en la TV | Paridad competitiva | Grayjay, Flow | `media3-cast`; FCast (abierto) en fase 3 | Cast SDK | M | M | P1 | El Cast SDK requiere Google Play Services (build F-Droid sin él) | A |
-| Transcripción | El audio no se puede buscar | Búsqueda y accesibilidad | **No** | whisper.cpp en el dispositivo (modelo tiny/base) o en servidor (opt-in) | whisper.cpp (MIT), NNAPI/GPU | A | M | P2 | Solo contenido legítimo; batería | E (rendimiento en gama media NV) |
-| Búsqueda por palabras pronunciadas | “¿En qué episodio dijeron X?” | **Diferenciador fuerte** | **No** | FTS sobre segmentos de transcripción con marcas de tiempo | SQLite FTS5 / Postgres tsvector | M | B | P2 | Depende de la transcripción | E |
-| Capítulos automáticos | Vídeos largos sin capítulos | Navegación | No (YouTube solo si el autor los pone) | Segmentación de la transcripción (LLM o heurística de pausas y temas) | LLM local/servidor | M | M | P2 | — | E |
-| Resumen | Decidir si vale la pena | Ahorro de tiempo | No | LLM sobre la transcripción; en el dispositivo si hay modelo pequeño, si no servidor opt-in | LLM vía API (p. ej. Claude) o modelo local | M | **A** (coste por token) | P2 | No sustituir la obra; enlazar a la fuente | A (servidor) / E (local) |
-| Preguntas y respuestas | Encontrar respuestas en contenido largo | Estudio | No | RAG sobre segmentos de la transcripción | Embeddings + LLM | A | A | P2 | Ídem | E |
-| Extracción de conceptos | Repaso | Aprendizaje | No | LLM → lista de conceptos con marcas de tiempo | LLM | M | M | P3 | — | E |
-| Organización automática | Biblioteca caótica | Orden | No | Clasificación por embeddings → etiquetas sugeridas (nunca automáticas sin confirmar) | Embeddings | M | M | P3 | — | E |
-| Recomendaciones controladas | Algoritmos opacos y adictivos | Confianza | Flow (local) | Puntuación local con pesos visibles y editables, sin servidor | Kotlin/TS | M | B | P2 | — | A |
-| Traducción de subtítulos | Idioma | Alcance | No | Traducción automática local o en servidor | Modelos de traducción | A | A | P3 | Calidad variable | S (en el dispositivo) |
-| Estadísticas de consumo | Falta de conciencia del tiempo | Bienestar digital | No (clientes) | Agregación local de eventos de reproducción | Room | B | B | P1 | — | A |
-| Modo productividad | Distracción | Foco | Parcial (FreeTube) | Oculta el feed; solo biblioteca y cola; límites | UI | B | B | P1 | — | A |
-| Control parental | Menores | Confianza familiar | No (clientes) | Perfiles con PIN, listas permitidas y límites | — | M | M | P2 | La lista de YouTube depende de su embed | A |
-| Servidores personales | Contenido propio | Autoalojamiento | Parcial | Conector de Jellyfin (API REST abierta) | — | M | M | P1 | — | A |
-| Podcasts | Fuente principal legítima | Segmento 1 | No en clientes de vídeo | RSS 2.0 + namespace Podcasting 2.0 (capítulos, transcripciones) | Parser XML | B | B | P0 | — | A |
+| Funcionalidad | Problema que resuelve | Beneficio | ¿Existe? | Prior. | Límites legales/técnicos | Viab. |
+| --- | --- | --- | --- | --- | --- | --- |
+| Biblioteca universal | Contenido disperso en 5 apps | Un solo lugar | Parcial (Grayjay) | P0 | Solo fuentes legítimas | A |
+| Sincronización local-first | Datos atrapados en un dispositivo | Continuidad móvil ↔ web | Mal resuelta (doc 03) | P0 | — | A |
+| Marcadores por minuto | No se puede volver a “ese momento” | Estudio y referencia | No (en clientes) | P1 | — | A |
+| Perfiles de calidad | Datos móviles frente a wifi | Ahorro | Parcial | P1 | — | A |
+| Normalización de volumen | Saltos de volumen entre fuentes | Confort | Flow | P1 | Ninguno | A |
+| Ecualizador | Calidad de audio | Personalización | Flow | P2 | — | A |
+| Recorte de silencios | Podcasts más ágiles | Ahorro de tiempo | Apps de podcast (no clientes de vídeo) | P1 | — | A |
+| Subtítulos avanzados | Legibilidad | Accesibilidad | Flow | P1 | Los de YouTube no son accesibles | A |
+| Control multidispositivo | “Sigue en el portátil” | Continuidad | ReVanced/YouTube oficial | P2 | — | A |
+| Cast | Ver en la TV | Paridad competitiva | Grayjay, Flow | P1 | El Cast SDK requiere Google Play Services (build F-Droid sin él) | A |
+| Transcripción | El audio no se puede buscar | Búsqueda y accesibilidad | **No** | P2 | Solo contenido legítimo; batería | E (rendimiento en gama media NV) |
+| Búsqueda por palabras pronunciadas | “¿En qué episodio dijeron X?” | **Diferenciador fuerte** | **No** | P2 | Depende de la transcripción | E |
+| Capítulos automáticos | Vídeos largos sin capítulos | Navegación | No (YouTube solo si el autor los pone) | P2 | — | E |
+| Resumen | Decidir si vale la pena | Ahorro de tiempo | No | P2 | No sustituir la obra; enlazar a la fuente | A (servidor) / E (local) |
+| Preguntas y respuestas | Encontrar respuestas en contenido largo | Estudio | No | P2 | Ídem | E |
+| Extracción de conceptos | Repaso | Aprendizaje | No | P3 | — | E |
+| Organización automática | Biblioteca caótica | Orden | No | P3 | — | E |
+| Recomendaciones controladas | Algoritmos opacos y adictivos | Confianza | Flow (local) | P2 | — | A |
+| Traducción de subtítulos | Idioma | Alcance | No | P3 | Calidad variable | S (en el dispositivo) |
+| Estadísticas de consumo | Falta de conciencia del tiempo | Bienestar digital | No (clientes) | P1 | — | A |
+| Modo productividad | Distracción | Foco | Parcial (FreeTube) | P1 | — | A |
+| Control parental | Menores | Confianza familiar | No (clientes) | P2 | La lista de YouTube depende de su embed | A |
+| Servidores personales | Contenido propio | Autoalojamiento | Parcial | P1 | — | A |
+| Podcasts | Fuente principal legítima | Segmento 1 | No en clientes de vídeo | P0 | — | A |
 
 **Detalle importante [I]:** el namespace *Podcasting 2.0* permite que el autor publique **transcripciones y capítulos** en el feed (`podcast:transcript`, `podcast:chapters`). Esto da funciones “de IA” sin IA ni coste en una parte del catálogo. Hay que verificar su adopción real antes de prometerlo.
 

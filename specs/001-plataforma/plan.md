@@ -42,7 +42,7 @@ Las estimaciones son **por escenarios**, ya que el equipo y los recursos no se c
 - **E3**: 4–5 personas (2 Android, 1 web, 1 backend, 0,5 diseño + 0,5 QA).
 
 ### Fase 1: MVP
-- **Funcionalidades:** RF-001 a RF-012 (ver `specs/002-mvp/spec.md`).
+- **Funcionalidades:** ver el índice en `specs/002-mvp/spec.md` §3 (una carpeta por funcionalidad; web v0.1 ya publicada).
 - **Dependencias:** constitución aprobada; nombre definitivo (RL-11); ADR-002/003/004.
 - **Tecnologías:** el stack completo de §1, salvo IA y SDK de conectores.
 - **Dificultad:** media-alta. La sincronización y la PWA con SQLite-WASM son las piezas de mayor riesgo.
@@ -108,3 +108,35 @@ Las estimaciones son **por escenarios**, ya que el equipo y los recursos no se c
 - 1 VPS (2 vCPU, 4 GB) + Postgres gestionado pequeño + almacenamiento de objetos mínimo: del orden de **decenas de USD al mes** para miles de usuarios activos. El vídeo no pasa por el servidor.
 - El coste variable principal es el **proxy de feeds para la web**, que se mitiga con la caché compartida de 15 min.
 - La IA en servidor es el único coste que escala con el uso y va en el plan de pago (fase 4).
+
+
+## 6. Implementación de las funcionalidades nuevas (movido desde `spec.md` §5)
+
+Dificultad y mantenimiento: B = bajo, M = medio, A = alto.
+
+| Funcionalidad | Implementación | Tecnologías | Dific. | Mant. |
+| --- | --- | --- | --- | --- |
+| Biblioteca universal | Modelo `MediaItem` común; conectores | Room/SQLite, Postgres | M | M |
+| Sincronización local-first | Registro de operaciones + HLC + LWW por campo | Kotlin, TS, Postgres | A | M |
+| Marcadores por minuto | Entidad `Bookmark(itemId, posMs, nota)` | — | B | B |
+| Perfiles de calidad | Reglas por red/batería → selección de pista | Media3 TrackSelector | B | B |
+| Normalización de volumen | `LoudnessEnhancer`/audio processor Media3; web: WebAudio | Media3, WebAudio | M | B |
+| Ecualizador | `Equalizer` de Android; web: BiquadFilter | — | B | B |
+| Recorte de silencios | `SilenceSkippingAudioProcessor` (Media3) | Media3 | B | B |
+| Subtítulos avanzados | `CaptionStyleCompat`; tamaño, fondo, posición; WebVTT en la web | Media3, `<track>` | B | B |
+| Control multidispositivo | Canal de presencia por WebSocket a través del servidor de sincronización | WS, protocolo propio | M | M |
+| Cast | `media3-cast`; FCast (abierto) en fase 3 | Cast SDK | M | M |
+| Transcripción | whisper.cpp en el dispositivo (modelo tiny/base) o en servidor (opt-in) | whisper.cpp (MIT), NNAPI/GPU | A | M |
+| Búsqueda por palabras pronunciadas | FTS sobre segmentos de transcripción con marcas de tiempo | SQLite FTS5 / Postgres tsvector | M | B |
+| Capítulos automáticos | Segmentación de la transcripción (LLM o heurística de pausas y temas) | LLM local/servidor | M | M |
+| Resumen | LLM sobre la transcripción; en el dispositivo si hay modelo pequeño, si no servidor opt-in | LLM vía API (p. ej. Claude) o modelo local | M | **A** (coste por token) |
+| Preguntas y respuestas | RAG sobre segmentos de la transcripción | Embeddings + LLM | A | A |
+| Extracción de conceptos | LLM → lista de conceptos con marcas de tiempo | LLM | M | M |
+| Organización automática | Clasificación por embeddings → etiquetas sugeridas (nunca automáticas sin confirmar) | Embeddings | M | M |
+| Recomendaciones controladas | Puntuación local con pesos visibles y editables, sin servidor | Kotlin/TS | M | B |
+| Traducción de subtítulos | Traducción automática local o en servidor | Modelos de traducción | A | A |
+| Estadísticas de consumo | Agregación local de eventos de reproducción | Room | B | B |
+| Modo productividad | Oculta el feed; solo biblioteca y cola; límites | UI | B | B |
+| Control parental | Perfiles con PIN, listas permitidas y límites | — | M | M |
+| Servidores personales | Conector de Jellyfin (API REST abierta) | — | M | M |
+| Podcasts | RSS 2.0 + namespace Podcasting 2.0 (capítulos, transcripciones) | Parser XML | B | B |
