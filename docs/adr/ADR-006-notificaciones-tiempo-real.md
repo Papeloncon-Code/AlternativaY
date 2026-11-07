@@ -80,3 +80,24 @@ sequenceDiagram
 | Avisos duplicados por ediciones de título | Deduplicar por `videoId` + primera vez visto |
 | Abuso del callback (spam) | Verificar HMAC, aceptar solo topics suscritos, rate limit |
 | Privacidad (el servidor conoce canales) | Topics de FCM; endpoints anónimos; sin cuenta obligatoria |
+
+## Enmienda 1 (2026-11-07): el RSS no es un respaldo fiable; detección de Shorts
+
+**Hallazgo:**
+- El RSS público (`/feeds/videos.xml?channel_id=`) devuelve **404/500 intermitentes**, sobre todo a IP de servidores.
+  - Desde este entorno: 404 en 3 de 3 canales válidos, 3 veces seguidas.
+  - Desde Cloudflare: falló en 9 de 14 canales en la primera vuelta.
+- Hay informes públicos desde diciembre de 2025: [web-boris#61](https://github.com/nelsonmarro/web-boris/issues/61), [ocaml.org#3512](https://github.com/ocaml/ocaml.org/issues/3512), [miniflux#4261](https://github.com/miniflux/v2/issues/4261).
+- **WebSub sí funciona:** han llegado vídeos nuevos por esa vía.
+
+**Decisión:**
+1. **WebSub es la fuente principal.** El RSS queda como complemento oportunista y **nunca** se usa para validar ni descartar canales.
+2. La validación de que un canal existe la hará la app de Android (extractor en el dispositivo) al seguirlo. En la web, un canal sin confirmar queda como “Sin confirmar”, no como “No existe”.
+3. El respaldo ante un aviso perdido pasa al **dispositivo**: al abrir la app, el extractor revisa los canales seguidos con la IP del usuario.
+
+**Detección de Shorts** (requisito: no mezclarlos con los vídeos):
+- Los Shorts tienen miniatura vertical pública: `i.ytimg.com/vi/<id>/oardefault.jpg` → 200; los vídeos normales → 404.
+- Verificado con 60 vídeos el 2026-11-07: 13 Shorts, 0 falsos positivos al revisar los títulos.
+- Es un **comportamiento no documentado** [I]: si cambia, `kind` queda vacío y el vídeo se muestra como vídeo normal (no se rompe nada).
+- La consulta es a la CDN pública de imágenes, el mismo recurso que muestra cualquier cliente. No es extracción de páginas de YouTube (constitución §I.2).
+- Alternativas descartadas: oEmbed (devuelve las mismas dimensiones para Shorts y vídeos, verificado); `youtube.com/shorts/<id>` (página de YouTube desde el servidor, contra §I.2).

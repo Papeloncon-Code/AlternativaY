@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { addChannel, fetchChannels, type Channel } from '../api';
+import { addChannel, fetchChannels, removeChannel, type Channel } from '../api';
 import { useAsync } from '../useAsync';
 import { useStore } from '../store';
 import { hue, initials } from '../format';
@@ -11,7 +11,7 @@ const STATUS: Record<Channel['status'], { label: string; cls: string; help: stri
   verified: { label: 'Avisos activos', cls: 'ok', help: 'YouTube nos avisa al momento cuando publica.' },
   requested: { label: 'Activando…', cls: 'wait', help: 'Esperando la confirmación de YouTube.' },
   pending: { label: 'Pendiente', cls: 'wait', help: 'Se procesará en los próximos minutos.' },
-  invalid: { label: 'No encontrado', cls: 'bad', help: 'YouTube no reconoce este canal.' },
+  invalid: { label: 'Sin confirmar', cls: 'bad', help: 'No se pudo confirmar el canal.' },
 };
 
 export default function Subscriptions() {
@@ -21,6 +21,13 @@ export default function Subscriptions() {
   const [label, setLabel] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+
+  async function unfollow(c: Channel) {
+    if (!ownerKey) { setMsg({ ok: false, text: 'Pon tu clave de propietario en Ajustes para dejar de seguir canales.' }); return; }
+    if (!confirm(`¿Dejar de seguir ${c.name}?`)) return;
+    try { await removeChannel(c.id, ownerKey); setMsg({ ok: true, text: `Has dejado de seguir ${c.name}.` }); list.reload(); }
+    catch (err) { setMsg({ ok: false, text: err instanceof Error ? err.message : String(err) }); }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -74,6 +81,7 @@ export default function Subscriptions() {
                 <span className="card-meta">{c.videos === 1 ? '1 vídeo reciente' : `${c.videos} vídeos recientes`}</span>
               </div>
               <span className={`status ${st.cls}`} title={st.help}><Icon name="bell" size={14} /> {st.label}</span>
+              <button type="button" className="btn ghost small" onClick={() => unfollow(c)} aria-label={`Dejar de seguir ${c.name}`}>Dejar de seguir</button>
             </li>
           );
         })}

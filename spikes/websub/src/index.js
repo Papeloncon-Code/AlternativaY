@@ -21,6 +21,17 @@ async function notify(env, { title, body, url }) {
 
 const mins = (ms) => (ms / 60000).toFixed(1);
 
+// Shorts: tienen miniatura vertical pública (i.ytimg.com/vi/<id>/oardefault.jpg → 200); los vídeos normales dan 404.
+// Comportamiento no documentado de YouTube [I], verificado con 60 vídeos el 2026-11-07. Si falla, kind queda NULL.
+async function classify(videoId) {
+  try {
+    const r = await fetch(`https://i.ytimg.com/vi/${videoId}/oardefault.jpg`, { method: 'HEAD' });
+    if (r.status === 200) return 'short';
+    if (r.status === 404) return 'video';
+  } catch { /* red */ }
+  return null;
+}
+
 // Registra una entrada; devuelve true si es un vídeo nuevo (primera vez visto y reciente).
 async function recordEntry(env, e, source, now) {
   await env.DB.prepare(
@@ -29,8 +40,8 @@ async function recordEntry(env, e, source, now) {
   const seen = await env.DB.prepare('SELECT 1 FROM videos WHERE video_id = ?').bind(e.videoId).first();
   if (seen || !isFresh(e.published, now)) return false;
   await env.DB.batch([
-    env.DB.prepare('INSERT OR IGNORE INTO videos (video_id, channel_id, title, published_at, first_source, first_seen_at) VALUES (?,?,?,?,?,?)')
-      .bind(e.videoId, e.channelId, e.title, e.published, source, now),
+    env.DB.prepare('INSERT OR IGNORE INTO videos (video_id, channel_id, title, published_at, first_source, first_seen_at, kind) VALUES (?,?,?,?,?,?,?)')
+      .bind(e.videoId, e.channelId, e.title, e.published, source, now, await classify(e.videoId)),
     env.DB.prepare('UPDATE events SET is_new = 1 WHERE id = (SELECT MAX(id) FROM events WHERE video_id = ? AND source = ?)')
       .bind(e.videoId, source),
   ]);
@@ -81,6 +92,15 @@ async function handlePush(request, env, ctx, channelId) {
     }
   }
   return new Response('ok', { status: 200 });
+}
+
+async function unsubscribe(env, channelId, secret) {
+  const form = new URLSearchParams({
+    'hub.callback': `${env.PUBLIC_URL}/websub/${channelId}`, 'hub.topic': TOPIC(channelId),
+    'hub.verify': 'async', 'hub.mode': 'unsubscribe', ...(secret ? { 'hub.secret': secret } : {}),
+  });
+  const r = await fetch(env.HUB_URL, { method: 'POST', body: form });
+  return r.status;
 }
 
 async function subscribe(env, channelId, secret) {
@@ -139,23 +159,34 @@ async function cron(env) {
       // La línea base se hace UNA sola vez por canal (last_polled_at NULL). En los reintentos tras un error
       // del hub se sondea en modo normal, para que los vídeos publicados entre intentos cuenten como nuevos.
       const base = await pollRss(env, channel_id, last_polled_at == null, now);
-      if (base.invalid) {
-        // YouTube devuelve 404 de forma intermitente en el RSS: solo se descarta tras 3 fallos seguidos.
-        await env.DB.prepare(
-          "UPDATE channels SET rss_failures = rss_failures + 1, last_error='RSS 404', status = CASE WHEN rss_failures + 1 >= 3 THEN 'invalid' ELSE 'pending' END WHERE channel_id=?"
-        ).bind(channel_id).run();
-        continue;
+      // El RSS de YouTube devuelve 404/500 intermitentes desde servidores (problema conocido desde dic-2025),
+      // así que NO se usa para validar canales ni bloquea la suscripción WebSub. Solo se anota el error.
+      if (base.invalid || base.error) {
+        await env.DB.prepare('UPDATE channels SET rss_failures = rss_failures + 1, last_error=? WHERE channel_id=?')
+          .bind(base.invalid ? 'RSS 404 (intermitente)' : base.error, channel_id).run();
+      } else {
+        await env.DB.prepare('UPDATE channels SET rss_failures = 0 WHERE channel_id=?').bind(channel_id).run();
       }
-      if (base.error && last_polled_at == null) {
-        await env.DB.prepare('UPDATE channels SET last_error=? WHERE channel_id=?').bind(base.error, channel_id).run();
-        continue; // sin línea base no se suscribe; se reintenta en la próxima ejecución
-      }
-      await env.DB.prepare('UPDATE channels SET rss_failures = 0 WHERE channel_id=?').bind(channel_id).run();
       const secret = oldSecret || randomHex();
       const st = await subscribe(env, channel_id, secret);
       await env.DB.prepare("UPDATE channels SET secret=?, status=?, requested_at=?, last_polled_at=?, last_error=? WHERE channel_id=?")
         .bind(secret, st === 202 ? 'requested' : 'pending', now, now, st === 202 ? null : `hub ${st}`, channel_id).run();
       if (st === 202) stats.subscribed++;
+    }
+    // 1b. Bajas pedidas desde la web (status 'removing'): darse de baja en el hub y borrar.
+    const removing = await env.DB.prepare("SELECT channel_id, secret FROM channels WHERE status='removing' LIMIT 5").all();
+    for (const { channel_id, secret } of removing.results) {
+      await unsubscribe(env, channel_id, secret).catch(() => 0);
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM videos WHERE channel_id=?').bind(channel_id),
+        env.DB.prepare('DELETE FROM channels WHERE channel_id=?').bind(channel_id),
+      ]);
+    }
+    // 1c. Clasificar Short/vídeo los que aún no lo están (relleno gradual).
+    const unk = await env.DB.prepare('SELECT video_id FROM videos WHERE kind IS NULL ORDER BY published_at DESC LIMIT 25').all();
+    for (const { video_id } of unk.results) {
+      const k = await classify(video_id);
+      if (k) await env.DB.prepare('UPDATE videos SET kind=? WHERE video_id=?').bind(k, video_id).run();
     }
     // 2. Renovar leases que caducan en < 24 h (o solicitudes sin verificar tras 1 h).
     const due = await env.DB.prepare(

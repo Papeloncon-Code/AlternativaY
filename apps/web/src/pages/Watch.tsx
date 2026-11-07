@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { fetchFeed } from '../api';
 import { useAsync } from '../useAsync';
 import { actions, useStore, type Meta } from '../store';
@@ -14,12 +14,14 @@ const ID_RE = /^[A-Za-z0-9_-]{11}$/;
 export default function Watch() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const feed = useAsync(() => fetchFeed(150));
   const saved = useStore((s) => s.progress[id]);
   const fav = useStore((s) => Boolean(s.favorites[id]));
   const hostRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState('');
   const video = feed.data?.find((v) => v.id === id);
+  const isShort = params.get('short') === '1' || video?.kind === 'short';
   const meta: Meta = useMemo(() => ({
     id, title: video?.title ?? saved?.title ?? 'Vídeo', channel: video?.channel ?? saved?.channel ?? '', channelId: video?.channelId ?? saved?.channelId ?? '',
   }), [id, video, saved]);
@@ -57,14 +59,14 @@ export default function Watch() {
     return () => { cancelled = true; window.clearInterval(timer); if (player) { save(); player.destroy?.(); } };
   }, [id]);
 
-  const more = (feed.data ?? []).filter((v) => v.channelId === meta.channelId && v.id !== id).slice(0, 8);
+  const more = (feed.data ?? []).filter((v) => v.channelId === meta.channelId && v.id !== id && v.kind !== 'short').slice(0, 8);
 
   return (
     <div className="page watch">
       <button type="button" className="back" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}>
         <Icon name="back" size={18} /> Volver
       </button>
-      <div className="player-frame">
+      <div className={`player-frame${isShort ? ' vertical' : ''}`}>
         {error ? <ErrorBox message={error} /> : <div ref={hostRef} className="player-host" />}
       </div>
       <div className="watch-info">

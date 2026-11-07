@@ -4,6 +4,7 @@ import { fetchFeed } from '../api';
 import { useAsync } from '../useAsync';
 import { useStore } from '../store';
 import VideoCard from '../components/VideoCard';
+import ShortCard from '../components/ShortCard';
 import { Empty, ErrorBox, SkeletonGrid } from '../components/States';
 
 type Filter = 'todo' | 'sin-ver' | 'hoy';
@@ -25,9 +26,10 @@ export default function Home() {
     feed.data?.forEach((v) => m.set(v.channelId, v.channel));
     return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   }, [feed.data]);
+  const shorts = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && (!channel || v.channelId === channel)), [feed.data, channel]);
   const items = useMemo(() => {
     const now = Date.now();
-    return (feed.data ?? []).filter((v) =>
+    return (feed.data ?? []).filter((v) => v.kind !== 'short').filter((v) =>
       (filter !== 'sin-ver' || !watched[v.id]) &&
       (filter !== 'hoy' || (v.publishedAt ?? 0) > now - DAY) &&
       (!channel || v.channelId === channel));
@@ -84,6 +86,15 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {shorts.length > 0 && (
+        <section aria-labelledby="h-shorts" className="section">
+          <div className="section-head"><h2 id="h-shorts">Shorts</h2><span className="sub">Separados de los vídeos, como pediste</span></div>
+          <div className="row-scroll shorts-row">
+            {shorts.map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} />)}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

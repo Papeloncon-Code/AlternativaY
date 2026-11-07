@@ -6,6 +6,7 @@ export type Video = {
   channel: string;
   source: 'websub' | 'rss' | 'baseline';
   seenAt: number;
+  kind: 'short' | 'video' | null;
 };
 export type Channel = {
   id: string;
@@ -36,4 +37,11 @@ export async function addChannel(input: string, label: string, ownerKey: string)
   return data as { id: string; created: boolean };
 }
 
+export async function removeChannel(id: string, ownerKey: string) {
+  const r = await fetch(`/api/channels/${id}`, { method: 'DELETE', headers: { 'x-owner-key': ownerKey } });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `Error ${r.status}`);
+}
+
 export const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+export const shortThumb = (id: string) => `https://i.ytimg.com/vi/${id}/oar2.jpg`;

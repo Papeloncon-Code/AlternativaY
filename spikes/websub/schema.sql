@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS videos (
   title         TEXT,
   published_at  INTEGER,          -- <published> del Atom (ms)
   first_source  TEXT NOT NULL,    -- websub | rss | baseline
-  first_seen_at INTEGER NOT NULL
+  first_seen_at INTEGER NOT NULL,
+  kind          TEXT              -- short | video | NULL (sin clasificar)
 );
 CREATE TABLE IF NOT EXISTS events (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,

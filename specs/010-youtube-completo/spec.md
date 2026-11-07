@@ -27,4 +27,4 @@ Reproducir YouTube sin anuncios, en segundo plano, con PiP, descargas y SponsorB
 Resolver antes de cerrar el plan (paso *clarify*):
 - [ ] ¿Qué versión de NewPipeExtractor y con qué estrategia de actualización (dependencia directa o vendorizada)?
 - [ ] Licencia de los datos de SponsorBlock (CC BY-NC-SA, sin verificar): ¿afecta a un plan de pago?
-- [ ] ¿Shorts dentro del feed o aparte por defecto?
+- [x] ¿Shorts dentro del feed o aparte? → **Aparte, nunca mezclados con los vídeos** (decisión del propietario, 2026-11-07). Ver ADR-006 §Enmienda para cómo se detectan.

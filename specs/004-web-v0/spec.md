@@ -41,6 +41,11 @@ Una web real, publicada en Cloudflare, donde se pueda:
 - **CA-W7:** estados vacíos y de error en todas las pantallas (sin canales, API caída, vídeo no disponible).
 - **CA-W8:** navegación con teclado y textos alternativos en miniaturas (base de accesibilidad AA).
 
+## 4b. Criterios añadidos (2026-11-07, comentarios del propietario)
+- **CA-W9:** los Shorts **no se mezclan** con los vídeos: van en su propia fila, con formato vertical, y el reproductor se adapta a vertical.
+- **CA-W10:** se puede **dejar de seguir** un canal desde Suscripciones (con confirmación). El servicio de avisos se da de baja en YouTube en ≤ 5 min.
+- **CA-W11:** al pulsar un vídeo, el reproductor aparece en ≤ 300 ms, porque se precarga en segundo plano y hay preconexiones.
+
 ## 5. Verificación (2026-11-07, https://todotube.papelon.workers.dev)
 | CA | Resultado | Cómo se comprobó |
 |---|---|---|
@@ -52,6 +57,10 @@ Una web real, publicada en Cloudflare, donde se pueda:
 | CA-W6 | ✅ 375 px sin desplazamiento horizontal, barra inferior | Playwright, captura |
 | CA-W7 | ✅ 404 de la SPA, estados vacíos; error de API con botón Reintentar (código) | Playwright |
 | CA-W8 | 🟡 Parcial: enlace “Saltar al contenido”, foco visible, `aria-pressed`; falta una auditoría con axe | Playwright |
+
+| CA-W9 | ✅ cuando termine la clasificación (ver la nota de la enmienda de ADR-006) | Playwright |
+| CA-W10 | ✅ `DELETE /api/channels/:id` con clave; botón “Dejar de seguir” | curl + código |
+| CA-W11 | ✅ iframe en 57–117 ms (antes 1,4–1,9 s) | Playwright, 3 clics desde el Inicio |
 
 **Desviaciones respecto al plan:**
 - Los archivos de la web van **embebidos en el Worker** (`scripts/embed.mjs`). La subida de assets de Cloudflare falla en este entorno porque el proxy sustituye el token temporal de subida (401).
