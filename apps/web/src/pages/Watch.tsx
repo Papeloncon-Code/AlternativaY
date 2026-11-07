@@ -73,7 +73,7 @@ export default function Watch() {
         <h1 className="watch-title">{meta.title}</h1>
         <p className="card-meta">
           {meta.channel}{video?.publishedAt ? ` · ${ago(video.publishedAt)}` : ''}
-          {saved ? ` · reanudado en ${clock(startAt.current)}` : ''}
+          {startAt.current >= 5 ? ` · continúa en ${clock(startAt.current)}` : ''}
         </p>
         <div className="watch-actions">
           <button type="button" className={`btn${fav ? ' on' : ''}`} aria-pressed={fav} onClick={() => actions.toggleFavorite(meta)}>
@@ -81,7 +81,6 @@ export default function Watch() {
           </button>
           <a className="btn ghost" href={`https://www.youtube.com/watch?v=${id}`} target="_blank" rel="noreferrer">Abrir en YouTube</a>
         </div>
-        <p className="note">Web v0.1: el vídeo se reproduce con el reproductor oficial de YouTube. Sin anuncios, segundo plano y descargas llegan en la app de Android.</p>
       </div>
       {more.length > 0 && (
         <section className="section" aria-labelledby="h-more">
