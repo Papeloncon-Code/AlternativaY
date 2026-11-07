@@ -87,6 +87,7 @@ test('H8 · ⋮ de la tarjeta: No me interesa y Deshacer', async ({ page }) => {
 test('S1–S2 · Shorts: abre el reproductor vertical y pasa con teclas y rueda', async ({ page }) => {
   await page.goto('/shorts');
   await expect(page).toHaveURL(/\/shorts\/[\w-]{11}/);
+  await expect(page.locator('.short-nav small')).toHaveText(/^1 \/ \d+$/);
   const u1 = page.url();
   await page.keyboard.press('ArrowDown');
   await expect(page).not.toHaveURL(u1);

@@ -1,3 +1,4 @@
+import { stop } from '../player/session';
 import { isBlocked } from '../filters';
 import { hasBridge } from '../bridge';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -37,6 +38,7 @@ export default function ShortsPlayer() {
   const goRef = useRef(go);
   goRef.current = go;
   useEffect(() => { setFallback(''); setPaused(false); handle.current = null; }, [id]);
+  useEffect(() => { stop(); }, []); // un Short no suena a la vez que el mini reproductor
 
   useEffect(() => {
     let lock = 0;

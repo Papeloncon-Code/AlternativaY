@@ -1,7 +1,7 @@
 import { openSave } from '../components/SaveDialog';
 import { isBlocked } from '../filters';
 import { hasBridge } from '../bridge';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useChannels, useFeed } from '../data';
 import Avatar from '../components/Avatar';
@@ -10,14 +10,13 @@ import { ago, clock } from '../format';
 import VideoCard from '../components/VideoCard';
 import Icon from '../components/Icon';
 import { ErrorBox } from '../components/States';
-import OfficialPlayer from '../components/OfficialPlayer';
-import OwnPlayer from '../components/OwnPlayer';
+import { handleRef, pageCallbacks, play, useSession } from '../player/session';
+import { hostEl } from '../components/PlayerHost';
 import BellMenu, { type Bell } from '../components/BellMenu';
 import { setChannelBell } from '../push';
 import { removeChannel, thumb } from '../api';
 import { shareVideo, toast } from '../toast';
-import type { PlayerHandle, VideoDetails } from '../player/handle';
-import { useBranding, useSponsorSkip } from '../community';
+import { useBranding, useSegments } from '../community';
 
 const ID_RE = /^[A-Za-z0-9_-]{11}$/;
 const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
@@ -41,17 +40,16 @@ export default function Watch() {
   const focus = useStore((s) => s.focus);
   const autoplay = useStore((s) => s.autoplay) && !focus; // en Foco no se encadenan vídeos
   const ownerKey = useStore((s) => s.ownerKey);
-  const [fallback, setFallback] = useState('');
-  const [details, setDetails] = useState<VideoDetails | null>(null);
+  const session = useSession();
+  const fallback = session?.id === id ? session.fallback : '';
+  const details = session?.id === id ? session.details : null;
   const [descOpen, setDescOpen] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
-  const handle = useRef<PlayerHandle | null>(null);
+  const handle = handleRef;
   const sbOn = useStore((s) => s.sponsorblock);
   const daOn = useStore((s) => s.dearrow);
-  const segments = useSponsorSkip(id, handle, sbOn);
+  const segments = useSegments(id, sbOn); // el salto lo hace el reproductor único (PlayerHost)
   const brand = useBranding(id, daOn);
-  const frameRef = useRef<HTMLDivElement>(null);
-  const own = hasBridge() && !fallback;
   const video = feed.data?.find((v) => v.id === id);
   const navMeta = (useLocation().state as { meta?: Meta } | null)?.meta; // vídeo abierto desde la búsqueda global
   const listIdx = plist ? plist.items.findIndex((i) => i.id === id) : -1;
@@ -60,7 +58,7 @@ export default function Watch() {
   const meta: Meta = useMemo(() => ({
     id, title: video?.title ?? saved?.title ?? navMeta?.title ?? listMeta?.title ?? 'Vídeo', channel: video?.channel ?? saved?.channel ?? navMeta?.channel ?? listMeta?.channel ?? '', channelId: video?.channelId ?? saved?.channelId ?? navMeta?.channelId ?? listMeta?.channelId ?? '',
   }), [id, video, saved, navMeta, listMeta]);
-  const startAt = useRef(saved ? Math.max(0, saved.pos - 3) : 0);
+  const startAt = useMemo(() => (saved ? Math.max(0, saved.pos - 3) : 0), [id]); // eslint-disable-line react-hooks/exhaustive-deps
   const validId = ID_RE.test(id);
   const channel = channels.data?.find((c) => c.id === meta.channelId);
 
@@ -70,10 +68,13 @@ export default function Watch() {
     : [...all.filter((v) => v.channelId === meta.channelId), ...all.filter((v) => v.channelId !== meta.channelId)].slice(0, 20);
   const upNext = next[0];
 
-  useEffect(() => { setDetails(null); setDescOpen(false); setCountdown(null); handle.current = null; setFallback(''); }, [id]);
+  useEffect(() => { setDescOpen(false); setCountdown(null); }, [id]);
+  // Pide al reproductor único que ponga este vídeo (si ya sonaba en el mini reproductor, sigue sin cortarse).
+  useEffect(() => { if (validId) play({ id, meta, startAt, vertical: isShort, list: listId ?? undefined }); }, [id, validId, meta, startAt, isShort, listId]);
 
   // Siguiente automático con cuenta atrás cancelable (W5).
   const onEnded = useCallback(() => { if (autoplay && upNext && !isShort) setCountdown(8); }, [autoplay, upNext, isShort]);
+  useEffect(() => { pageCallbacks.onEnded = onEnded; return () => { pageCallbacks.onEnded = undefined; }; }, [onEnded]);
   useEffect(() => {
     if (countdown == null) return;
     if (countdown <= 0) { navigate(`/ver/${upNext.id}${q}`); return; }
@@ -88,7 +89,7 @@ export default function Watch() {
       const h = handle.current;
       const k = e.key;
       if (k === 't') { actions.toggleTheater(); return; }
-      if (k === 'f') { const el = frameRef.current; if (document.fullscreenElement) document.exitFullscreen(); else el?.requestFullscreen?.(); return; }
+      if (k === 'f') { const el = hostEl.current; if (document.fullscreenElement) document.exitFullscreen(); else el?.requestFullscreen?.(); return; }
       if (k === 'N' && e.shiftKey && upNext) { navigate(`/ver/${upNext.id}${q}`); return; }
       if (!h) return;
       if (k === 'k' || k === ' ') { e.preventDefault(); h.togglePlay(); }
@@ -110,14 +111,12 @@ export default function Watch() {
     catch (e) { toast(e instanceof Error ? e.message : String(e)); }
   };
 
-  const playerProps = { id, meta, startAt: startAt.current, onEnded, onReady: (h: PlayerHandle) => { handle.current = h; } };
   return (
     <div className={`watch-layout${theater ? ' theater' : ''}`}>
-      <div className="watch-player" ref={frameRef}>
-        <div className={`player-frame${isShort ? ' vertical' : ''}`}>
-          {!validId ? <ErrorBox message="Enlace de vídeo no válido." />
-            : own ? <OwnPlayer key={id} {...playerProps} onFail={setFallback} onDetails={setDetails} />
-            : <OfficialPlayer key={id} {...playerProps} />}
+      <div className="watch-player">
+        {/* Hueco del reproductor: el reproductor único (PlayerHost) se coloca encima. */}
+        <div id="player-slot" className={`player-frame${isShort ? ' vertical' : ''}`}>
+          {!validId && <ErrorBox message="Enlace de vídeo no válido." />}
           {countdown != null && upNext && (
             <div className="upnext" role="dialog" aria-label="Siguiente vídeo">
               <p>Siguiente en {countdown}</p>
@@ -154,7 +153,7 @@ export default function Watch() {
         </div>
         <div className={`desc${descOpen ? ' open' : ''}`} onClick={() => setDescOpen(true)}>
           <p className="desc-meta">
-            {[fmtViews(details?.views), video?.publishedAt ? ago(video.publishedAt) : '', details?.lengthSeconds ? clock(details.lengthSeconds) : '', startAt.current >= 5 ? `continúa en ${clock(startAt.current)}` : ''].filter(Boolean).join(' · ')}
+            {[fmtViews(details?.views), video?.publishedAt ? ago(video.publishedAt) : '', details?.lengthSeconds ? clock(details.lengthSeconds) : '', startAt >= 5 ? `continúa en ${clock(startAt)}` : ''].filter(Boolean).join(' · ')}
           </p>
           {details?.description
             ? <p className="desc-text">{details.description}</p>

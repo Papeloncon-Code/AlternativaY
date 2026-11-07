@@ -12,6 +12,7 @@ import { syncAvatars } from '../avatars';
 import { useBridge } from '../bridge';
 import PermissionPrompt from './PermissionPrompt';
 import { SaveDialogHost } from './SaveDialog';
+import PlayerHost from './PlayerHost';
 import SearchBox from './SearchBox';
 import AccountMenu from './AccountMenu';
 import { setChannelBell } from '../push';
@@ -208,6 +209,7 @@ export default function Layout() {
       <Toaster />
       <PermissionPrompt />
       <SaveDialogHost />
+      <PlayerHost />
 
       <nav className="bottombar" aria-label="Principal">
         {[...MAIN, { to: '/tu', label: 'Tú', icon: 'user', end: false }].map((i) => (
