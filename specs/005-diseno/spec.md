@@ -57,3 +57,23 @@ Inicio en tres estados: escritorio normal, escritorio en modo Foco y móvil norm
 | **D** | **Claro** | Ámbar, rojo solo en Nuevo, progreso y aviso | `propuestas/propuesta-d.png` |
 
 Revisiones de C y D: contraste medido (texto 19,2:1; secundario 6,4:1; “Nuevo” blanco sobre rojo 4,7:1; tinta lima 7,1:1; tinta ámbar 5,4:1, todo AA). Revisión de 7 críticos con 3 correcciones: buscador sin “YouTube”, logo legible sobre blanco y borde en el botón lima. No se pudo pasar el crítico independiente ni las segundas opiniones de Gemini y ChatGPT (herramientas en el ordenador del propietario).
+
+## Decisión (2026-11-07): propuesta E, “familiar al máximo”
+El propietario mostró capturas de YouTube (escritorio, tema oscuro) y pidió que TodoTube se vea “casi igual” por su funcionalidad.
+
+**Se adopta la estructura y el funcionamiento de YouTube** (convenciones de interfaz, como hacen FreeTube, Invidious y NewPipe):
+- barra superior: ☰, logo, buscador con botón, campana de avisos y avatar;
+- menú lateral en dos modos: **mini** (Principal, Shorts, Suscripciones, Tú) y **ampliado** (secciones + lista de canales con punto de “nuevo” + sección Tú: Historial, Ver más tarde, Vídeos que me gustan);
+- fila de filtros desplazable con flechas;
+- cuadrícula de 3–4 columnas: miniatura 16:9 con esquinas redondeadas, avatar del canal, título en 2 líneas, canal · visitas · antigüedad, menú ⋮;
+- tema oscuro por defecto y claro según el sistema.
+
+**No se copia** la identidad de marca de YouTube: logo, wordmark, “play” rojo con nombre ni tipografía de marca. Logo propio (play + punto de aviso). El rojo se usa solo como convención: EN VIVO, progreso y avisos.
+
+**Datos que requieren el puente o Android** (no vienen en WebSub): duración, visitas, avatar real del canal y “EN VIVO”. Se muestran cuando están disponibles; sin ellos, la tarjeta no deja huecos.
+
+### Criterios de aceptación
+- **CA-D6:** un usuario de YouTube encuentra sin ayuda: buscar, sus suscripciones, Shorts, historial y “ver más tarde”.
+- **CA-D7:** el menú lateral alterna entre mini y ampliado con ☰ en escritorio; en móvil se usa la barra inferior.
+- **CA-D8:** cada vídeo tiene menú ⋮ con Ver más tarde, Me gusta, Marcar como visto y Dejar de seguir canal.
+- **CA-D9:** ningún texto, logo ni icono de la interfaz propia menciona ni imita la marca YouTube.
