@@ -47,3 +47,13 @@ Inicio en tres estados: escritorio normal, escritorio en modo Foco y móvil norm
 ## Aclaraciones pendientes
 - [ ] ¿El propietario tiene logo, colores o tipografías pensados para TodoTube?
 - [ ] ¿Tema por defecto: oscuro o claro? (Propuesta: sigue al sistema; mockups en oscuro.)
+
+## Propuestas (2026-11-07)
+| Propuesta | Tema | Marca | Archivo |
+|---|---|---|---|
+| A | Oscuro | Grafito y lima, Instrument Serif en titulares | `propuestas/propuesta-a.png` |
+| B | Oscuro | Tinta y ámbar, Manrope | `propuestas/propuesta-b.png` |
+| **C** | **Claro** | Lima (círculo negro con play lima en el logo), rojo solo en Nuevo, progreso y aviso | `propuestas/propuesta-c.png` |
+| **D** | **Claro** | Ámbar, rojo solo en Nuevo, progreso y aviso | `propuestas/propuesta-d.png` |
+
+Revisiones de C y D: contraste medido (texto 19,2:1; secundario 6,4:1; “Nuevo” blanco sobre rojo 4,7:1; tinta lima 7,1:1; tinta ámbar 5,4:1, todo AA). Revisión de 7 críticos con 3 correcciones: buscador sin “YouTube”, logo legible sobre blanco y borde en el botón lima. No se pudo pasar el crítico independiente ni las segundas opiniones de Gemini y ChatGPT (herramientas en el ordenador del propietario).
