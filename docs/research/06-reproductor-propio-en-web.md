@@ -1,6 +1,6 @@
 # 06 · ¿Se puede tener un reproductor propio (sin marca de YouTube) en la web?
 
-Consulta: 2026-11-07. Origen: el propietario no acepta que aparezca “YouTube” en TodoTube (logo, “Más vídeos”, “Abrir en YouTube”).
+Consulta: 2026-11-07. **Ampliado y corregido por el doc 07.** Origen: el propietario no acepta que aparezca “YouTube” en TodoTube (logo, “Más vídeos”, “Abrir en YouTube”).
 
 ## Conclusión
 **En una web pura no es viable.** Hace falta extraer el vídeo, y en el navegador eso exige un servidor intermediario que YouTube bloquea, que tendría que retransmitir el vídeo y que concentra el riesgo legal. La experiencia sin marca de YouTube se consigue en **apps instaladas** (Android y escritorio), que extraen con la IP del usuario.
