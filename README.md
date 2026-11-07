@@ -1,6 +1,6 @@
-# AlternativaY
+# TodoTube
 
-> Nombre de trabajo. “YouTube Killer” es solo un nombre interno; ver el riesgo de marca RL-11.
+> Nombre del producto decidido por el propietario el 2026-11-07 (ADR-008). Repositorio: AlternativaY. “YouTube Killer” es solo un nombre interno.
 
 Plataforma audiovisual multiplataforma (Android + web) diseñada con **SDD, Desarrollo Guiado por Especificaciones**. Todavía no hay código: primero se investigó, se especificó y se planificó.
 
@@ -41,9 +41,9 @@ Riesgos aceptados y límites (nunca DRM, nunca extracción en servidores): [ADR-
 
 ## Decisiones pendientes del propietario
 1. ~~Estrategia sobre YouTube~~ → decidida: cliente completo (ADR-005).
-2. Nombre definitivo (RL-11).
+2. ~~Nombre~~ → **TodoTube** (ADR-008). Pendiente: comprobar el registro de marcas y el dominio.
 3. Licencia (ADR-004, propuesta en `plan.md` §1).
-4. Equipo y recursos, que determinan el escenario E1, E2 o E3 del roadmap.
+4. ~~Equipo~~ → **una sola persona** (escenario E1 del roadmap).
 
 ## Registro de decisiones (ADR)
 | ADR | Decisión | Estado |
@@ -54,4 +54,5 @@ Riesgos aceptados y límites (nunca DRM, nunca extracción en servidores): [ADR-
 | ADR-004 | Licencias: clientes GPL-3.0, SDK y contracts Apache-2.0, servidor AGPL-3.0 | **Decisión del propietario** |
 | [ADR-005](docs/adr/ADR-005-cliente-youtube-completo.md) | Cliente de YouTube completo, extracción solo en el dispositivo, builds `full` y `play` | **Aceptado** |
 | [ADR-006](docs/adr/ADR-006-notificaciones-tiempo-real.md) | Avisos en tiempo real: WebSub → FCM / UnifiedPush / Web Push, con respaldo RSS | Propuesto |
+| [ADR-008](docs/adr/ADR-008-nombre-y-equipo.md) | Nombre **TodoTube**; equipo de una persona (escenario E1) | **Aceptado** |
 | [ADR-007](docs/adr/ADR-007-importacion-automatica-suscripciones.md) | Importación automática de suscripciones sin iniciar sesión: lector automático (Android `full`), “Permitir” de Google (`play`), extensión (web) | **Aceptado** |
