@@ -21,10 +21,12 @@ type State = {
   watched: Record<string, number>;
   ownerKey: string;
   theme: 'dark' | 'light' | 'system';
+  sponsorblock: boolean;
+  dearrow: boolean;
 };
 
 const KEY = 'todotube:v1';
-const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system' };
+const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system', sponsorblock: true, dearrow: false };
 
 function load(): State {
   try {
@@ -109,6 +111,8 @@ export const actions = {
   },
   toggleTheater() { set((s) => ({ ...s, theater: !s.theater })); },
   toggleAutoplay() { set((s) => ({ ...s, autoplay: !s.autoplay })); },
+  toggleSponsorBlock() { set((s) => ({ ...s, sponsorblock: !s.sponsorblock })); },
+  toggleDeArrow() { set((s) => ({ ...s, dearrow: !s.dearrow })); },
   toggleFocus() { set((s) => ({ ...s, focus: !s.focus })); },
   hideVideo(id: string) { set((s) => ({ ...s, hidden: { ...s.hidden, [id]: Date.now() } })); },
   hideNotification(id: string) { set((s) => ({ ...s, notifHidden: { ...s.notifHidden, [id]: Date.now() } })); },

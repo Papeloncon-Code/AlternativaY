@@ -415,3 +415,37 @@ kbd { font-family: inherit; font-size: 13px; background: var(--chip); border: 1p
   .suggest { right: -64px; left: -48px; border-radius: 0 0 12px 12px; }
   .account-menu { position: fixed; right: 8px; left: 8px; top: 56px; min-width: 0; }
 }
+
+/* Bloque 4: ajustes, SponsorBlock, modo Foco (spec 005 §3.4: una columna, sin menú ni recomendaciones, monocromo y con aire) */
+.setting-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding: 14px 0; border-top: 1px solid var(--line); cursor: pointer; }
+.setting-row:first-of-type { border-top: 0; }
+.setting-row > span { display: flex; flex-direction: column; gap: 4px; }
+.setting-row small { color: var(--text-2); font-size: 13px; line-height: 1.45; }
+.setting-row small a { color: var(--new); }
+.setting-row input[type=checkbox] { appearance: none; flex: none; width: 40px; height: 22px; border-radius: 11px; background: var(--chip-hover); position: relative; cursor: pointer; margin-top: 2px; transition: background .15s; }
+.setting-row input[type=checkbox]::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text-2); transition: transform .15s; }
+.setting-row input[type=checkbox]:checked { background: var(--brand); }
+.setting-row input[type=checkbox]:checked::after { transform: translateX(18px); background: #0F0F10; }
+.setting-row input[type=checkbox]:focus-visible { outline: 2px solid var(--new); outline-offset: 2px; }
+.row-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+.sb-note { font-size: 13px; color: var(--text-2); margin: -4px 0 8px; }
+.sb-note a { color: var(--new); }
+.focus-btn.on { background: var(--text); color: var(--bg); }
+.focus-title { font-size: 20px; font-weight: 600; margin: 8px 0 24px; }
+.app.focus .rail, .app.focus .side, .app.focus .shelf, .app.focus .badge-nuevo, .app.focus .watch-side, .app.focus .new-dot { display: none !important; }
+.app.focus .main { margin-left: 0 !important; }
+.app.focus .vgrid { grid-template-columns: 1fr !important; max-width: 760px; margin: 0 auto; gap: 28px; }
+.app.focus .focus-title { max-width: 760px; margin-left: auto; margin-right: auto; }
+.app.focus .vcard { display: grid; grid-template-columns: minmax(0, 300px) 1fr; gap: 20px; align-items: start; }
+.app.focus .vinfo { margin-top: 0; }
+.app.focus .vavatar { display: none; }
+.app.focus .vinfo { grid-template-columns: minmax(0, 1fr) 40px; }
+.app.focus .vtitle { font-size: 18px; line-height: 1.35; }
+.app.focus .vthumb img { filter: grayscale(1); transition: filter .2s; }
+.app.focus .vcard:hover .vthumb img, .app.focus .vcard:focus-within .vthumb img { filter: none; }
+.app.focus { --brand: var(--text); --new: var(--text-2); --live: var(--text); }
+@media (max-width: 792px) {
+  .app.focus .vcard { grid-template-columns: 1fr; gap: 10px; }
+  .focus-btn { display: none; }
+}
+.app.focus .watch-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: "player" "main"; max-width: 1100px; }

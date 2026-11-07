@@ -6,6 +6,8 @@ export type PlayerHandle = {
   toggleMute: () => void;
   changeRate: (delta: number) => number;
   restart: () => void;
+  getTime: () => number;
+  seekTo: (sec: number) => void;
 };
 
 export type VideoDetails = { views?: number; description?: string; lengthSeconds?: number; author?: string };

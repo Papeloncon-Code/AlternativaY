@@ -37,6 +37,8 @@ export default function OfficialPlayer({ id, meta, startAt, onEnded, onReady, lo
               toggleMute: () => (player.isMuted() ? player.unMute() : player.mute()),
               changeRate: (d: number) => { const r = Math.min(2, Math.max(0.25, +(player.getPlaybackRate() + d).toFixed(2))); player.setPlaybackRate(r); return r; },
               restart: () => { player.seekTo(0, true); player.playVideo(); },
+              getTime: () => { try { return player.getCurrentTime(); } catch { return 0; } },
+              seekTo: (sec: number) => player.seekTo(sec, true),
             });
           },
           onStateChange: (e: { data: number }) => {

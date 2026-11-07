@@ -89,13 +89,13 @@
 ## 8. Lo que aportan las alternativas (y YouTube no tiene)
 | # | Función | Origen | TodoTube |
 |---|---|---|---|
-| A1 | SponsorBlock (saltar patrocinios) | PipePipe, LibreTube, FreeTube | ❌ 🔌 |
-| A2 | DeArrow (títulos y miniaturas sin clickbait) | FreeTube, LibreTube | ❌ |
+| A1 | SponsorBlock (saltar patrocinios) | PipePipe, LibreTube, FreeTube | ✅ En los dos reproductores (no requiere puente). Salto automático de patrocinio, autopromoción y “suscríbete” con Deshacer; une tramos solapados. Lógica probada (`test/skip.test.mjs`, 4/4); salto en reproducción real pendiente de comprobar por el propietario |
+| A2 | DeArrow (títulos y miniaturas sin clickbait) | FreeTube, LibreTube | ✅ Opcional (apagado por defecto). Misma regla que la extensión; título original al pasar el ratón; solo consulta las tarjetas visibles |
 | A3 | Perfiles o grupos de suscripciones | FreeTube | ❌ |
 | A4 | Filtros por palabra o duración, ocultar Shorts | PipePipe, SkyTube | 🟡 (Shorts aparte, filtros por canal) |
-| A5 | Modo sin distracciones | FreeTube | ❌ (modo Foco diseñado, sin construir) |
+| A5 | Modo sin distracciones | FreeTube | ✅ Modo Foco: botón en la barra, una columna, sin menú, filtros, Shorts ni “A continuación”, sin reproducción automática, miniaturas en gris hasta pasar el ratón; se recuerda |
 | A6 | Avisos al momento (WebSub) | **Solo TodoTube** | ✅ |
-| A7 | Exportar e importar datos | NewPipe, FreeTube | ❌ |
+| A7 | Exportar e importar datos | NewPipe, FreeTube | ✅ Copia JSON sin la clave de propietario; valida el archivo y pide confirmación |
 
 ## 9. Orden de construcción propuesto (impacto ÷ esfuerzo)
 1. **W5** siguiente automático · **W6** atajos · **P6** `/` · **W3** compartir · **W2** campanita en el vídeo · **H8** compartir y no me interesa.
@@ -105,3 +105,11 @@
 5. **A5** modo Foco · **A3** grupos · **A2** DeArrow · **C2** pestañas de canal.
 
 Cada punto se marca ✅ solo tras verificarlo en la web publicada (Playwright + revisión del propietario).
+
+## 10. Datos de la comunidad: verificación y licencia (2026-11-07)
+- **API verificada con peticiones reales:** `sponsor.ajay.app/api/skipSegments/<prefijo>` y `/api/branding/<prefijo>` responden con `access-control-allow-origin: *`, así que funcionan desde la web sin puente. Se consulta por los 4 primeros caracteres del SHA-256 del ID: el servicio no sabe qué vídeo ves. Respuesta de DeArrow por prefijo: ~5 KB comprimida.
+- **Cobertura en el feed real:** de 120 vídeos, 34 tienen tramos de SponsorBlock y 19 tienen título de DeArrow.
+- **Regla de DeArrow** leída en el código de la extensión ([`src/dataFetching.ts`](https://github.com/ajayyy/DeArrow/blob/master/src/dataFetching.ts), [`src/titles/titleFormatter.ts`](https://github.com/ajayyy/DeArrow/blob/master/src/titles/titleFormatter.ts)): primer título o miniatura si `locked` o `votes >= 0`; `original` = se deja el de YouTube; se quitan las marcas `>`.
+- **Licencia [V]:** “The API and database follow CC BY-NC-SA 4.0 unless you have explicit permission” ([wiki de SponsorBlock](https://github.com/ajayyy/SponsorBlock/wiki/Database-and-API-License)). Exige atribución (puesta en Ajustes, según la [plantilla oficial](https://gist.github.com/ajayyy/4b27dfc66e33941a45aeaadccb51de71)) y **uso no comercial**.
+  - **Riesgo para el propietario:** si TodoTube se monetiza, hay que pedir permiso al autor o quitar la función. Afecta a la decisión de licencia y modelo (ADR-004, pendiente).
+  - **No verificado:** si DeArrow tiene la misma licencia (su wiki no era accesible desde este entorno). Se supone la misma [I].

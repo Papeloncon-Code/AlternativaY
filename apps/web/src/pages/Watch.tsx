@@ -14,6 +14,7 @@ import { setChannelBell } from '../push';
 import { removeChannel, thumb } from '../api';
 import { shareVideo, toast } from '../toast';
 import type { PlayerHandle, VideoDetails } from '../player/handle';
+import { useBranding, useSponsorSkip } from '../community';
 
 const hasBridge = () => !!(window as unknown as { todotubeBridge?: { installed?: boolean } }).todotubeBridge?.installed;
 const ID_RE = /^[A-Za-z0-9_-]{11}$/;
@@ -31,13 +32,18 @@ export default function Watch() {
   const later = useStore((s) => Boolean(s.watchLater[id]));
   const hidden = useStore((s) => s.hidden);
   const theater = useStore((s) => s.theater);
-  const autoplay = useStore((s) => s.autoplay);
+  const focus = useStore((s) => s.focus);
+  const autoplay = useStore((s) => s.autoplay) && !focus; // en Foco no se encadenan vídeos
   const ownerKey = useStore((s) => s.ownerKey);
   const [fallback, setFallback] = useState('');
   const [details, setDetails] = useState<VideoDetails | null>(null);
   const [descOpen, setDescOpen] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const handle = useRef<PlayerHandle | null>(null);
+  const sbOn = useStore((s) => s.sponsorblock);
+  const daOn = useStore((s) => s.dearrow);
+  const segments = useSponsorSkip(id, handle, sbOn);
+  const brand = useBranding(id, daOn);
   const frameRef = useRef<HTMLDivElement>(null);
   const own = hasBridge() && !fallback;
   const video = feed.data?.find((v) => v.id === id);
@@ -114,7 +120,8 @@ export default function Watch() {
         </div>
       </div>
       <div className="watch-main">
-        <h1 className="watch-title">{meta.title}</h1>
+        <h1 className="watch-title" title={brand.title ? `Título original: ${meta.title}` : undefined}>{brand.title ?? meta.title}</h1>
+        {sbOn && segments.length > 0 && <p className="sb-note">Se saltarán {segments.length} {segments.length === 1 ? 'tramo' : 'tramos'} de patrocinio o autopromoción (<a href="https://sponsor.ajay.app/" target="_blank" rel="noreferrer">SponsorBlock</a>)</p>}
         <div className="watch-row">
           <div className="watch-channel">
             <Link to={`/canal/${meta.channelId}`}><Avatar name={meta.channel || 'Canal'} id={meta.channelId || id} size={40} /></Link>

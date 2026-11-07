@@ -39,6 +39,8 @@ export default function OwnPlayer({ id, meta, startAt, onFail, onEnded, onReady,
       toggleMute: () => { video.muted = !video.muted; },
       changeRate: (d) => { const r = Math.min(3, Math.max(0.25, +(video.playbackRate + d).toFixed(2))); video.playbackRate = r; return r; },
       restart: () => { video.currentTime = 0; video.play().catch(() => {}); },
+      getTime: () => video.currentTime,
+      seekTo: (sec) => { video.currentTime = sec; },
     };
 
     (async () => {

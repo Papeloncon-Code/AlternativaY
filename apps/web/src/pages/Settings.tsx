@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { actions, useStore } from '../store';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { toast } from '../toast';
+import { actions, getState, useStore } from '../store';
 import Icon from '../components/Icon';
 import PushToggle from '../components/PushToggle';
 
@@ -8,6 +10,34 @@ export default function Settings() {
   const ownerKey = useStore((s) => s.ownerKey);
   const [key, setKey] = useState(ownerKey);
   const [saved, setSaved] = useState(false);
+  const sb = useStore((s) => s.sponsorblock);
+  const da = useStore((s) => s.dearrow);
+  const focus = useStore((s) => s.focus);
+  const file = useRef<HTMLInputElement>(null);
+  const { hash } = useLocation();
+  useEffect(() => { if (hash) document.getElementById(hash.slice(1))?.scrollIntoView({ block: 'start' }); }, [hash]);
+
+  function exportData() {
+    const { ownerKey: _secret, ...data } = getState(); // la clave de propietario no sale del navegador
+    const blob = new Blob([JSON.stringify({ app: 'todotube', version: 1, exportedAt: new Date().toISOString(), data }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `todotube-datos-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('Datos exportados');
+  }
+  async function importData(f: File) {
+    try {
+      const j = JSON.parse(await f.text());
+      if (j?.app !== 'todotube' || typeof j.data !== 'object' || !j.data) throw new Error('Este archivo no es una copia de TodoTube.');
+      const allowed = ['favorites', 'watchLater', 'history', 'progress', 'watched', 'hidden', 'notifHidden', 'searches', 'theme', 'autoplay', 'theater', 'sidebar', 'focus', 'sponsorblock', 'dearrow'];
+      const data = Object.fromEntries(Object.entries(j.data).filter(([k]) => allowed.includes(k)));
+      if (!confirm(`Se sustituirán tus datos de este navegador (historial, Me gusta, Ver más tarde…) por los de la copia del ${String(j.exportedAt ?? '').slice(0, 10) || 'archivo'}. ¿Continuar?`)) return;
+      actions.importAll(data);
+      toast('Datos importados');
+    } catch (e) { toast(e instanceof Error ? e.message : 'No se pudo leer el archivo'); }
+  }
   return (
     <div className="page narrow">
       <header className="page-head"><h1>Ajustes</h1></header>
@@ -23,6 +53,24 @@ export default function Settings() {
         <h2>Avisos</h2>
         <p className="note">Cuando un canal que sigues publica, te llega un aviso aunque tengas TodoTube cerrado. Elige qué avisos quieres por canal con la campanita, en Suscripciones.</p>
         <PushToggle />
+      </section>
+      <section className="panel">
+        <h2>Vídeos más limpios</h2>
+        <label className="setting-row"><span><b>Saltar patrocinios</b><small>Salta solo los tramos de patrocinio, autopromoción y “suscríbete” que la comunidad ha marcado, con opción de deshacer. Usa datos de <a href="https://sponsor.ajay.app/" target="_blank" rel="noreferrer">SponsorBlock</a> (CC BY-NC-SA 4.0). No se envía qué vídeo ves: solo 4 caracteres de una huella.</small></span>
+          <input type="checkbox" role="switch" checked={sb} onChange={() => actions.toggleSponsorBlock()} /></label>
+        <label className="setting-row"><span><b>Títulos y miniaturas sin clickbait</b><small>Sustituye títulos y miniaturas engañosos por los que vota la comunidad. Pasa el ratón por el título para ver el original. Usa datos de <a href="https://dearrow.ajay.app/" target="_blank" rel="noreferrer">DeArrow</a>.</small></span>
+          <input type="checkbox" role="switch" checked={da} onChange={() => actions.toggleDeArrow()} /></label>
+        <label className="setting-row"><span><b>Modo Foco</b><small>Una sola columna con lo nuevo de tus canales, sin menú, filtros, Shorts ni recomendaciones.</small></span>
+          <input type="checkbox" role="switch" checked={focus} onChange={() => actions.toggleFocus()} /></label>
+      </section>
+      <section className="panel" id="datos">
+        <h2>Tus datos</h2>
+        <p className="note">Tu historial, Me gusta, Ver más tarde y preferencias viven solo en este navegador. Haz una copia para pasarlos a otro navegador o no perderlos.</p>
+        <div className="row-btns">
+          <button type="button" className="btn" onClick={exportData}><Icon name="download" size={18} /> Exportar copia</button>
+          <button type="button" className="btn" onClick={() => file.current?.click()}><Icon name="upload" size={18} /> Importar copia</button>
+          <input ref={file} type="file" accept="application/json,.json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importData(f); e.target.value = ''; }} />
+        </div>
       </section>
       <section className="panel">
         <h2>Clave de propietario</h2>

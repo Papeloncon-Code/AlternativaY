@@ -110,6 +110,7 @@ function Notifications() {
 export default function Layout() {
   useTheme();
   const sidebar = useStore((s) => s.sidebar);
+  const focus = useStore((s) => s.focus);
   const channels = useChannels();
   const feed = useFeed();
   const location = useLocation();
@@ -141,7 +142,7 @@ export default function Layout() {
 
   const mode = isWatch ? 'overlay' : sidebar;
   return (
-    <div className={`app side-${mode}${drawer ? ' drawer-open' : ''}`}>
+    <div className={`app side-${mode}${drawer ? ' drawer-open' : ''}${focus ? ' focus' : ''}`}>
       <a className="skip" href="#main">Saltar al contenido</a>
       <header className={`topbar${mobileSearch ? ' searching' : ''}`}>
         <div className="top-left">
@@ -151,6 +152,8 @@ export default function Layout() {
         <SearchBox mobile={mobileSearch} onClose={() => setMobileSearch(false)} />
         <div className="top-right">
           <button type="button" className="icon-btn only-mobile" aria-label="Buscar" onClick={() => setMobileSearch(true)}><Icon name="search2" size={22} /></button>
+          <button type="button" className={`icon-btn focus-btn${focus ? ' on' : ''}`} aria-pressed={focus} aria-label="Modo Foco" title="Modo Foco"
+            onClick={() => { actions.toggleFocus(); toast(focus ? 'Modo Foco desactivado' : 'Modo Foco: solo lo nuevo de tus canales'); }}><Icon name="focusmode" size={22} /></button>
           <Notifications />
           <AccountMenu />
         </div>

@@ -14,6 +14,7 @@ export default function Home() {
   const feed = useFeed();
   const watched = useStore((s) => s.watched);
   const hidden = useStore((s) => s.hidden);
+  const focus = useStore((s) => s.focus);
   const [chip, setChip] = useState('todos');
 
   const channels = useMemo(() => {
@@ -25,20 +26,21 @@ export default function Home() {
     { key: 'todos', label: 'Todos' }, { key: 'sinver', label: 'Sin ver' }, { key: 'hoy', label: 'Hoy' }, { key: 'nuevos', label: 'Subidos recientemente' },
     ...channels.map(([id, name]) => ({ key: `c:${id}`, label: name })),
   ];
+  const eff = focus ? 'todos' : chip; // en modo Foco: todo lo nuevo, sin filtros
   const videos = useMemo(() => {
     const now = Date.now();
     return (feed.data ?? []).filter((v) => v.kind !== 'short' && !hidden[v.id]).filter((v) => {
-      if (chip === 'sinver') return !watched[v.id];
-      if (chip === 'hoy') return (v.publishedAt ?? 0) > now - DAY;
-      if (chip === 'nuevos') return v.source !== 'baseline';
-      if (chip.startsWith('c:')) return v.channelId === chip.slice(2);
+      if (eff === 'sinver') return !watched[v.id];
+      if (eff === 'hoy') return (v.publishedAt ?? 0) > now - DAY;
+      if (eff === 'nuevos') return v.source !== 'baseline';
+      if (eff.startsWith('c:')) return v.channelId === eff.slice(2);
       return true;
     });
-  }, [feed.data, chip, watched, hidden]);
-  const shorts = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && !hidden[v.id] && (!chip.startsWith('c:') || v.channelId === chip.slice(2))).slice(0, 12), [feed.data, chip, hidden]);
+  }, [feed.data, eff, watched, hidden]);
+  const shorts = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && !hidden[v.id] && (!eff.startsWith('c:') || v.channelId === eff.slice(2))).slice(0, 12), [feed.data, eff, hidden]);
   const firstRows = 8; // la fila de Shorts va después de las primeras filas, como en las apps de vídeo
 
-  const shelf = shorts.length > 0 && (
+  const shelf = !focus && shorts.length > 0 && (
     <section className="shelf" aria-labelledby="h-shorts">
       <h2 id="h-shorts"><Icon name="shorts" size={24} /> Shorts</h2>
       <div className="shorts-row">
@@ -49,7 +51,7 @@ export default function Home() {
 
   return (
     <div className="page">
-      <Chips items={chips} value={chip} onChange={setChip} />
+      {focus ? <h1 className="focus-title">Lo nuevo de tus canales</h1> : <Chips items={chips} value={chip} onChange={setChip} />}
       {feed.loading && <SkeletonGrid n={8} />}
       {feed.error && <ErrorBox message={`No se pudieron cargar las novedades (${feed.error}).`} onRetry={feed.reload} />}
       {feed.data && feed.data.length === 0 && (

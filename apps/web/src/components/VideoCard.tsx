@@ -7,6 +7,7 @@ import Icon from './Icon';
 import Avatar from './Avatar';
 import { prefetchVideo } from '../player/warm';
 import { shareVideo, toast } from '../toast';
+import { useBranding } from '../community';
 
 type Props = {
   id: string; title: string; channel: string; channelId: string;
@@ -21,6 +22,18 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
   const saved = useStore((s) => s.progress[id]);
   const [menu, setMenu] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const card = useRef<HTMLElement>(null);
+  const daOn = useStore((s) => s.dearrow);
+  const [seen, setSeen] = useState(false);
+  useEffect(() => {
+    if (!daOn || seen || !card.current) return;
+    const io = new IntersectionObserver((e) => { if (e.some((x) => x.isIntersecting)) { setSeen(true); io.disconnect(); } }, { rootMargin: '300px' });
+    io.observe(card.current);
+    return () => io.disconnect();
+  }, [daOn, seen]);
+  const brand = useBranding(id, daOn && seen);
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const shownTitle = brand.title ?? title;
   const meta = { id, title, channel, channelId };
   const href = short ? `/shorts/${id}` : `/ver/${id}`;
   const pct = progress ?? (saved ? saved.pos / saved.dur : watched ? 1 : undefined);
@@ -36,15 +49,15 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
   }, [menu]);
 
   return (
-    <article className={`vcard${compact ? ' compact' : ''}`}>
-      <Link to={href} className="vthumb" aria-label={title} onMouseEnter={() => prefetchVideo(id)} onFocus={() => prefetchVideo(id)} onTouchStart={() => prefetchVideo(id)}>
-        <img src={thumb(id)} alt="" loading="lazy" width={480} height={270} />
+    <article ref={card} className={`vcard${compact ? ' compact' : ''}`}>
+      <Link to={href} className="vthumb" aria-label={shownTitle} onMouseEnter={() => prefetchVideo(id)} onFocus={() => prefetchVideo(id)} onTouchStart={() => prefetchVideo(id)}>
+        <img src={brand.thumb && !thumbFailed ? brand.thumb : thumb(id)} alt="" loading="lazy" width={480} height={270} onError={() => setThumbFailed(true)} />
         {pct != null && <span className="vprog"><span style={{ width: `${Math.min(100, pct * 100)}%` }} /></span>}
       </Link>
       <div className="vinfo">
         {!compact && <Link to={`/canal/${channelId}`} className="vavatar" aria-label={`Canal ${channel}`}><Avatar name={channel} id={channelId} size={36} /></Link>}
         <div className="vtext">
-          <Link to={href} className="vtitle" title={title}>{title}</Link>
+          <Link to={href} className="vtitle" title={brand.title ? `Título original: ${title}` : title}>{shownTitle}</Link>
           <Link to={`/canal/${channelId}`} className="vmeta vchan">{channel}</Link>
           <span className="vmeta">{publishedAt ? ago(publishedAt) : ''}{watched ? ' · visto' : ''}</span>
           {isNew && !watched && <span className="badge-nuevo">Nuevo</span>}
