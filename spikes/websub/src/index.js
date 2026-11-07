@@ -1,6 +1,7 @@
 // Spike T-007: avisos WebSub de YouTube → D1 + ntfy. Ver specs/003-spike-websub/spec.md
 // Constitución §I.2: solo WebSub y RSS público. Nada de extracción de YouTube.
 import { parseAtom, hmacSha1Hex, safeEqual, isFresh } from './atom.js';
+import { buildPushPayload } from '@block65/webcrypto-web-push';
 
 const TOPIC = (id) => `https://www.youtube.com/xml/feeds/videos.xml?channel_id=${id}`;
 const RSS = (id) => `https://www.youtube.com/feeds/videos.xml?channel_id=${id}`;
@@ -39,13 +40,41 @@ async function recordEntry(env, e, source, now) {
   ).bind(source, e.videoId, e.channelId, e.title, e.published, e.updated, now).run();
   const seen = await env.DB.prepare('SELECT 1 FROM videos WHERE video_id = ?').bind(e.videoId).first();
   if (seen || !isFresh(e.published, now)) return false;
+  const kind = await classify(e.videoId);
   await env.DB.batch([
     env.DB.prepare('INSERT OR IGNORE INTO videos (video_id, channel_id, title, published_at, first_source, first_seen_at, kind) VALUES (?,?,?,?,?,?,?)')
-      .bind(e.videoId, e.channelId, e.title, e.published, source, now, await classify(e.videoId)),
+      .bind(e.videoId, e.channelId, e.title, e.published, source, now, kind),
     env.DB.prepare('UPDATE events SET is_new = 1 WHERE id = (SELECT MAX(id) FROM events WHERE video_id = ? AND source = ?)')
       .bind(e.videoId, source),
   ]);
-  return true;
+  return { kind };
+}
+
+// Avisos push del navegador (Web Push, RFC 8291/8292) según la campanita del canal: all | noshorts | none.
+async function pushNew(env, e, kind) {
+  if (!env.VAPID_PRIVATE_KEY || !env.VAPID_PUBLIC_KEY) return;
+  const ch = await env.DB.prepare('SELECT label, notify FROM channels WHERE channel_id = ?').bind(e.channelId).first();
+  const pref = ch?.notify || 'all';
+  if (pref === 'none' || (pref === 'noshorts' && kind === 'short')) return;
+  const { results: subs } = await env.DB.prepare('SELECT endpoint, p256dh, auth FROM push_subs').all();
+  const vapid = { subject: env.PUBLIC_WEB_URL || 'https://todotube.papelon.workers.dev', publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY };
+  const data = JSON.stringify({
+    title: ch?.label || 'Nuevo vídeo',
+    body: (kind === 'short' ? 'Short · ' : '') + (e.title || 'Nuevo vídeo'),
+    url: `/ver/${e.videoId}${kind === 'short' ? '?short=1' : ''}`,
+    image: `https://i.ytimg.com/vi/${e.videoId}/hqdefault.jpg`,
+    tag: e.videoId,
+  });
+  for (const sub of subs) {
+    try {
+      const payload = await buildPushPayload({ data, options: { ttl: 3600, urgency: 'high' } },
+        { endpoint: sub.endpoint, expirationTime: null, keys: { p256dh: sub.p256dh, auth: sub.auth } }, vapid);
+      const r = await fetch(sub.endpoint, payload);
+      if (r.status === 404 || r.status === 410) await env.DB.prepare('DELETE FROM push_subs WHERE endpoint=?').bind(sub.endpoint).run();
+      else if (r.ok) await env.DB.prepare('UPDATE push_subs SET last_ok_at=?, failures=0 WHERE endpoint=?').bind(Date.now(), sub.endpoint).run();
+      else await env.DB.prepare('UPDATE push_subs SET failures=failures+1 WHERE endpoint=?').bind(sub.endpoint).run();
+    } catch { /* un suscriptor roto no frena a los demás */ }
+  }
 }
 
 async function handleVerify(url, env, channelId) {
@@ -82,7 +111,9 @@ async function handlePush(request, env, ctx, channelId) {
   }
   for (const e of entries) {
     e.channelId ||= channelId;
-    if (await recordEntry(env, e, 'websub', now)) {
+    const rec = await recordEntry(env, e, 'websub', now);
+    if (rec) {
+      ctx.waitUntil(pushNew(env, e, rec.kind));
       const lat = e.published ? ` · ${mins(now - e.published)} min tras publicar` : '';
       ctx.waitUntil(notify(env, {
         title: `Nuevo: ${e.title || e.videoId}`,
@@ -128,13 +159,15 @@ async function pollRss(env, channelId, baseline, now) {
   if (name) await env.DB.prepare('UPDATE channels SET label = ? WHERE channel_id = ? AND label IS NULL').bind(name.trim().slice(0, 80), channelId).run();
   const { entries } = parseAtom(xml);
   let fresh = 0;
+  let rec;
   for (const e of entries) {
     e.channelId ||= channelId;
     if (baseline) {
       await env.DB.prepare('INSERT OR IGNORE INTO videos (video_id, channel_id, title, published_at, first_source, first_seen_at) VALUES (?,?,?,?,?,?)')
         .bind(e.videoId, e.channelId, e.title, e.published, 'baseline', now).run();
-    } else if (await recordEntry(env, e, 'rss', now)) {
+    } else if ((rec = await recordEntry(env, e, 'rss', now))) {
       fresh++;
+      await pushNew(env, e, rec.kind);
       await notify(env, {
         title: `Nuevo (respaldo RSS): ${e.title || e.videoId}`,
         body: `RSS · ${e.published ? mins(now - e.published) + ' min tras publicar' : ''}`,

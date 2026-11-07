@@ -10,6 +10,9 @@ const paths: Record<string, string> = {
   back: 'M15 5l-7 7 7 7',
   sun: 'M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   moon: 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
+  bellOff: 'M6 16V11c0-1 .3-2 .8-2.9M9 5.6A6 6 0 0 1 18 11v5l2 2H6M10 20a2 2 0 0 0 4 0M3 3l18 18',
+  chevron: 'M7 10l5 5 5-5',
+  unfollow: 'M16 11h6M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1',
 };
 export default function Icon({ name, size = 22, filled = false }: { name: keyof typeof paths | string; size?: number; filled?: boolean }) {
   return (

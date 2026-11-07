@@ -8,6 +8,8 @@ PUBLIC_URL = "https://alternativay-websub.papelon.workers.dev"
 HUB_URL = "https://pubsubhubbub.appspot.com/subscribe"
 LEASE_SECONDS = "432000"
 RSS_PER_RUN = "7"
+PUBLIC_WEB_URL = "https://todotube.papelon.workers.dev"
+VAPID_PUBLIC_KEY = "BIFVJaAidSzR22FLmskgIC4fdsAfCNPnsHMVAWeSVyNi_P7mddVhRjMuzqbjOBmnykA5OgGZNIy8SFkXol2J5P0"
 
 [[d1_databases]]
 binding = "DB"
@@ -17,4 +19,4 @@ database_id = "676928c8-1061-40cc-9d67-9f7395c9c958"
 [triggers]
 crons = ["*/5 * * * *"]
 
-# Secreto (no va en el repo): NTFY_TOPIC  ->  wrangler secret put NTFY_TOPIC
+# Secretos (no van en el repo): NTFY_TOPIC, VAPID_PRIVATE_KEY  ->  wrangler secret put <NOMBRE>

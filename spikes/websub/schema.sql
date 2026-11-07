@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS channels (
   lease_expires  INTEGER,
   last_polled_at INTEGER,
   last_error     TEXT,
-  rss_failures   INTEGER NOT NULL DEFAULT 0
+  rss_failures   INTEGER NOT NULL DEFAULT 0,
+  notify         TEXT NOT NULL DEFAULT 'all'   -- campanita: all | noshorts | none
 );
 CREATE TABLE IF NOT EXISTS videos (
   video_id      TEXT PRIMARY KEY,
@@ -37,4 +38,12 @@ CREATE TABLE IF NOT EXISTS runs (
   at INTEGER NOT NULL,
   subscribed INTEGER, renewed INTEGER, polled INTEGER, new_from_rss INTEGER,
   error TEXT
+);
+CREATE TABLE IF NOT EXISTS push_subs (
+  endpoint   TEXT PRIMARY KEY,
+  p256dh     TEXT NOT NULL,
+  auth       TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  last_ok_at INTEGER,
+  failures   INTEGER NOT NULL DEFAULT 0
 );

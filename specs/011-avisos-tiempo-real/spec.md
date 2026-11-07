@@ -31,3 +31,10 @@ Resolver antes de cerrar el plan (paso *clarify*):
 - [ ] Latencia real de WebSub (spike 003 en curso): ¿se mantiene el objetivo de ≤ 3 min p90?
 - [ ] ¿Política de Google Play sobre alarmas exactas para avisar de estrenos (build `play`)?
 - [ ] ¿UnifiedPush: qué distribuidor recomendamos por defecto (ntfy)?
+
+## Avance (2026-11-07): campanita y Web Push en la web
+- **Campanita por canal** (como en YouTube): **Todas / Sin Shorts / Ninguna / Dejar de seguir**. Se guarda en `channels.notify`. El servicio de avisos la respeta antes de enviar.
+- **Web Push** (VAPID + aes128gcm, librería `@block65/webcrypto-web-push` 2.0.0, MIT): *service worker* `/sw.js`; al tocar el aviso se abre el vídeo en TodoTube.
+- “**Solo directos y estrenos**” no está disponible todavía en la web: el aviso de YouTube no indica si es un directo y el servidor no extrae. Llegará con Android (CA11.2).
+- **Verificado:** prueba unitaria de cifrado (7/7 pruebas); API (401 sin clave, 400 con valor inválido, cambio persistido); menú de la campanita con Playwright.
+- **Pendiente de verificar en el navegador del propietario:** recepción real del aviso. Requiere conceder el permiso de notificaciones, y desde este entorno no se puede comprobar.

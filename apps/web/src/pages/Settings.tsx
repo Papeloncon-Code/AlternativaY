@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { actions, useStore } from '../store';
 import Icon from '../components/Icon';
+import PushToggle from '../components/PushToggle';
 
 export default function Settings() {
   const theme = useStore((s) => s.theme);
@@ -16,6 +17,11 @@ export default function Settings() {
           <button type="button" className={`chip${theme === 'dark' ? ' on' : ''}`} aria-pressed={theme === 'dark'} onClick={() => actions.setTheme('dark')}><Icon name="moon" size={16} /> Oscuro</button>
           <button type="button" className={`chip${theme === 'light' ? ' on' : ''}`} aria-pressed={theme === 'light'} onClick={() => actions.setTheme('light')}><Icon name="sun" size={16} /> Claro</button>
         </div>
+      </section>
+      <section className="panel">
+        <h2>Avisos</h2>
+        <p className="note">Cuando un canal que sigues publica, te llega un aviso aunque tengas TodoTube cerrado. Elige qué avisos quieres por canal con la campanita, en Suscripciones.</p>
+        <PushToggle />
       </section>
       <section className="panel">
         <h2>Clave de propietario</h2>

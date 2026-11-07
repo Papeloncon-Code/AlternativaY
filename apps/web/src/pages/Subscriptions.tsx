@@ -6,6 +6,9 @@ import { useStore } from '../store';
 import { hue, initials } from '../format';
 import { Empty, ErrorBox } from '../components/States';
 import Icon from '../components/Icon';
+import BellMenu, { type Bell } from '../components/BellMenu';
+import PushToggle from '../components/PushToggle';
+import { setChannelBell } from '../push';
 
 const STATUS: Record<Channel['status'], { label: string; cls: string; help: string }> = {
   verified: { label: 'Avisos activos', cls: 'ok', help: 'Te avisamos al momento cuando publica.' },
@@ -26,6 +29,12 @@ export default function Subscriptions() {
     if (!ownerKey) { setMsg({ ok: false, text: 'Pon tu clave de propietario en Ajustes para dejar de seguir canales.' }); return; }
     if (!confirm(`¿Dejar de seguir ${c.name}?`)) return;
     try { await removeChannel(c.id, ownerKey); setMsg({ ok: true, text: `Has dejado de seguir ${c.name}.` }); list.reload(); }
+    catch (err) { setMsg({ ok: false, text: err instanceof Error ? err.message : String(err) }); }
+  }
+
+  async function bell(c: Channel, v: Bell) {
+    if (!ownerKey) { setMsg({ ok: false, text: 'Pon tu clave de propietario en Ajustes para cambiar los avisos.' }); return; }
+    try { await setChannelBell(c.id, v, ownerKey); list.reload(); }
     catch (err) { setMsg({ ok: false, text: err instanceof Error ? err.message : String(err) }); }
   }
 
@@ -52,6 +61,7 @@ export default function Subscriptions() {
         {items.length > 0 && <p className="sub">{items.length} canales · {active} con avisos al momento</p>}
       </header>
 
+      <PushToggle compact />
       <form className="panel add-form" onSubmit={submit}>
         <h2><Icon name="plus" size={18} /> Seguir un canal</h2>
         <label>
@@ -81,7 +91,7 @@ export default function Subscriptions() {
                 <span className="card-meta">{c.videos === 1 ? '1 vídeo reciente' : `${c.videos} vídeos recientes`}</span>
               </div>
               <span className={`status ${st.cls}`} title={st.help}><Icon name="bell" size={14} /> {st.label}</span>
-              <button type="button" className="btn ghost small" onClick={() => unfollow(c)} aria-label={`Dejar de seguir ${c.name}`}>Dejar de seguir</button>
+              <BellMenu name={c.name} value={c.notify ?? 'all'} onChange={(v) => bell(c, v)} onUnfollow={() => unfollow(c)} />
             </li>
           );
         })}

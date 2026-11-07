@@ -28,7 +28,7 @@ async function api(request, env, url) {
   if (url.pathname === '/api/channels' && request.method === 'GET') {
     const { results } = await env.DB.prepare(
       `SELECT c.channel_id AS id, COALESCE(c.label, c.channel_id) AS name, c.status, c.verified_at AS verifiedAt,
-              c.last_error AS lastError, (SELECT COUNT(*) FROM videos v WHERE v.channel_id = c.channel_id) AS videos
+              c.last_error AS lastError, c.notify AS notify, (SELECT COUNT(*) FROM videos v WHERE v.channel_id = c.channel_id) AS videos
        FROM channels c WHERE c.status <> 'removing' ORDER BY name COLLATE NOCASE`
     ).all();
     return json({ items: results }, 200, { 'cache-control': 'no-store' });
@@ -44,6 +44,31 @@ async function api(request, env, url) {
     const label = typeof body.label === 'string' && body.label.trim() ? body.label.trim().slice(0, 80) : null;
     const r = await env.DB.prepare('INSERT OR IGNORE INTO channels (channel_id, label) VALUES (?, ?)').bind(m[1], label).run();
     return json({ id: m[1], created: r.meta.changes > 0 }, r.meta.changes > 0 ? 201 : 200);
+  }
+  const isOwner = () => !!env.OWNER_KEY && safeEqual(request.headers.get('x-owner-key') || '', env.OWNER_KEY);
+  if (url.pathname === '/api/push/key' && request.method === 'GET') return json({ publicKey: env.VAPID_PUBLIC_KEY });
+  if (url.pathname === '/api/push/subscribe' && (request.method === 'POST' || request.method === 'DELETE')) {
+    if (!isOwner()) return json({ error: 'Clave de propietario incorrecta' }, 401);
+    let sub; try { sub = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
+    const endpoint = String(sub?.endpoint || '');
+    if (!/^https:\/\//.test(endpoint) || endpoint.length > 1000) return json({ error: 'Suscripción inválida' }, 400);
+    if (request.method === 'DELETE') {
+      await env.DB.prepare('DELETE FROM push_subs WHERE endpoint=?').bind(endpoint).run();
+      return json({ ok: true });
+    }
+    const { p256dh, auth } = sub.keys || {};
+    if (!p256dh || !auth) return json({ error: 'Faltan las claves de la suscripción' }, 400);
+    await env.DB.prepare('INSERT INTO push_subs (endpoint, p256dh, auth, created_at) VALUES (?,?,?,?) ON CONFLICT(endpoint) DO UPDATE SET p256dh=excluded.p256dh, auth=excluded.auth, failures=0')
+      .bind(endpoint, String(p256dh), String(auth), Date.now()).run();
+    return json({ ok: true }, 201);
+  }
+  const bell = url.pathname.match(/^\/api\/channels\/(UC[A-Za-z0-9_-]{22})\/notify$/);
+  if (bell && request.method === 'PUT') {
+    if (!isOwner()) return json({ error: 'Clave de propietario incorrecta' }, 401);
+    let b; try { b = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
+    if (!['all', 'noshorts', 'none'].includes(b?.notify)) return json({ error: 'Valor de campanita inválido' }, 400);
+    const r = await env.DB.prepare('UPDATE channels SET notify=? WHERE channel_id=?').bind(b.notify, bell[1]).run();
+    return json({ id: bell[1], notify: b.notify }, r.meta.changes ? 200 : 404);
   }
   const del = url.pathname.match(/^\/api\/channels\/(UC[A-Za-z0-9_-]{22})$/);
   if (del && request.method === 'DELETE') {

@@ -14,6 +14,7 @@ export type Channel = {
   status: 'pending' | 'requested' | 'verified' | 'invalid';
   verifiedAt: number | null;
   lastError: string | null;
+  notify: 'all' | 'noshorts' | 'none';
   videos: number;
 };
 

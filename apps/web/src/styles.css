@@ -194,3 +194,19 @@ input:focus { border-color: var(--brand); outline: none; }
 .plain { margin: 0; padding-left: 18px; color: var(--text-2); display: grid; gap: 6px; }
 .steps { margin: 0 0 8px; padding-left: 20px; display: grid; gap: 10px; }
 code { background: var(--surface-2); padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+
+/* Campanita */
+.bell { position: relative; flex: none; }
+.bell-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px 0 12px; border-radius: 999px; border: 0; background: var(--surface-2); color: var(--text); font-weight: 600; font-size: 13.5px; cursor: pointer; }
+.bell-btn:hover { filter: brightness(1.15); }
+.bell-btn.muted { color: var(--text-2); }
+.bell-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 240px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 6px; }
+.bell-item { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 0; background: none; border-radius: 8px; cursor: pointer; text-align: left; color: var(--text); }
+.bell-item:hover, .bell-item:focus-visible { background: var(--surface-2); }
+.bell-item span { flex: 1; display: flex; flex-direction: column; }
+.bell-item small { color: var(--text-2); font-size: 12px; }
+.bell-item.danger { color: var(--danger); }
+.bell-menu hr { border: 0; border-top: 1px solid var(--border); margin: 6px 4px; }
+.push-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 16px; margin-bottom: 18px; border-radius: var(--radius); background: color-mix(in srgb, var(--brand) 14%, var(--surface)); border: 1px solid var(--border); }
+.push-banner span { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+@media (max-width: 760px) { .channel { flex-wrap: wrap; } .channel .status { order: 3; } }

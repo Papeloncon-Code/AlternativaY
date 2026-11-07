@@ -3,6 +3,9 @@ main = "worker.js"
 compatibility_date = "2025-09-01"
 workers_dev = true
 
+[vars]
+VAPID_PUBLIC_KEY = "BIFVJaAidSzR22FLmskgIC4fdsAfCNPnsHMVAWeSVyNi_P7mddVhRjMuzqbjOBmnykA5OgGZNIy8SFkXol2J5P0"
+
 # Misma base de datos que el servicio de avisos (spikes/websub)
 [[d1_databases]]
 binding = "DB"
