@@ -101,3 +101,9 @@ sequenceDiagram
 - Es un **comportamiento no documentado** [I]: si cambia, `kind` queda vacío y el vídeo se muestra como vídeo normal (no se rompe nada).
 - La consulta es a la CDN pública de imágenes, el mismo recurso que muestra cualquier cliente. No es extracción de páginas de YouTube (constitución §I.2).
 - Alternativas descartadas: oEmbed (devuelve las mismas dimensiones para Shorts y vídeos, verificado); `youtube.com/shorts/<id>` (página de YouTube desde el servidor, contra §I.2).
+
+## Enmienda 2 (2026-11-07): detección de Shorts por la URL `/shorts/`
+- **Fallo detectado por el propietario:** los Shorts de CNN y NBC salían mezclados con los vídeos. La miniatura vertical (`oardefault.jpg`) no existe para todos los Shorts: falsos negativos.
+- **Señal nueva:** `HEAD https://www.youtube.com/shorts/<id>` con `redirect: manual` → **200** = Short, **3xx** = vídeo (redirige a `/watch`). Verificado en 4 casos dudosos (3 Shorts y 1 vídeo de CNN/NBC) y en la reclasificación de 159 vídeos (de 33 Shorts se pasó a ≥ 47).
+- **Respeto a la constitución §I.2:** solo se lee el código de estado de una URL pública. No se descarga ni se interpreta contenido, ni se extrae nada del vídeo. La miniatura vertical queda como respaldo.
+- **Lección:** verificar con al menos 3 canales distintos antes de dar por buena una heurística (la anterior se probó solo con BBC y DW).
