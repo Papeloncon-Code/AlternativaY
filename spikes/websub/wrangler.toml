@@ -1,0 +1,20 @@
+name = "alternativay-websub"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[vars]
+PUBLIC_URL = "https://alternativay-websub.papelon.workers.dev"
+HUB_URL = "https://pubsubhubbub.appspot.com/subscribe"
+LEASE_SECONDS = "432000"
+RSS_PER_RUN = "7"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "alternativay-websub"
+database_id = "676928c8-1061-40cc-9d67-9f7395c9c958"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Secreto (no va en el repo): NTFY_TOPIC  ->  wrangler secret put NTFY_TOPIC
