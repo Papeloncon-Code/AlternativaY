@@ -9,7 +9,7 @@ Una persona puede:
 - reunir además sus podcasts, PeerTube y archivos locales;
 - continuar en la web desde donde lo dejó en Android, sin cuenta de Google.
 
-El orden de construcción del MVP es: **YouTube completo → avisos en tiempo real → sincronización con la web → resto de fuentes**.
+Orden de construcción (actualizado el 2026-11-07 por decisión del propietario): **primero la web v0.1** (`specs/004-web-v0`), para ver el producto con datos reales del servicio de avisos; **después Android** (YouTube completo → importación automática → avisos push → sincronización con la web → resto de fuentes).
 
 ## 2. Fuera de alcance (explícito)
 - IA.

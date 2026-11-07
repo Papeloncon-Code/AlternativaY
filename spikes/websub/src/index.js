@@ -101,7 +101,12 @@ async function pollRss(env, channelId, baseline, now) {
   if (r.status === 404) return { invalid: true };
   if (!r.ok) return { error: `rss ${r.status}` };
   // El RSS público trae como máximo ~15 entradas: se procesan todas para no perder subidas en ráfaga.
-  const { entries } = parseAtom(await r.text());
+  const xml = await r.text();
+  // Nombre del canal: primer <title> del feed (antes de la primera <entry>). Solo rellena si falta.
+  const head = xml.split('<entry>')[0];
+  const name = head.match(/<title>([^<]+)<\/title>/)?.[1];
+  if (name) await env.DB.prepare('UPDATE channels SET label = ? WHERE channel_id = ? AND label IS NULL').bind(name.trim().slice(0, 80), channelId).run();
+  const { entries } = parseAtom(xml);
   let fresh = 0;
   for (const e of entries) {
     e.channelId ||= channelId;

@@ -40,3 +40,19 @@ Una web real, publicada en Cloudflare, donde se pueda:
 - **CA-W6:** usable a 375 px de ancho sin desplazamiento horizontal; navegación inferior en móvil.
 - **CA-W7:** estados vacíos y de error en todas las pantallas (sin canales, API caída, vídeo no disponible).
 - **CA-W8:** navegación con teclado y textos alternativos en miniaturas (base de accesibilidad AA).
+
+## 5. Verificación (2026-11-07, https://todotube.papelon.workers.dev)
+| CA | Resultado | Cómo se comprobó |
+|---|---|---|
+| CA-W1 | ✅ LCP 1,24 s escritorio, 0,93 s móvil | Playwright + PerformanceObserver |
+| CA-W2 | ⚠️ **No verificado**: la red de pruebas no permite cargar el reproductor de YouTube | Pendiente: prueba manual del propietario |
+| CA-W3 | ✅ Sin ver (46→45 tras marcar uno), Hoy (18) | Playwright |
+| CA-W4 | ✅ El favorito persiste tras recargar | Playwright |
+| CA-W5 | ✅ Clave errónea 401; clave correcta → `created:false` para un canal existente; URL `@handle` rechazada con mensaje claro | curl |
+| CA-W6 | ✅ 375 px sin desplazamiento horizontal, barra inferior | Playwright, captura |
+| CA-W7 | ✅ 404 de la SPA, estados vacíos; error de API con botón Reintentar (código) | Playwright |
+| CA-W8 | 🟡 Parcial: enlace “Saltar al contenido”, foco visible, `aria-pressed`; falta una auditoría con axe | Playwright |
+
+**Desviaciones respecto al plan:**
+- Los archivos de la web van **embebidos en el Worker** (`scripts/embed.mjs`). La subida de assets de Cloudflare falla en este entorno porque el proxy sustituye el token temporal de subida (401).
+- Datos locales en `localStorage` (ver §3).

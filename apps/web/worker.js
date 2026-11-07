@@ -1,4 +1,5 @@
-// TodoTube Web v0.1: sirve la web y una API mínima sobre la D1 del servicio de avisos.
+// TodoTube Web v0.1: sirve la web (embebida en assets.generated.js) y una API mínima sobre la D1 del servicio de avisos.
+import ASSETS from './assets.generated.js';
 // specs/004-web-v0/spec.md · Constitución §I.2: no se extrae YouTube; solo se leen datos de WebSub/RSS.
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
@@ -53,6 +54,13 @@ export default {
       try { return await api(request, env, url); }
       catch (e) { return json({ error: 'Error interno', detail: String(e).slice(0, 200) }, 500); }
     }
-    return env.ASSETS.fetch(request);
+    if (request.method !== 'GET' && request.method !== 'HEAD') return new Response('Método no permitido', { status: 405 });
+    const file = ASSETS[url.pathname];
+    if (file) {
+      const immutable = url.pathname.startsWith('/assets/');
+      return new Response(file.body, { headers: { 'content-type': file.type, 'cache-control': immutable ? 'public, max-age=31536000, immutable' : 'public, max-age=300' } });
+    }
+    // SPA: cualquier otra ruta devuelve index.html
+    return new Response(ASSETS['/index.html'].body, { headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-cache' } });
   },
 };
