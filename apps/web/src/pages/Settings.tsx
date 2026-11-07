@@ -28,7 +28,7 @@ export default function Settings() {
       </section>
       <section className="panel">
         <h2>Acerca de</h2>
-        <p className="note">TodoTube Web v0.1. Las novedades llegan por los avisos oficiales de YouTube (WebSub) y su RSS público. Tus favoritos e historial se quedan en este navegador.</p>
+        <p className="note">TodoTube Web v0.1. Las novedades llegan al momento en cuanto tus canales publican. Tus favoritos e historial se quedan en este navegador.</p>
       </section>
     </div>
   );

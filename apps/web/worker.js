@@ -40,7 +40,7 @@ async function api(request, env, url) {
     let body;
     try { body = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
     const m = String(body?.input || '').match(CHANNEL_RE);
-    if (!m) return json({ error: 'Pega la URL del canal con /channel/UC… o su ID (UC + 22 caracteres)' }, 400);
+    if (!m) return json({ error: 'Pega el enlace del canal (el que contiene /channel/UC…) o su ID (UC + 22 caracteres)' }, 400);
     const label = typeof body.label === 'string' && body.label.trim() ? body.label.trim().slice(0, 80) : null;
     const r = await env.DB.prepare('INSERT OR IGNORE INTO channels (channel_id, label) VALUES (?, ?)').bind(m[1], label).run();
     return json({ id: m[1], created: r.meta.changes > 0 }, r.meta.changes > 0 ? 201 : 200);

@@ -51,7 +51,7 @@ export default function Watch() {
             if (e.data === 2 || e.data === 0) { window.clearInterval(timer); save(); }
           },
           onError: (e: { data: number }) => setError(e.data === 101 || e.data === 150
-            ? 'El autor no permite reproducir este vídeo fuera de YouTube.'
+            ? 'El autor no permite reproducir este vídeo aquí.'
             : 'Este vídeo no está disponible.'),
         },
       });
@@ -79,7 +79,6 @@ export default function Watch() {
           <button type="button" className={`btn${fav ? ' on' : ''}`} aria-pressed={fav} onClick={() => actions.toggleFavorite(meta)}>
             <Icon name="heart" size={18} filled={fav} /> {fav ? 'En favoritos' : 'Favorito'}
           </button>
-          <a className="btn ghost" href={`https://www.youtube.com/watch?v=${id}`} target="_blank" rel="noreferrer">Abrir en YouTube</a>
         </div>
       </div>
       {more.length > 0 && (

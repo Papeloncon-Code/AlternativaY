@@ -8,8 +8,8 @@ import { Empty, ErrorBox } from '../components/States';
 import Icon from '../components/Icon';
 
 const STATUS: Record<Channel['status'], { label: string; cls: string; help: string }> = {
-  verified: { label: 'Avisos activos', cls: 'ok', help: 'YouTube nos avisa al momento cuando publica.' },
-  requested: { label: 'Activando…', cls: 'wait', help: 'Esperando la confirmación de YouTube.' },
+  verified: { label: 'Avisos activos', cls: 'ok', help: 'Te avisamos al momento cuando publica.' },
+  requested: { label: 'Activando…', cls: 'wait', help: 'Activando los avisos de este canal.' },
   pending: { label: 'Pendiente', cls: 'wait', help: 'Se procesará en los próximos minutos.' },
   invalid: { label: 'Sin confirmar', cls: 'bad', help: 'No se pudo confirmar el canal.' },
 };
@@ -56,7 +56,7 @@ export default function Subscriptions() {
         <h2><Icon name="plus" size={18} /> Seguir un canal</h2>
         <label>
           Enlace o ID del canal
-          <input value={input} onChange={(e) => setInput(e.target.value)} required placeholder="https://www.youtube.com/channel/UC…" inputMode="url" autoComplete="off" />
+          <input value={input} onChange={(e) => setInput(e.target.value)} required placeholder="Pega aquí el enlace del canal" inputMode="url" autoComplete="off" />
         </label>
         <label>
           Nombre (opcional)
@@ -77,7 +77,7 @@ export default function Subscriptions() {
             <li key={c.id} className="channel">
               <span className="avatar" style={{ background: `hsl(${hue(c.id)} 55% 42%)` }} aria-hidden="true">{initials(c.name)}</span>
               <div className="channel-main">
-                <a href={`https://www.youtube.com/channel/${c.id}`} target="_blank" rel="noreferrer" className="channel-name">{c.name}</a>
+                <span className="channel-name">{c.name}</span>
                 <span className="card-meta">{c.videos === 1 ? '1 vídeo reciente' : `${c.videos} vídeos recientes`}</span>
               </div>
               <span className={`status ${st.cls}`} title={st.help}><Icon name="bell" size={14} /> {st.label}</span>
