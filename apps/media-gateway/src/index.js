@@ -174,7 +174,16 @@ function failoverBody(initialBody, initialIndex, origins, env, key, head, range,
         const candidateHead = await withTimeout(bucket.head(key), originTimeout(env));
         const candidateIsPublic = candidateHead?.customMetadata?.visibility === 'public';
         if (!candidateHead || candidateHead.size !== expectedSize) continue;
-        if (head.customMetadata?.visibility === 'public' && !candidateIsPublic) continue;
+        // A byte-identical copy must also preserve the same access and licence policy.
+        // Never resume a private/public or licensed/owned metadata mismatch.
+        const expectedMeta = head.customMetadata || {};
+        const candidateMeta = candidateHead.customMetadata || {};
+        for (const field of ['visibility', 'license', 'licenseReference']) {
+          if ((expectedMeta[field] || null) !== (candidateMeta[field] || null)) continue;
+        }
+        if ((expectedMeta.visibility || null) !== (candidateMeta.visibility || null)) continue;
+        if ((expectedMeta.license || null) !== (candidateMeta.license || null)) continue;
+        if ((expectedMeta.licenseReference || null) !== (candidateMeta.licenseReference || null)) continue;
         if (!candidateIsPublic && !isAuthorized) continue;
         const expectedVersion = head.customMetadata?.mediaVersion;
         const candidateVersion = candidateHead.customMetadata?.mediaVersion;
