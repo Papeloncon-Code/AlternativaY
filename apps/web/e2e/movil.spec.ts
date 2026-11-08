@@ -120,7 +120,7 @@ test('navegación móvil actual: Inicio/Subs arriba y Inicio/Shorts/Crear/Tú ab
   await expect(bottom.getByRole('link', { name: 'Suscripciones' })).toHaveCount(0);
 
   await feeds.getByRole('tab', { name: 'Subs' }).click();
-  await expect(page).toHaveURL(/\\/suscripciones$/);
+  await expect(page).toHaveURL(new RegExp('/suscripciones$'));
   await expect(feeds.locator('.mobile-feed-tab.active')).toHaveText('Subs');
   await expect(page.locator('.subscription-feed')).toBeVisible();
 
@@ -132,7 +132,7 @@ test('navegación móvil actual: Inicio/Subs arriba y Inicio/Shorts/Crear/Tú ab
   const name = 'Lista móvil de prueba';
   await dialog.getByLabel('Nueva lista de reproducción').fill(name);
   await dialog.getByRole('button', { name: 'Crear lista' }).click();
-  await expect(page).toHaveURL(/\\/lista\\//);
+  await expect(page).toHaveURL(new RegExp('/lista/'));
   const lists = await page.evaluate(() => (JSON.parse(localStorage.getItem('todotube:v1') || '{}').playlists ?? []) as { name: string }[]);
   expect(lists.some((list) => list.name === name)).toBe(true);
 
