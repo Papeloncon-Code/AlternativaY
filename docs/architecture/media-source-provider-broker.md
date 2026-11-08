@@ -18,11 +18,21 @@ TodoTube separa:
 |---|---|---|
 | R2 primary | Archivo propio/licenciado, Range | Implementado en Gateway |
 | R2 replica | Copia idéntica del archivo, Range | Código de failover en PR #26; bucket por provisionar |
-| Creator-origin | URL firmada o manifiesto HLS/DASH entregado por el titular | Adaptador pendiente |
-| Cloudflare Stream | HLS/DASH para player externo; también VOD y Live Inputs | Candidato documentado; cuenta/configuración pendientes |
+| Creator-origin | URL firmada o manifiesto HLS/DASH del mismo vídeo entregado por el titular | Adaptador pendiente |
+| Cloudflare Stream | HLS/DASH para player externo; también VOD y Live Inputs | Candidato para una copia autorizada; misma empresa que R2 |
+| Backblaze B2 | Copia MP4/WebM independiente, servida desde almacenamiento S3-compatible | Candidato de backup cross-cloud; no extrae desde YouTube |
 | Creator-origin / CDN del titular | URL firmada o manifiesto del mismo vídeo, con permiso documentado | Adaptador pendiente |
 
 Cloudflare Stream documenta HLS/DASH para usar reproductores propios. Sus manifiestos son dinámicos y se deben consultar directamente, no cachear ni retransmitir desde un proxy genérico. Las URL firmadas y Allowed Origins sirven para restringir el acceso.
+
+## Separación entre fuentes y copias de respaldo
+
+- Un **extractor/origen** es quien puede entregar el vídeo que se está viendo. Solo cuenta como alternativo si sirve exactamente el mismo vídeo.
+- Un **almacén de respaldo** no descubre ni extrae el vídeo: guarda una copia maestra autorizada y la entrega cuando los demás orígenes fallan.
+- R2 + R2 replica y R2 + Cloudflare Stream no son independientes ante una caída completa de Cloudflare.
+- Backblaze B2 puede actuar como segundo dominio de almacenamiento para la copia autorizada. Su API S3-compatible incluye carga multipart y operaciones de objetos. No es una fuente que descargue vídeos de YouTube.
+- El pipeline de respaldo debe aceptar el archivo original del propietario o una copia cuya licencia/permiso incluya almacenamiento y distribución. No debe descargar arbitrariamente desde una URL de YouTube.
+- El Gateway actual limita el PUT simple a 90 MiB; para un catálogo real de vídeo se necesita carga reanudable/multipart, comprobación de checksum, estado de réplica y registro de autorización antes de marcar el backup como listo.
 
 ## Contrato de un proveedor
 
@@ -106,6 +116,7 @@ No registrar tokens, cookies, URLs firmadas ni datos personales. Alertar si un a
 
 - **Fase A (PR #26):** R2 primario/réplica, GET/HEAD/Range y recuperación de stream truncado.
 - **Fase B:** registro de fuentes por vídeo, backupAssetId y circuit breaker persistente.
+- **Fase B.1:** pipeline de backup con carga reanudable/multipart y almacenamiento cross-cloud opcional (Backblaze B2).
 - **Fase C:** fallback de fuente alternativa a backupAssetId, con recuperación de posición y validación de identidad.
 - **Fase D:** adaptadores de entrega autorizados (creator-origin/CDN o Cloudflare Stream) solo cuando distribuyen exactamente el mismo asset.
 - **Fase E:** pruebas de caos, medición de SLO y failover de extremo a extremo en staging y producción.
