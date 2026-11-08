@@ -23,7 +23,7 @@ class MemoryR2 {
     const length = opts.range?.length ?? bytes.length;
     const body = new Uint8Array(bytes.slice(offset, offset + length));
     let stream = new Response(body).body;
-    if (this.failBodyAfterBytes != null && offset === 0) {
+    if (this.failBodyAfterBytes != null) {
       const failAt = Math.min(this.failBodyAfterBytes, body.length);
       let state = 0;
       stream = new ReadableStream({
