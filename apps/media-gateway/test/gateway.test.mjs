@@ -129,6 +129,18 @@ test('deleting a missing media ID returns 404', async () => {
   assert.equal(r.status, 404);
 });
 
+test('a primary 404 does not hide a valid replica copy', async () => {
+  const e = env();
+  e.MEDIA_BUCKET.objects.clear();
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(new TextEncoder().encode('replica-only')));
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('X-Media-Origin'), 'replica-1');
+  assert.equal(await r.text(), 'replica-only');
+});
+
 test('a failed primary origin is bypassed automatically when the replica has the file', async () => {
   const e = env();
   const replica = new MemoryR2();
