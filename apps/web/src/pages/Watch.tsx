@@ -100,7 +100,6 @@ export default function Watch() {
         {/* Hueco del reproductor: el reproductor único (PlayerHost) se coloca encima. */}
         <div id="player-slot" className={`player-frame${isShort ? ' vertical' : ''}`}>
           {!validId && <ErrorBox message="Enlace de vídeo no válido." />}
-}
         </div>
       </div>
       <div className="watch-main">
