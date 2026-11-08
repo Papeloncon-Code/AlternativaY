@@ -8,5 +8,12 @@ workers_dev = true
 binding = "MEDIA_BUCKET"
 bucket_name = "todotube-media"
 
+# Optional: provision the bucket first, then uncomment this binding.
+# The Worker automatically races reads and replicates writes when this binding exists.
+# [[r2_buckets]]
+# binding = "MEDIA_BUCKET_REPLICA"
+# bucket_name = "todotube-media-replica"
+
 [vars]
 ALLOWED_ORIGINS = "https://todotube.papelon.workers.dev,http://localhost:5173,http://127.0.0.1:5173"
+MEDIA_ORIGIN_TIMEOUT_MS = "1800"
