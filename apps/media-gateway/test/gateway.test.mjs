@@ -256,6 +256,22 @@ test('mid-stream failover refuses a same-size replica with a different media ver
   await assert.rejects(() => r.text(), /MEDIA_STREAM_ORIGINS_EXHAUSTED/);
 });
 
+test('default stream idle timeout switches to the replica after about two seconds', async () => {
+  const e = env();
+  const primary = e.MEDIA_BUCKET.objects.get('media/demo_123');
+  e.MEDIA_BUCKET.stallBodyAfterBytes = 4;
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(primary.bytes));
+  e.MEDIA_BUCKET_REPLICA = replica;
+  // Deliberately leave MEDIA_STREAM_IDLE_TIMEOUT_MS unset to verify production default.
+  const started = Date.now();
+  const response = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), '0123456789');
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed >= 1800 && elapsed < 3500, 'expected approximately two-second idle failover; got ' + elapsed + 'ms');
+});
+
 test('a stalled primary body resumes from the replica after the idle timeout', async () => {
   const e = env();
   const primaryObject = e.MEDIA_BUCKET.objects.get('media/demo_123');
