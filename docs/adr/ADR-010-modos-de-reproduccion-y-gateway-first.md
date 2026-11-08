@@ -1,7 +1,7 @@
 # ADR-010 · Modos de reproducción, fallback y propuesta «Gateway-first»
 
 - **Estado:** Aceptado en parte (2026-11-08). La parte «el servidor obtiene y retransmite los vídeos de YouTube» queda **rechazada**: no se construye.
-- **Relacionado con:** ADR-005 (la extracción se hace en el dispositivo), ADR-009 (PoC del gateway con vídeos propios), revisión del propietario en [Papeloncon-Code/AlternativaY#2](https://github.com/Papeloncon-Code/AlternativaY/pull/2) (2026-11-08), triage `docs/research/11` (PB-02).
+- **Relacionado con:** ADR-005 (la extracción se hace en el dispositivo), ADR-009 (PoC del gateway con vídeos propios), revisión del PR #2 (2026-11-08), triage `docs/research/11` (PB-02).
 
 ## Contexto
 El propietario pide que el gateway multimedia sea la ruta principal de la web y que TodoTube Puente quede como segunda opción. La revisión del PR #2 enumera bien los bloqueos del código: `PlayerHost` solo usa el reproductor propio con Puente, `innertube.ts`/`bridgeFetch.ts` y `BotguardService.ts` dependen del Puente, y Shaka necesita las semánticas SABR/UMP. También pide: «Si no es viable, reportarlo; no ocultar la contradicción».
@@ -23,10 +23,11 @@ Para que el servidor entregue un vídeo de YouTube, alguien tiene que pedirle a 
   - Chrome: ficha en la Chrome Web Store, que necesita la cuenta de desarrollador del propietario.
 
 ## Lo que sí se hace de la revisión
-- CI: el trabajo `gateway` ya no usa `hashFiles()` en `jobs.<id>.if` (no está disponible ahí); se ejecuta siempre y cada paso comprueba si existe el paquete. `desplegar` depende también de `gateway`.
-- PR #2 sincronizado con `main` (sin conflictos) y con `main` como base; pruebas del gateway 20 + 14 + 2 en verde tras la unión.
-- Migraciones de D1 automatizadas en el despliegue, en cuanto D1 vuelva a aceptar lecturas (límite diario gratuito agotado el 2026-11-08; ver commit `a4870c0`).
+- CI: el trabajo `gateway` no usa `hashFiles()` en `jobs.<id>.if`; se ejecuta siempre y cada paso comprueba si existe el paquete. `desplegar` depende también de `gateway`.
+- PR #2 conserva la PoC aislada; sus pruebas verifican streaming de fixtures propios, no reproducción de YouTube.
+- La suite web Playwright usa fixtures locales deterministas en CI; el smoke de producción está separado de la suite de interacción.
+- D1: `migrations-008-indices.sql` existe y sus índices son idempotentes, pero **no hay prueba de que se hayan aplicado en la D1 remota**. Se añadió `.github/workflows/d1-indexes.yml`, una acción manual con confirmación explícita; no corre durante el despliegue normal. La ejecución remota sigue pendiente y requiere credenciales Cloudflare.
 
 ## Consecuencias
-- Sin Puente no hay reproductor propio. La web sigue funcionando con el reproductor oficial, y con datos públicos (fotos, cabeceras, visitas, duración) leídos sin API interna (ADR-006, enmiendas 3 a 5).
-- Si en el futuro YouTube ofreciera un acceso autorizado a sus vídeos, o el contenido fuera propio o con licencia, el gateway ya probado sería la base. Se revisaría en un ADR nuevo.
+- Sin Puente no hay reproductor propio. La web sigue funcionando con el reproductor oficial, y con datos públicos leídos del feed RSS/WebSub y el respaldo cuando D1 falla.
+- Si en el futuro YouTube ofrece un acceso autorizado a sus vídeos, o el contenido es propio o con licencia, el gateway ya probado será la base. Se revisaría en un ADR nuevo.
