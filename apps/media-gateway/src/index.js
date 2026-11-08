@@ -63,6 +63,11 @@ function parseRange(value, size) {
   end = Math.min(end, size - 1);
   return { start, end, length: end - start + 1 };
 }
+function etagMatches(value, etag) {
+  if (!value || !etag) return false;
+  const normalize = (tag) => tag.trim().replace(/^W\\//, '');
+  return value.split(',').some((tag) => tag.trim() === '*' || normalize(tag) === normalize(etag));
+}
 function objectMetadata(obj, headers) {
   obj.writeHttpMetadata?.(headers);
   headers.set('Accept-Ranges', 'bytes');
@@ -240,6 +245,8 @@ async function readMedia(req, env, id) {
       const head = await bucket.head(key);
       const isPublic = head?.customMetadata?.visibility === 'public';
       if (!head || (!isPublic && !isAuthorized)) return null;
+      const ifNoneMatch = req.headers.get('If-None-Match');
+      if (etagMatches(ifNoneMatch, head.httpEtag)) return { head, range: null, obj: null, notModified: true };
       const range = parseRange(req.headers.get('Range'), head.size);
       if (range?.invalid || req.method === 'HEAD') return { head, range, obj: null };
       const obj = await bucket.get(key, range ? { range: { offset: range.start, length: range.length } } : {});
@@ -250,7 +257,7 @@ async function readMedia(req, env, id) {
   }
   if (!source) return json(req, env, { error: 'Medio no encontrado' }, 404);
 
-  const { head, range, obj } = source.value;
+  const { head, range, obj, notModified } = source.value;
   const cacheControl = head.customMetadata?.visibility === 'public'
     ? 'public, max-age=300, stale-while-revalidate=60'
     : 'private, no-store';
@@ -259,9 +266,7 @@ async function readMedia(req, env, id) {
   headers.set('Cache-Control', cacheControl);
   headers.set('X-Media-Origin', originLabel(source.index));
 
-  if (req.headers.get('If-None-Match') && req.headers.get('If-None-Match') === head.httpEtag) {
-    return new Response(null, { status: 304, headers });
-  }
+  if (notModified) return new Response(null, { status: 304, headers });
   if (range?.invalid) {
     headers.set('Content-Range', 'bytes */' + head.size);
     return new Response(null, { status: 416, headers });
@@ -359,11 +364,19 @@ export default {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req, env) });
     const url = new URL(req.url);
     if (url.pathname === '/health' && req.method === 'GET') {
+      const origins = mediaOrigins(env);
+      const checks = await Promise.allSettled(origins.map((bucket) =>
+        withTimeout(bucket.list({ prefix: PREFIX, limit: 1 }), originTimeout(env))
+      ));
+      const available = checks.filter((check) => check.status === 'fulfilled').length;
+      const ok = origins.length > 0 && available > 0;
       return json(req, env, {
-        ok: true,
+        ok,
         service: 'todotube-media-gateway',
-        originsConfigured: mediaOrigins(env).length,
-      });
+        originsConfigured: origins.length,
+        originsAvailable: available,
+        degraded: available < origins.length,
+      }, ok ? 200 : 503);
     }
     if (url.pathname === '/v1/catalog' && req.method === 'GET') return catalog(req, env);
     const media = /^\/v1\/media\/([^/]+)$/.exec(url.pathname);
