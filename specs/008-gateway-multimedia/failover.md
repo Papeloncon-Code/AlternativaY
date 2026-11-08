@@ -10,7 +10,7 @@ Añadir redundancia de almacenamiento para archivos multimedia propios/licenciad
 - Opcional: R2 binding MEDIA_BUCKET_REPLICA.
 - Opcional: MEDIA_ORIGIN_TIMEOUT_MS (50–5000 ms; default 1800 ms).
 - Opcional: MEDIA_WRITE_TIMEOUT_MS (1000–120000 ms; default 45000 ms).
-- Opcional: MEDIA_STREAM_IDLE_TIMEOUT_MS (50–30000 ms; default 8000 ms).
+- Opcional: MEDIA_STREAM_IDLE_TIMEOUT_MS (50–3000 ms; default 2000 ms).
 - No se configura el binding secundario hasta crear el bucket R2 correspondiente.
 
 ## Comportamiento
