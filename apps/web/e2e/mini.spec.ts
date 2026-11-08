@@ -15,15 +15,14 @@ test('W8 · el reproductor ocupa su hueco, pasa a mini al salir sin recargarse, 
   await page.waitForTimeout(500);
   const [h, s] = await Promise.all([host.boundingBox(), page.locator('#player-slot').boundingBox()]);
   for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(h![k] - s![k])).toBeLessThan(2);
-  // Marca el iframe para comprobar que no se recarga
-  await page.locator('.player-dock iframe').evaluate((f) => { (f as HTMLIFrameElement).dataset.mark = 'mismo'; });
+  // Marca el reproductor propio para comprobar que no se desmonta al pasar a mini.
+  await expect(page.locator('.player-dock .own-player')).toBeVisible();
+  await page.locator('.player-dock .own-player').evaluate((e) => { (e as HTMLElement).dataset.mark = 'mismo'; });
+  await expect(page.locator('.player-dock iframe')).toHaveCount(0);
   await page.locator('.logo-link').click();
   await expect(host).toHaveClass(/mini/);
-  await expect(page.locator('.player-dock iframe')).toHaveAttribute('data-mark', 'mismo');
+  await expect(page.locator('.player-dock .own-player')).toHaveAttribute('data-mark', 'mismo');
   await expect(page.locator('.mini-cover')).toHaveCount(0);
-  const miniFrame = await page.locator('.player-dock iframe').boundingBox();
-  expect(miniFrame!.width).toBeGreaterThanOrEqual(200);
-  expect(miniFrame!.height).toBeGreaterThanOrEqual(200);
   await page.locator('.mini-text').click();
   await expect(page).toHaveURL(href);
   await expect(host).toHaveClass(/on-page/);
