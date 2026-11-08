@@ -1,9 +1,12 @@
 const PREFIX = 'media/';
 const MAX_UPLOAD_BYTES = 90 * 1024 * 1024;
+const DEFAULT_ORIGIN_TIMEOUT_MS = 1800;
+const MAX_ORIGIN_TIMEOUT_MS = 5000;
 const ALLOWED_TYPES = new Set([
   'video/mp4', 'video/webm', 'video/ogg',
   'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/webm',
 ]);
+
 function allowedOrigins(env) {
   return String(env.ALLOWED_ORIGINS || '').split(',').map((x) => x.trim()).filter(Boolean);
 }
@@ -11,7 +14,7 @@ function cors(req, env) {
   const h = new Headers({
     'Access-Control-Allow-Methods': 'GET, HEAD, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range, If-Range, If-None-Match, X-Media-Title, X-Media-Creator, X-Media-License, X-Media-License-Reference, X-Media-Visibility',
-    'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length, Content-Type, ETag, Last-Modified, X-Media-Title, X-Media-Creator, X-Media-License',
+    'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length, Content-Type, ETag, Last-Modified, X-Media-Title, X-Media-Creator, X-Media-License, X-Media-Origin',
     'Vary': 'Origin',
   });
   const origin = req.headers.get('Origin');
@@ -67,19 +70,102 @@ function objectMetadata(obj, headers) {
   if (obj.customMetadata?.creator) headers.set('X-Media-Creator', obj.customMetadata.creator);
   if (obj.customMetadata?.license) headers.set('X-Media-License', obj.customMetadata.license);
 }
-async function readMedia(req, env, id) {
-  const key = PREFIX + id;
-  const head = await env.MEDIA_BUCKET.head(key);
-  const isPublic = head?.customMetadata?.visibility === 'public';
-  if (!head || (!isPublic && !authorized(req, env))) return json(req, env, { error: 'Medio no encontrado' }, 404);
 
-  // Never allow an authenticated private object to inherit a public cache policy from R2 metadata.
-  const cacheControl = isPublic ? 'public, max-age=300, stale-while-revalidate=60' : 'private, no-store';
+// Each binding is an independently configured storage origin. The replica is optional
+// until its R2 bucket is provisioned and bound in wrangler.toml.
+function mediaOrigins(env) {
+  const seen = new Set();
+  return [env.MEDIA_BUCKET, env.MEDIA_BUCKET_REPLICA]
+    .filter((bucket) => {
+      if (!bucket || seen.has(bucket)) return false;
+      seen.add(bucket);
+      return true;
+    });
+}
+function originTimeout(env) {
+  const configured = Number(env.MEDIA_ORIGIN_TIMEOUT_MS);
+  if (!Number.isFinite(configured) || configured < 50) return DEFAULT_ORIGIN_TIMEOUT_MS;
+  return Math.min(configured, MAX_ORIGIN_TIMEOUT_MS);
+}
+function withTimeout(promise, timeoutMs) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(Object.assign(new Error('Origin timeout'), { code: 'TIMEOUT' })), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+function notFoundError() {
+  return Object.assign(new Error('Media not found on this origin'), { code: 'NOT_FOUND' });
+}
+
+// Race independent origins. A slow primary does not block a healthy replica.
+async function firstReadableOrigin(origins, env, resolver) {
+  const errors = [];
+  const attempts = origins.map(async (bucket, index) => {
+    try {
+      const value = await withTimeout(resolver(bucket), originTimeout(env));
+      if (value == null) throw notFoundError();
+      return { bucket, index, value };
+    } catch (error) {
+      errors[index] = error;
+      throw error;
+    }
+  });
+  try {
+    return await Promise.any(attempts);
+  } catch {
+    const failures = errors.filter(Boolean);
+    if (failures.length === origins.length && failures.every((error) => error.code === 'NOT_FOUND')) return null;
+    throw new Error('MEDIA_ORIGINS_UNAVAILABLE');
+  }
+}
+
+// A request stream can only be consumed once. Tee it into one stream per replica.
+function splitBody(body, count) {
+  if (!body) return [];
+  const streams = [body];
+  while (streams.length < count) {
+    const stream = streams.shift();
+    const [left, right] = stream.tee();
+    streams.unshift(left, right);
+  }
+  return streams;
+}
+function originLabel(index) { return index === 0 ? 'primary' : 'replica-' + index; }
+
+async function readMedia(req, env, id) {
+  const origins = mediaOrigins(env);
+  if (!origins.length) return json(req, env, { error: 'No hay orígenes multimedia configurados' }, 503);
+  const key = PREFIX + id;
+  const isAuthorized = authorized(req, env);
+  let source;
+  try {
+    source = await firstReadableOrigin(origins, env, async (bucket) => {
+      const head = await bucket.head(key);
+      const isPublic = head?.customMetadata?.visibility === 'public';
+      if (!head || (!isPublic && !isAuthorized)) return null;
+      const range = parseRange(req.headers.get('Range'), head.size);
+      if (range?.invalid || req.method === 'HEAD') return { head, range, obj: null };
+      const obj = await bucket.get(key, range ? { range: { offset: range.start, length: range.length } } : {});
+      return obj ? { head, range, obj } : null;
+    });
+  } catch {
+    return json(req, env, { error: 'Los orígenes multimedia no están disponibles' }, 503);
+  }
+  if (!source) return json(req, env, { error: 'Medio no encontrado' }, 404);
+
+  const { head, range, obj } = source.value;
+  const cacheControl = head.customMetadata?.visibility === 'public'
+    ? 'public, max-age=300, stale-while-revalidate=60'
+    : 'private, no-store';
   const headers = cors(req, env);
   objectMetadata(head, headers);
   headers.set('Cache-Control', cacheControl);
-  if (req.headers.get('If-None-Match') && req.headers.get('If-None-Match') === head.httpEtag) return new Response(null, { status: 304, headers });
-  const range = parseRange(req.headers.get('Range'), head.size);
+  headers.set('X-Media-Origin', originLabel(source.index));
+
+  if (req.headers.get('If-None-Match') && req.headers.get('If-None-Match') === head.httpEtag) {
+    return new Response(null, { status: 304, headers });
+  }
   if (range?.invalid) {
     headers.set('Content-Range', 'bytes */' + head.size);
     return new Response(null, { status: 416, headers });
@@ -89,30 +175,50 @@ async function readMedia(req, env, id) {
     if (range) headers.set('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + head.size);
     return new Response(null, { status: range ? 206 : 200, headers });
   }
-  const obj = await env.MEDIA_BUCKET.get(key, range ? { range: { offset: range.start, length: range.length } } : {});
-  if (!obj) return json(req, env, { error: 'Medio no encontrado' }, 404);
   objectMetadata(obj, headers);
   headers.set('Cache-Control', cacheControl);
+  headers.set('X-Media-Origin', originLabel(source.index));
   headers.set('Content-Length', String(range ? range.length : head.size));
   if (range) headers.set('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + head.size);
   return new Response(obj.body, { status: range ? 206 : 200, headers });
 }
+
 async function catalog(req, env) {
-  const result = await env.MEDIA_BUCKET.list({ prefix: PREFIX, limit: 1000, include: ['customMetadata', 'httpMetadata'] });
-  const items = (result.objects || []).filter((x) => x.customMetadata?.visibility === 'public').map((x) => ({
-    id: x.key.slice(PREFIX.length),
-    title: x.customMetadata?.title || x.key.slice(PREFIX.length),
-    creator: x.customMetadata?.creator || 'Creador independiente',
-    license: x.customMetadata?.license,
-    contentType: x.httpMetadata?.contentType || 'application/octet-stream',
-    size: x.size,
-    updatedAt: x.uploaded?.toISOString?.() || null,
-  }));
-  return json(req, env, { items });
+  const origins = mediaOrigins(env);
+  if (!origins.length) return json(req, env, { error: 'No hay orígenes multimedia configurados' }, 503);
+  const results = await Promise.allSettled(origins.map((bucket) =>
+    withTimeout(bucket.list({ prefix: PREFIX, limit: 1000, include: ['customMetadata', 'httpMetadata'] }), originTimeout(env))
+  ));
+  const healthy = results.filter((result) => result.status === 'fulfilled');
+  if (!healthy.length) return json(req, env, { error: 'Los orígenes multimedia no están disponibles' }, 503);
+  const unique = new Map();
+  for (const result of results) {
+    if (result.status !== 'fulfilled') continue;
+    for (const x of (result.value.objects || [])) {
+      if (x.customMetadata?.visibility !== 'public') continue;
+      const id = x.key.slice(PREFIX.length);
+      if (!unique.has(id)) unique.set(id, {
+        id,
+        title: x.customMetadata?.title || id,
+        creator: x.customMetadata?.creator || 'Creador independiente',
+        license: x.customMetadata?.license,
+        contentType: x.httpMetadata?.contentType || 'application/octet-stream',
+        size: x.size,
+        updatedAt: x.uploaded?.toISOString?.() || null,
+      });
+    }
+  }
+  return json(req, env, {
+    items: [...unique.values()],
+    origins: { configured: origins.length, available: healthy.length, degraded: healthy.length < origins.length },
+  });
 }
+
 async function upload(req, env, id) {
   if (!authorized(req, env)) return json(req, env, { error: 'No autorizado' }, 401);
   if (!env.MEDIA_UPLOAD_TOKEN) return json(req, env, { error: 'Falta configurar MEDIA_UPLOAD_TOKEN en el Worker' }, 503);
+  const origins = mediaOrigins(env);
+  if (!origins.length) return json(req, env, { error: 'No hay orígenes multimedia configurados' }, 503);
   const type = (req.headers.get('Content-Type') || '').split(';')[0].trim().toLowerCase();
   const license = req.headers.get('X-Media-License');
   const visibility = req.headers.get('X-Media-Visibility') === 'public' ? 'public' : 'private';
@@ -125,20 +231,43 @@ async function upload(req, env, id) {
   if (!title || !creator) return json(req, env, { error: 'X-Media-Title y X-Media-Creator son obligatorios' }, 400);
   if (license !== 'owned' && license !== 'licensed') return json(req, env, { error: 'X-Media-License debe ser owned o licensed' }, 400);
   if (license === 'licensed' && !licenseReference) return json(req, env, { error: 'El contenido licenciado requiere X-Media-License-Reference' }, 400);
+  if (!req.body) return json(req, env, { error: 'Falta el cuerpo del archivo' }, 400);
+
   const key = PREFIX + id;
-  if (await env.MEDIA_BUCKET.head(key)) return json(req, env, { error: 'Ya existe un medio con ese ID' }, 409);
-  await env.MEDIA_BUCKET.put(key, req.body, {
+  const heads = await Promise.allSettled(origins.map((bucket) => withTimeout(bucket.head(key), originTimeout(env))));
+  if (heads.some((result) => result.status === 'rejected')) {
+    return json(req, env, { error: 'No se pudo comprobar la disponibilidad de todos los orígenes; no se modificó el archivo' }, 503);
+  }
+  if (heads.some((result) => result.value)) return json(req, env, { error: 'Ya existe un medio con ese ID' }, 409);
+
+  const bodies = splitBody(req.body, origins.length);
+  const options = {
     httpMetadata: { contentType: type, cacheControl: visibility === 'public' ? 'public, max-age=300' : 'private, no-store' },
     customMetadata: { title, creator, license, licenseReference, visibility },
-  });
-  return json(req, env, { ok: true, id, visibility }, 201);
+  };
+  const writes = await Promise.allSettled(origins.map((bucket, index) =>
+    withTimeout(bucket.put(key, bodies[index], options), originTimeout(env))
+  ));
+  const written = writes.filter((result) => result.status === 'fulfilled').length;
+  if (!written) return json(req, env, { error: 'No se pudo guardar el archivo en ningún origen' }, 503);
+  return json(req, env, {
+    ok: true, id, visibility,
+    replicas: { written, configured: origins.length, degraded: written < origins.length },
+  }, 201);
 }
+
 export default {
   async fetch(req, env) {
     if (!originAllowed(req, env)) return new Response('Origin not allowed', { status: 403 });
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req, env) });
     const url = new URL(req.url);
-    if (url.pathname === '/health' && req.method === 'GET') return json(req, env, { ok: true, service: 'todotube-media-gateway' });
+    if (url.pathname === '/health' && req.method === 'GET') {
+      return json(req, env, {
+        ok: true,
+        service: 'todotube-media-gateway',
+        originsConfigured: mediaOrigins(env).length,
+      });
+    }
     if (url.pathname === '/v1/catalog' && req.method === 'GET') return catalog(req, env);
     const media = /^\/v1\/media\/([^/]+)$/.exec(url.pathname);
     if (media && ['GET', 'HEAD'].includes(req.method)) {
@@ -153,10 +282,19 @@ export default {
       if (req.method === 'PUT') return upload(req, env, id);
       if (req.method === 'DELETE') {
         if (!authorized(req, env)) return json(req, env, { error: 'No autorizado' }, 401);
-        const key = PREFIX + id;
-        if (!(await env.MEDIA_BUCKET.head(key))) return json(req, env, { error: 'Medio no encontrado' }, 404);
-        await env.MEDIA_BUCKET.delete(key);
-        return json(req, env, { ok: true, id });
+        const origins = mediaOrigins(env);
+        if (!origins.length) return json(req, env, { error: 'No hay orígenes multimedia configurados' }, 503);
+        const heads = await Promise.allSettled(origins.map((bucket) => withTimeout(bucket.head(PREFIX + id), originTimeout(env))));
+        if (heads.some((result) => result.status === 'rejected')) {
+          return json(req, env, { error: 'No se pudo comprobar todos los orígenes; no se borró el archivo' }, 503);
+        }
+        if (!heads.some((result) => result.value)) return json(req, env, { error: 'Medio no encontrado' }, 404);
+        const deletions = await Promise.allSettled(origins.map((bucket) => withTimeout(bucket.delete(PREFIX + id), originTimeout(env))));
+        const deleted = deletions.filter((result) => result.status === 'fulfilled').length;
+        if (deleted !== origins.length) {
+          return json(req, env, { error: 'Borrado parcial: revisar orígenes antes de volver a publicar el medio', deleted, configured: origins.length }, 503);
+        }
+        return json(req, env, { ok: true, id, deletedOrigins: deleted });
       }
     }
     return json(req, env, { error: 'Ruta no encontrada' }, 404);
