@@ -22,7 +22,7 @@ type State = {
   ownerKey: string;
   theme: 'dark' | 'light' | 'system';
   sponsorblock: boolean;
-  promptDismissed: { push?: number; bridge?: number };
+  promptDismissed: { push?: number };
   visitAt: number;
   blockWords: string[];
   groups: { id: string; name: string; channels: string[] }[];
@@ -128,7 +128,7 @@ export const actions = {
   renamePlaylist(id: string, name: string) { set((s) => ({ ...s, playlists: s.playlists.map((p) => p.id === id ? { ...p, name: name.trim() || p.name } : p) })); },
   togglePlaylistItem(id: string, m: Meta) { set((s) => ({ ...s, playlists: s.playlists.map((p) => p.id !== id ? p : { ...p, items: p.items.some((i) => i.id === m.id) ? p.items.filter((i) => i.id !== m.id) : [...p.items, { ...m, at: Date.now() }] }) })); },
   movePlaylistItem(id: string, from: number, to: number) { set((s) => ({ ...s, playlists: s.playlists.map((p) => { if (p.id !== id) return p; const items = [...p.items]; const [x] = items.splice(from, 1); items.splice(to, 0, x); return { ...p, items }; }) })); },
-  dismissPrompt(k: 'push' | 'bridge') { set((s) => ({ ...s, promptDismissed: { ...s.promptDismissed, [k]: Date.now() } })); },
+  dismissPrompt(k: 'push') { set((s) => ({ ...s, promptDismissed: { ...s.promptDismissed, [k]: Date.now() } })); },
   toggleSponsorBlock() { set((s) => ({ ...s, sponsorblock: !s.sponsorblock })); },
   toggleDeArrow() { set((s) => ({ ...s, dearrow: !s.dearrow })); },
   toggleFocus() { set((s) => ({ ...s, focus: !s.focus })); },

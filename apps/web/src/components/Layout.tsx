@@ -9,7 +9,6 @@ import { ago } from '../format';
 import { thumb } from '../api';
 import { Toaster, toast } from '../toast';
 import { syncAvatars } from '../avatars';
-import { useBridge } from '../bridge';
 import PermissionPrompt from './PermissionPrompt';
 import { SaveDialogHost } from './SaveDialog';
 import PlayerHost from './PlayerHost';
@@ -22,6 +21,7 @@ const MAIN = [
   { to: '/', label: 'Principal', icon: 'home', end: true },
   { to: '/shorts', label: 'Shorts', icon: 'shorts' },
   { to: '/suscripciones', label: 'Suscripciones', icon: 'subs' },
+  { to: '/medios', label: 'Medios propios', icon: 'library' },
 ];
 const YOU = [
   { to: '/historial', label: 'Historial', icon: 'hist' },
@@ -132,8 +132,7 @@ export default function Layout() {
     return m;
   }, [feed.data]);
   const subs = (channels.data ?? []).filter((c) => c.status !== 'invalid');
-  const bridge = useBridge();
-  useEffect(() => { if (channels.data) void syncAvatars(channels.data); }, [channels.data, bridge]);
+  useEffect(() => { if (channels.data) void syncAvatars(channels.data); }, [channels.data]);
   const [allSubs, setAllSubs] = useState(false);
 
   useEffect(() => {
@@ -200,7 +199,6 @@ export default function Layout() {
         </div>
         <div className="side-group">
           <NavLink to="/ajustes" className="side-item"><Icon name="settings" size={22} /><span>Ajustes</span></NavLink>
-          <NavLink to="/puente" className="side-item"><Icon name="play" size={22} /><span>TodoTube Puente</span></NavLink>
           <NavLink to="/privacidad" className="side-item"><Icon name="shield" size={22} /><span>Privacidad</span></NavLink>
         </div>
         <p className="side-foot">TodoTube · web v0.2</p>
