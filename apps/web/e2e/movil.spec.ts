@@ -101,3 +101,41 @@ test('Suscripciones muestra un feed y conserva la gestión de canales en una rut
   await expect(page.locator('.channel-list')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Seguir canal' })).toBeVisible();
 });
+
+
+test('navegación móvil actual: Inicio/Subs arriba y Inicio/Shorts/Crear/Tú abajo', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });
+  const feeds = page.locator('.mobile-feed-tabs');
+  await expect(feeds).toBeVisible();
+  await expect(feeds.locator('.mobile-feed-tab.active')).toHaveText('Inicio');
+
+  const bottom = page.locator('.bottombar');
+  await expect(bottom.locator('.tab')).toHaveCount(4);
+  await expect(bottom.getByRole('link', { name: 'Inicio' })).toBeVisible();
+  await expect(bottom.getByRole('link', { name: 'Shorts' })).toBeVisible();
+  await expect(bottom.getByRole('button', { name: 'Crear' })).toBeVisible();
+  await expect(bottom.getByRole('link', { name: 'Tú' })).toBeVisible();
+  await expect(bottom.getByRole('link', { name: 'Suscripciones' })).toHaveCount(0);
+
+  await feeds.getByRole('tab', { name: 'Subs' }).click();
+  await expect(page).toHaveURL(/\\/suscripciones$/);
+  await expect(feeds.locator('.mobile-feed-tab.active')).toHaveText('Subs');
+  await expect(page.locator('.subscription-feed')).toBeVisible();
+
+  await bottom.getByRole('button', { name: 'Crear' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Crear en TodoTube' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('link', { name: /Seguir canales/ })).toHaveAttribute('href', '/suscripciones/gestionar');
+  await expect(dialog.getByRole('link', { name: /Medios propios/ })).toHaveAttribute('href', '/medios');
+  const name = 'Lista móvil de prueba';
+  await dialog.getByLabel('Nueva lista de reproducción').fill(name);
+  await dialog.getByRole('button', { name: 'Crear lista' }).click();
+  await expect(page).toHaveURL(/\\/lista\\//);
+  const lists = await page.evaluate(() => (JSON.parse(localStorage.getItem('todotube:v1') || '{}').playlists ?? []) as { name: string }[]);
+  expect(lists.some((list) => list.name === name)).toBe(true);
+
+  await page.goto('/ver/dQw4w9WgXcQ');
+  await expect(page.locator('.mobile-feed-tabs')).toHaveCount(0);
+});
