@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { actions, type Meta } from '../store';
+import { hasBridge } from '../bridge';
 import type { PlayerHandle, VideoDetails } from '../player/handle';
 
 // Reproductor propio (Shaka + SABR) a través de TodoTube Puente. Se carga bajo demanda: no pesa a quien no tiene el puente.
-type Props = { id: string; meta: Meta; startAt: number; onFail: (reason: string) => void; onEnded?: () => void; onReady?: (h: PlayerHandle) => void; onDetails?: (d: VideoDetails) => void; loop?: boolean };
+type Props = { id: string; meta: Meta; startAt: number; onFail?: (reason: string) => void; onEnded?: () => void; onReady?: (h: PlayerHandle) => void; onDetails?: (d: VideoDetails) => void; loop?: boolean };
 
 export default function OwnPlayer({ id, meta, startAt, onFail, onEnded, onReady, onDetails, loop }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [status, setStatus] = useState<'cargando' | 'listo'>('cargando');
+  const [status, setStatus] = useState<'cargando' | 'listo' | 'error'>('cargando');
+  const [error, setError] = useState('');
   const metaRef = useRef(meta);
   metaRef.current = meta;
   const failRef = useRef(onFail);
@@ -45,6 +47,9 @@ export default function OwnPlayer({ id, meta, startAt, onFail, onEnded, onReady,
 
     (async () => {
       try {
+        setError('');
+        setStatus('cargando');
+        if (!hasBridge()) throw new Error('Para reproducir con el reproductor propio de TodoTube, activa TodoTube Puente en este navegador y recarga la página.');
         const { TodoTubePlayer } = await import('../player/TodoTubePlayer');
         if (destroyed) return;
         const p = new TodoTubePlayer();
@@ -58,7 +63,12 @@ export default function OwnPlayer({ id, meta, startAt, onFail, onEnded, onReady,
         video.play().catch(() => { /* el navegador puede exigir un toque para reproducir con sonido */ });
       } catch (e) {
         console.error('[TodoTube] Reproductor propio falló', e);
-        if (!destroyed) failRef.current(e instanceof Error ? e.message : String(e));
+        if (!destroyed) {
+          const reason = e instanceof Error ? e.message : String(e);
+          setError(reason);
+          setStatus('error');
+          failRef.current?.(reason);
+        }
       }
     })();
 
@@ -74,8 +84,15 @@ export default function OwnPlayer({ id, meta, startAt, onFail, onEnded, onReady,
 
   return (
     <div ref={containerRef} className="own-player" data-status={status}>
-      <video ref={videoRef} playsInline autoPlay className="own-video" />
-      {status === 'cargando' && <div className="own-loading" role="status">Cargando…</div>}
+      <video ref={videoRef} playsInline autoPlay className="own-video" style={error ? { display: 'none' } : undefined} />
+      {error ? (
+        <div className="own-player-error" role="alert">
+          <strong>Reproductor de TodoTube</strong>
+          <p>{error}</p>
+          {!hasBridge() && <a className="btn primary" href="/puente">Activar TodoTube Puente</a>}
+          <button type="button" className="btn" onClick={() => window.location.reload()}>Reintentar</button>
+        </div>
+      ) : status === 'cargando' ? <div className="own-loading" role="status">Preparando reproductor de TodoTube…</div> : null}
     </div>
   );
 }
