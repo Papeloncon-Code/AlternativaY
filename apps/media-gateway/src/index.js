@@ -135,6 +135,93 @@ function splitBody(body, count) {
 }
 function originLabel(index) { return index === 0 ? 'primary' : 'replica-' + index; }
 
+// Wrap the chosen body so a truncated/failed R2 stream can resume from the
+// exact next byte on another copy. A copy must have the same size and version.
+function failoverBody(initialBody, initialIndex, origins, env, key, head, range, isAuthorized) {
+  const start = range ? range.start : 0;
+  const end = range ? range.end : head.size - 1;
+  const expectedSize = head.size;
+  let offset = start;
+  let reader = initialBody.getReader();
+  const tried = new Set([initialIndex]);
+
+  async function nextReader() {
+    while (tried.size < origins.length) {
+      const index = origins.findIndex((_, i) => !tried.has(i));
+      if (index < 0) break;
+      tried.add(index);
+      try {
+        const bucket = origins[index];
+        const candidateHead = await withTimeout(bucket.head(key), originTimeout(env));
+        const candidateIsPublic = candidateHead?.customMetadata?.visibility === 'public';
+        if (!candidateHead || candidateHead.size !== expectedSize) continue;
+        if (head.customMetadata?.visibility === 'public' && !candidateIsPublic) continue;
+        if (!candidateIsPublic && !isAuthorized) continue;
+        const expectedVersion = head.customMetadata?.mediaVersion;
+        const candidateVersion = candidateHead.customMetadata?.mediaVersion;
+        if (expectedVersion && candidateVersion !== expectedVersion) continue;
+        if (!expectedVersion && head.httpEtag && candidateHead.httpEtag && candidateHead.httpEtag !== head.httpEtag) continue;
+        const remaining = end - offset + 1;
+        if (remaining <= 0) return null;
+        const nextObject = await withTimeout(
+          bucket.get(key, { range: { offset, length: remaining } }),
+          originTimeout(env),
+        );
+        if (!nextObject?.body) continue;
+        return nextObject.body.getReader();
+      } catch {
+        // Try the next configured replica. Never restart at byte zero.
+      }
+    }
+    throw new Error('MEDIA_STREAM_ORIGINS_EXHAUSTED');
+  }
+
+  return new ReadableStream({
+    async pull(controller) {
+      try {
+        while (true) {
+          if (offset > end) {
+            controller.close();
+            return;
+          }
+          let result;
+          try {
+            result = await reader.read();
+          } catch {
+            reader = await nextReader();
+            if (!reader) {
+              controller.close();
+              return;
+            }
+            continue;
+          }
+          if (result.done) {
+            reader = await nextReader();
+            if (!reader) {
+              controller.close();
+              return;
+            }
+            continue;
+          }
+          const chunk = result.value instanceof Uint8Array ? result.value : new Uint8Array(result.value);
+          const remaining = end - offset + 1;
+          const length = Math.min(chunk.byteLength, remaining);
+          if (length <= 0) continue;
+          offset += length;
+          controller.enqueue(length === chunk.byteLength ? chunk : chunk.subarray(0, length));
+          if (offset > end) controller.close();
+          return;
+        }
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+    async cancel(reason) {
+      try { await reader.cancel(reason); } catch { /* stream already errored */ }
+    },
+  });
+}
+
 async function readMedia(req, env, id) {
   const origins = mediaOrigins(env);
   if (!origins.length) return json(req, env, { error: 'No hay orígenes multimedia configurados' }, 503);
@@ -182,7 +269,7 @@ async function readMedia(req, env, id) {
   headers.set('X-Media-Origin', originLabel(source.index));
   headers.set('Content-Length', String(range ? range.length : head.size));
   if (range) headers.set('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + head.size);
-  return new Response(obj.body, { status: range ? 206 : 200, headers });
+  return new Response(failoverBody(obj.body, source.index, origins, env, key, head, range, isAuthorized), { status: range ? 206 : 200, headers });
 }
 
 async function catalog(req, env) {
