@@ -13,39 +13,65 @@ function safeEqual(a, b) {
   return d === 0;
 }
 
+// Caché en memoria del aislado (segundos): las lecturas repetidas (varias pestañas, pruebas automáticas, recargas)
+// no vuelven a D1. 2026-11-08 se agotó el límite gratuito diario de lecturas (5 M filas). Si D1 falla, se sirve la
+// última copia buena, aunque haya caducado.
+const memo = new Map();
+async function cached(key, ttl, load) {
+  const hit = memo.get(key);
+  if (hit && Date.now() - hit.at < ttl * 1000) return hit.data;
+  try {
+    const data = await load();
+    memo.set(key, { at: Date.now(), data });
+    if (memo.size > 50) memo.delete(memo.keys().next().value);
+    return data;
+  } catch (e) {
+    if (hit) return hit.data;
+    throw e;
+  }
+}
+const forget = (prefix) => { for (const k of memo.keys()) if (k.startsWith(prefix)) memo.delete(k); };
+
 async function api(request, env, url) {
+  // Cualquier cambio (seguir, dejar de seguir, campanita, foto) invalida la copia en memoria de este aislado.
+  if (request.method !== 'GET' && request.method !== 'HEAD') { forget('channels'); forget('feed'); }
   if (url.pathname === '/api/feed' && request.method === 'GET') {
     // Hasta 1000: la página de canal pide todos los vídeos guardados de una vez (el servidor no sabe qué canal miras).
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 60, 1), 1000);
-    const { results } = await env.DB.prepare(
+    const before = Number(url.searchParams.get('before')) || 9e15;
+    const results = await cached(`feed:${limit}:${before}`, 60, async () => (await env.DB.prepare(
       `SELECT v.video_id AS id, v.title, v.published_at AS publishedAt, v.channel_id AS channelId,
               COALESCE(c.label, v.channel_id) AS channel, v.first_source AS source, v.first_seen_at AS seenAt, v.kind AS kind,
               v.views AS views, v.likes AS likes, v.duration AS duration
        FROM videos v LEFT JOIN channels c ON c.channel_id = v.channel_id
        WHERE (c.status IS NULL OR c.status <> 'removing') AND v.published_at < ?
        ORDER BY v.published_at DESC LIMIT ?`
-    ).bind(Number(url.searchParams.get('before')) || 9e15, limit).all();
+    ).bind(before, limit).all()).results);
     return json({ items: results }, 200, { 'cache-control': 'public, max-age=60' });
   }
   // Descripciones, visitas y me gusta (del RSS público) de los vídeos recientes, TODOS en una sola respuesta:
   // así el servidor no sabe qué vídeo abres (revisión independiente, hallazgo M3).
   if (url.pathname === '/api/descriptions' && request.method === 'GET') {
-    const { results } = await env.DB.prepare(
+    const results = await cached('descriptions', 600, async () => (await env.DB.prepare(
       `SELECT v.video_id AS id, v.description AS d, v.views AS v, v.likes AS l
        FROM videos v LEFT JOIN channels c ON c.channel_id = v.channel_id
        WHERE (c.status IS NULL OR c.status <> 'removing') AND (v.description IS NOT NULL OR v.views IS NOT NULL)
        ORDER BY v.published_at DESC LIMIT 400`
-    ).all();
+    ).all()).results);
     return json({ items: results }, 200, { 'cache-control': 'public, max-age=600' });
   }
   if (url.pathname === '/api/channels' && request.method === 'GET') {
-    const { results } = await env.DB.prepare(
+    // Recuento de vídeos con un solo GROUP BY sobre el índice de channel_id (antes: una subconsulta por canal).
+    const results = await cached('channels', 30, async () => (await env.DB.prepare(
       `SELECT c.channel_id AS id, COALESCE(c.label, c.channel_id) AS name, c.status, c.verified_at AS verifiedAt,
-              c.last_error AS lastError, c.notify AS notify, c.avatar AS avatar, c.header AS header, (SELECT COUNT(*) FROM videos v WHERE v.channel_id = c.channel_id) AS videos
-       FROM channels c WHERE c.status <> 'removing' ORDER BY name COLLATE NOCASE`
-    ).all();
-    // Cabecera pública del canal (ADR-006, enmienda 4), guardada como JSON por el servicio de avisos.
-    for (const r of results) { try { r.header = r.header ? JSON.parse(r.header) : null; } catch { r.header = null; } }
+              c.last_error AS lastError, c.notify AS notify, c.avatar AS avatar, c.header AS header, COALESCE(n.n, 0) AS videos
+       FROM channels c LEFT JOIN (SELECT channel_id, COUNT(*) AS n FROM videos GROUP BY channel_id) n ON n.channel_id = c.channel_id
+       WHERE c.status <> 'removing' ORDER BY name COLLATE NOCASE`
+    ).all()).results.map((r) => {
+      // Cabecera pública del canal (ADR-006, enmienda 4), guardada como JSON por el servicio de avisos.
+      let header = null; try { header = r.header ? JSON.parse(r.header) : null; } catch { /* sin cabecera */ }
+      return { ...r, header };
+    }));
     return json({ items: results }, 200, { 'cache-control': 'no-store' });
   }
   if (url.pathname === '/api/channels' && request.method === 'POST') {

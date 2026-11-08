@@ -421,7 +421,9 @@ async function cron(env) {
       if (st === 202) stats.renewed++;
     }
     // 2c. Privacidad y orden: los registros técnicos (vídeos públicos recibidos, ejecuciones) se borran a los 7 días.
-    await env.DB.batch([
+    // Una vez al día (a las 03:00 UTC): cada 5 minutos recorría la tabla entera y agotó el límite de lecturas de D1.
+    const d = new Date(now);
+    if (d.getUTCHours() === 3 && d.getUTCMinutes() < 5) await env.DB.batch([
       env.DB.prepare('DELETE FROM events WHERE received_at < ?').bind(now - 7 * 86_400_000),
       env.DB.prepare('DELETE FROM runs WHERE at < ?').bind(now - 7 * 86_400_000),
     ]);
