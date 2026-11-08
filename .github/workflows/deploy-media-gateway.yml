@@ -1,0 +1,25 @@
+name: Deploy · Media Gateway
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Publicar Gateway multimedia R2
+    runs-on: ubuntu-latest
+    environment: produccion
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Comprobar token configurado
+        run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Falta CLOUDFLARE_API_TOKEN"; exit 1; }
+      - name: Instalar Wrangler y publicar Gateway
+        working-directory: apps/web
+        run: npm ci && npx wrangler deploy --config ../media-gateway/wrangler.toml

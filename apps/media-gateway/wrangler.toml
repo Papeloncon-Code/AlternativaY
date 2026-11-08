@@ -1,0 +1,12 @@
+name = "todotube-media-gateway"
+account_id = "e48698b986db439c7b5509c37d219c9a"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "todotube-media"
+
+[vars]
+ALLOWED_ORIGINS = "https://todotube.papelon.workers.dev,http://localhost:5173,http://127.0.0.1:5173"
