@@ -49,8 +49,10 @@ No declarar paridad visual completa. Esta especificación sigue en construcción
 ## Iteración 3 · Navegación móvil según el rediseño vigente de YouTube (2026-11-08)
 
 - En móvil, la barra inferior ya no incluye Suscripciones: queda Inicio, Shorts, Crear y Tú.
-- Los feeds Inicio y Subs se muestran en pestañas superiores fijas bajo la barra superior en ambas rutas.
+- Los feeds Inicio y Subs se muestran en pestañas superiores bajo la barra superior; se ocultan automáticamente tras unos 2,2 s y reaparecen al arrastrar hacia abajo o desplazarse hacia arriba.
 - La pestaña Subs abre el feed de suscripciones; la pantalla de gestión continúa en `/suscripciones/gestionar`.
 - Crear abre un panel que permite crear una lista de reproducción real y enlaza a Seguir canales y Medios propios. No se presenta subida de vídeo porque esa función no existe.
-- Referencias actuales revisadas: YouTube Help (Subs feed en Home) y reportes de despliegue del rediseño móvil del 5 de noviembre de 2026.
+- Referencias: [YouTube Help · new Home feeds](https://support.google.com/youtube/blog/474148940/new-ways-to-explore-youtube-from-your-home-page), [9to5Google · rollout 5 Nov 2026](https://9to5google.com/2026/11/05/youtube-app-redesign-subscriptions-tab/), [Gadgets 360 · top bar auto-hidden](https://www.gadgets360.com/apps/news/youtube-removes-subscription-tab-new-home-page-major-app-redesign-android-ios-12291726).
+- `Tú` mantiene estado activo en Historial, Ver más tarde, Me gusta, listas y Medios propios.
+- Playwright valida ocultar la fila inicial y recuperarla con gesto/scroll; la auditoría visual captura estados visible y colapsado.
 - La validación automática en móvil queda pendiente de CI; no declarar paridad completa antes de capturas y revisión.
