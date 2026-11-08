@@ -2,7 +2,7 @@ import { useTitle } from '../title';
 import { stop } from '../player/session';
 import { useOEmbed } from '../oembed';
 import { isBlocked } from '../filters';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useFeed } from '../data';
 import { actions, useStore, type Meta } from '../store';
@@ -12,7 +12,6 @@ import Icon from '../components/Icon';
 import { shareVideo, toast } from '../toast';
 import { ago, fmtCount } from '../format';
 import { Empty } from '../components/States';
-import type { PlayerHandle } from '../player/handle';
 
 
 // Reproductor de Shorts: vertical, en bucle, y se pasa al siguiente deslizando, con la rueda o con ↑/↓ (S1–S4).
@@ -20,9 +19,6 @@ export default function ShortsPlayer() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
   const feed = useFeed();
-  const [paused, setPaused] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const handle = useRef<PlayerHandle | null>(null);
   const hidden = useStore((st) => st.hidden);
   const words = useStore((st) => st.blockWords);
   const fromFeed = useMemo(() => (feed.data ?? []).filter((v) => v.kind === 'short' && ((!hidden[v.id] && !isBlocked(v.title, words)) || v.id === id)), [feed.data, hidden, words, id]);
@@ -43,7 +39,6 @@ export default function ShortsPlayer() {
   };
   const goRef = useRef(go);
   goRef.current = go;
-  useEffect(() => { setPaused(false); setMuted(false); handle.current = null; }, [id]);
   useEffect(() => { stop(); }, []); // un Short no suena a la vez que el mini reproductor
 
   useEffect(() => {
@@ -56,8 +51,6 @@ export default function ShortsPlayer() {
       if (e.defaultPrevented || typing(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
       const now = Date.now();
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (now - keyLock < 300) return; keyLock = now; goRef.current(e.key === 'ArrowDown' ? 1 : -1); }
-      if (e.key === 'k' || e.key === ' ') { e.preventDefault(); handle.current?.togglePlay(); setPaused((p) => !p); }
-      if (e.key === 'm') { handle.current?.toggleMute(); setMuted((m) => !m); }
     };
     // Un gesto de rueda o de panel táctil = un Short: se espera a que el gesto termine (250 ms sin eventos) (#18).
     let wheelBusy = false; let wheelTimer = 0;
@@ -88,20 +81,13 @@ export default function ShortsPlayer() {
   }, [list.length]);
 
   if (feed.data && !cur) return <div className="page"><Empty title="Enlace de Short no válido"><Link className="btn" to="/shorts">Ver Shorts</Link></Empty></div>;
-  const props = { id, meta, startAt: 0, loop: true, onReady: (h: PlayerHandle) => { handle.current = h; } };
   return (
     <div className="shorts-stage">
       <div className="short-wrap">
         <div className="short-player">
-          {cur && <OwnPlayer key={id} {...props} onFail={(reason) => console.warn('[TodoTube] Shorts no disponible:', reason)} />}
-          <button type="button" className="short-gesture" aria-label={paused ? 'Reproducir' : 'Pausar'} onClick={() => { if (!handle.current) return; handle.current.togglePlay(); setPaused((p) => !p); }}>
-            {paused && <span className="short-state"><Icon name="play" size={40} /></span>}
-          </button>
-          <button type="button" className="short-mute" aria-label={muted ? 'Activar sonido' : 'Silenciar'} onClick={() => { handle.current?.toggleMute(); setMuted((m) => !m); }}>
-            <Icon name={muted ? 'muted' : 'volume'} size={22} />
-          </button>
+          {cur && <OwnPlayer key={id} id={id} kind="short" />}
           <div className="short-caption">
-            <Link to={`/canal/${meta.channelId}`} className="short-chan"><Avatar name={meta.channel || 'Canal'} id={meta.channelId || id} size={32} /><b>{meta.channel}</b></Link>
+            {meta.channelId ? <Link to={`/canal/${meta.channelId}`} className="short-chan"><Avatar name={meta.channel || 'Canal'} id={meta.channelId} size={32} /><b>{meta.channel}</b></Link> : <span className="short-chan"><Avatar name={meta.channel || 'Canal'} id={id} size={32} /><b>{meta.channel || 'Canal externo'}</b></span>}
             <p>{meta.title}</p>
             <small>{cur?.publishedAt ? ago(cur.publishedAt) : ''}</small>
           </div>
@@ -111,7 +97,7 @@ export default function ShortsPlayer() {
           <span>{cur?.likes ? fmtCount(cur.likes + (fav ? 1 : 0)) : 'Me gusta'}</span>
           <button type="button" className="round" aria-label="Compartir" onClick={() => shareVideo(id, meta.title)}><Icon name="share" size={24} /></button>
           <span>Compartir</span>
-          <Link to={`/canal/${meta.channelId}`} className="round avatar-link" aria-label={`Canal ${meta.channel}`}><Avatar name={meta.channel || 'Canal'} id={meta.channelId || id} size={40} /></Link>
+          {meta.channelId ? <Link to={`/canal/${meta.channelId}`} className="round avatar-link" aria-label={`Canal ${meta.channel}`}><Avatar name={meta.channel || 'Canal'} id={meta.channelId} size={40} /></Link> : <span className="round avatar-link" aria-label="Canal externo"><Avatar name="Canal" id={id} size={40} /></span>}
         </div>
       </div>
       <div className="short-nav">
