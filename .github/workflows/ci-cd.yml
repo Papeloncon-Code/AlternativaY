@@ -1,0 +1,102 @@
+# CI/CD de TodoTube.
+# CI: en cada push y PR → compilación, tipos, pruebas del servidor de avisos, de la web (Playwright) y, si existe, del gateway.
+# CD: solo en push a la rama de trabajo publicada y solo si todo lo anterior pasa → despliegue en Cloudflare y
+#     pruebas de humo contra la web publicada. Secretos necesarios (Settings → Secrets and variables → Actions):
+#     CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID. Sin ellos, el despliegue se salta con un aviso.
+name: CI/CD
+
+on:
+  push:
+    branches: [sdd/investigacion-y-especificacion, main, 'feat/**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  PROD_URL: https://todotube.papelon.workers.dev
+
+jobs:
+  avisos:
+    name: Servidor de avisos · pruebas
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: spikes/websub } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: spikes/websub/package-lock.json }
+      - run: npm ci
+      - run: npm test
+
+  web:
+    name: Web · compilación, tipos y pruebas de aceptación
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/web } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - run: npm ci
+      - run: npm run build
+      - run: npx tsc -b
+      - run: npx playwright install --with-deps chromium
+      # La vista previa sirve la versión compilada y reenvía /api a la web publicada (datos reales).
+      - run: npx playwright test --trace off
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: playwright-informe, path: apps/web/test-results, retention-days: 7 }
+
+  gateway:
+    name: Gateway multimedia (PoC) · pruebas
+    runs-on: ubuntu-latest
+    if: ${{ hashFiles('apps/media-gateway/package.json') != '' }}
+    defaults: { run: { working-directory: apps/media-gateway } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - run: (cd ../web && npm ci)   # copia de Shaka para la página de prueba
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:all
+
+  desplegar:
+    name: Despliegue en Cloudflare y humo en producción
+    needs: [avisos, web]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/sdd/investigacion-y-especificacion'
+    runs-on: ubuntu-latest
+    environment: produccion
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - name: Comprobar secretos
+        id: secretos
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Faltan CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID: no se despliega."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else echo "ok=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Servidor de avisos
+        if: steps.secretos.outputs.ok == 'true'
+        working-directory: spikes/websub
+        run: npm ci && npx wrangler deploy
+      - name: Web
+        if: steps.secretos.outputs.ok == 'true'
+        working-directory: apps/web
+        run: npm ci && npm run build && npx wrangler deploy
+      - name: Pruebas de humo contra la web publicada
+        if: steps.secretos.outputs.ok == 'true'
+        working-directory: apps/web
+        env: { BASE_URL: '${{ env.PROD_URL }}' }
+        run: npx playwright install --with-deps chromium && npx playwright test --trace off
