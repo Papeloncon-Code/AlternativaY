@@ -21,7 +21,9 @@ El Gateway inicial dependía de un único binding R2. Una indisponibilidad del b
 
 ## Parámetros operativos
 
-- Timeout inicial: 1.8 s, configurable por MEDIA_ORIGIN_TIMEOUT_MS, con máximo de 5 s.
+- Timeout de lectura inicial: 1.8 s, configurable por MEDIA_ORIGIN_TIMEOUT_MS, con máximo de 5 s.
+- Timeout de escritura: default 45 s, configurable por MEDIA_WRITE_TIMEOUT_MS, con máximo de 120 s.
+- Cada carga genera mediaVersion, compartida por todas las réplicas.
 - GET/HEAD y Range se resuelven en el origen ganador.
 - 404 solo cuando todos los orígenes consultados confirman que el objeto no existe.
 - 503 cuando no se puede determinar disponibilidad por errores/timeout.
@@ -33,7 +35,8 @@ El Gateway inicial dependía de un único binding R2. Una indisponibilidad del b
 - La respuesta 201 con replicas.degraded=true significa que hubo escritura parcial; no debe considerarse una réplica íntegra.
 - Los borrados parciales requieren reconciliación.
 - El catálogo es la unión de los catálogos disponibles; un catálogo parcial se marca como degradado.
-- Esta versión no implementa reparación automática en segundo plano, quorum, verificación de hash, circuit breaker persistente ni failover de un stream que ya empezó a enviar bytes.
+- Si un body se trunca durante la reproducción, se intenta continuar desde el byte exacto en otra copia con el mismo tamaño y mediaVersion; para archivos previos a mediaVersion se exige ETag coincidente.
+- Esta versión no implementa reparación automática en segundo plano, quorum, verificación criptográfica incremental ni circuit breaker persistente.
 
 ## Operación pendiente
 
