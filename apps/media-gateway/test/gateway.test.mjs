@@ -141,6 +141,18 @@ test('a failed primary origin is bypassed automatically when the replica has the
   assert.equal(await r.text(), 'replica-data');
 });
 
+test('a primary read failure after HEAD is retried through the replica', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(new TextEncoder().encode('replica-after-get-error')));
+  e.MEDIA_BUCKET.failGet = true;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('X-Media-Origin'), 'replica-1');
+  assert.equal(await r.text(), 'replica-after-get-error');
+});
+
 test('a hung primary does not block the faster replica', async () => {
   const e = env();
   const replica = new MemoryR2();
