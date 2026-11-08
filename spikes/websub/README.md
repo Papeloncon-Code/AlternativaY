@@ -1,39 +1,56 @@
-# Spike T-007 · Avisos WebSub de YouTube
+# Servicio de avisos WebSub/RSS
 
-Especificación: [`specs/003-spike-websub/spec.md`](../../specs/003-spike-websub/spec.md).
+Servicio de backend que registra canales seguidos, recibe avisos WebSub y usa RSS como respaldo. Es la capa de datos de avisos de TodoTube, no el reproductor de vídeo.
 
-- **Worker:** `alternativay-websub`, en `https://alternativay-websub.papelon.workers.dev` (cuenta Cloudflare del propietario, plan gratis).
-- **Base de datos:** D1 `alternativay-websub`.
+- **Worker:** alternativay-websub — https://alternativay-websub.papelon.workers.dev
+- **Base de datos:** D1 alternativay-websub
+- **Configuración:** wrangler.toml
+- **Esquema inicial:** schema.sql
+- **Migraciones incrementales:** migrations-001 a migrations-008
 
-## Recibir los avisos en el teléfono
-1. Instala **ntfy** (Google Play o F-Droid).
-2. Pulsa **+**, *Subscribe to topic*, y escribe el nombre del topic privado. Ese nombre **no** está en el repositorio: se guarda como secreto del Worker (`NTFY_TOPIC`) y se te dio por chat.
-3. Cada vídeo nuevo llega como: “Nuevo: <título>” · “WebSub · X min tras publicar”.
+## Desarrollo y pruebas
 
-## Comandos
-```bash
-npm install
-npm test
-```
-Despliegue, base de datos e informe (requieren `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`):
-```bash
-npx wrangler d1 execute alternativay-websub --remote --file=schema.sql
-npx wrangler deploy
-npx wrangler d1 execute alternativay-websub --remote --file=seed-channels.sql
-npx wrangler d1 execute alternativay-websub --remote --file=report.sql
-```
+    npm ci
+    npm test
 
-## Añadir canales
-Inserta una fila en `channels` con el ID `UC…` (22 caracteres tras `UC`). La tarea programada hace el resto en ≤ 5 min:
-1. comprueba el canal por RSS;
-2. guarda una línea base para no contar vídeos viejos como nuevos;
-3. se suscribe al hub y renueva la suscripción antes de que caduque.
+Las pruebas son locales y no requieren credenciales Cloudflare.
 
-## Verificado el 2026-11-07
-| Prueba | Resultado |
-|---|---|
-| Tests unitarios (parser Atom, HMAC-SHA1 RFC 2202, ventana de 48 h) | 6/6 ✅ |
-| `/health` | ok ✅ |
-| POST sin firma o con firma falsa | 403 ✅ (CA-S4) |
-| Verificación con `hub.topic` falso | 404 ✅ |
-| Canal no registrado | 404 ✅ |
+## Permisos Cloudflare
+
+Los workflows usan secretos del entorno GitHub produccion:
+
+- **CLOUDFLARE_API_TOKEN:** despliegue de Workers existentes, con rol Workers Editor sobre todotube y alternativay-websub.
+- **CLOUDFLARE_ACCOUNT_ID:** identificador de la cuenta Cloudflare.
+- **CLOUDFLARE_D1_API_TOKEN:** permiso Account D1 Edit, reservado para ejecutar SQL remoto.
+
+No reutilices el token de despliegue para operaciones D1. No guardes tokens en este repositorio.
+
+Consulta el [runbook de Cloudflare y GitHub Actions](../../docs/runbooks/cloudflare-github-actions.md) para crear los tokens y configurar los secretos.
+
+## Despliegue del Worker
+
+El workflow CI/CD publica alternativay-websub únicamente en push a main, después de pasar las pruebas y si los secretos de Workers están configurados. Si faltan credenciales, el deploy se omite.
+
+Para una operación local controlada, configura temporalmente CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID en el entorno de tu terminal y ejecuta:
+
+    npm ci
+    npx wrangler deploy
+
+## Base de datos D1
+
+Las consultas SQL remotas requieren el token separado CLOUDFLARE_D1_API_TOKEN con permiso D1 Edit.
+
+**No ejecutes schema.sql ni todas las migraciones a ciegas sobre una base existente.** Las migraciones 001–007 alteran tablas y columnas y deben aplicarse solo tras comprobar el esquema remoto actual.
+
+La migración 008 añade índices con CREATE INDEX IF NOT EXISTS. Su workflow dedicado es manual:
+
+1. GitHub → Actions → D1 · aplicar índices 008.
+2. Selecciona main.
+3. Marca confirm_apply y ejecútalo solo cuando hayas decidido modificar D1.
+4. Revisa la consulta previa y la verificación posterior de los seis índices.
+
+El procedimiento completo está en el [runbook](../../docs/runbooks/cloudflare-github-actions.md). La existencia del archivo SQL o del workflow no significa que la migración se haya aplicado.
+
+## Añadir canales y operación
+
+Añadir canales y gestionar avisos se hace desde TodoTube y sus endpoints protegidos con la clave de propietario. El Worker programa comprobaciones RSS/WebSub y conserva la información pública de los canales y vídeos.
