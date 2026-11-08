@@ -42,7 +42,7 @@ async function measure(page: Page, screen: string): Promise<Metric> {
       document: { width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight },
       elements
     };
-  }, screenName);
+  }, screen);
 }
 
 async function capture(page: Page, info: TestInfo, viewport: string, name: string): Promise<Metric> {
