@@ -8,6 +8,7 @@ class MemoryR2 {
   neverResolveHead = false;
   failGet = false;
   failBodyAfterBytes = null;
+  slowPutMs = 0;
   failList = false;
   async head(key) {
     if (this.neverResolveHead) return new Promise(() => {});
@@ -39,6 +40,7 @@ class MemoryR2 {
     return { ...item, body: stream, writeHttpMetadata: item.writeHttpMetadata };
   }
   async put(key, body, opts) {
+    if (this.slowPutMs) await new Promise((resolve) => setTimeout(resolve, this.slowPutMs));
     const bytes = new Uint8Array(await new Response(body).arrayBuffer());
     this.objects.set(key, makeObject(bytes, opts));
   }
@@ -240,6 +242,34 @@ test('uploads are replicated to each configured origin', async () => {
   assert.deepEqual((await r.json()).replicas, { written: 2, configured: 2, degraded: false });
   assert.equal(new TextDecoder().decode(e.MEDIA_BUCKET.objects.get('media/upload_001').bytes), 'video');
   assert.equal(new TextDecoder().decode(replica.objects.get('media/upload_001').bytes), 'video');
+  assert.equal(
+    e.MEDIA_BUCKET.objects.get('media/upload_001').customMetadata.mediaVersion,
+    replica.objects.get('media/upload_001').customMetadata.mediaVersion,
+  );
+});
+
+test('replicated writes use a write timeout separate from fast read failover timeouts', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  replica.slowPutMs = 80;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  e.MEDIA_ORIGIN_TIMEOUT_MS = '50';
+  e.MEDIA_WRITE_TIMEOUT_MS = '1000';
+  const r = await worker.fetch(req('/v1/admin/media/slow_upload', {
+    method: 'PUT',
+    body: 'video',
+    headers: {
+      Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN,
+      'Content-Type': 'video/mp4',
+      'Content-Length': '5',
+      'X-Media-Title': 'Slow upload',
+      'X-Media-Creator': 'Owner',
+      'X-Media-License': 'owned',
+      'X-Media-Visibility': 'public',
+    },
+  }), e);
+  assert.equal(r.status, 201);
+  assert.deepEqual((await r.json()).replicas, { written: 2, configured: 2, degraded: false });
 });
 
 test('all missing origins return 404, while an origin outage returns 503', async () => {
