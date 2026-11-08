@@ -24,7 +24,7 @@ test('A4 · ocultar por palabras quita esos vídeos de Principal', async ({ page
 });
 
 test('A3 · un grupo aparece como filtro y solo muestra sus canales', async ({ page }) => {
-  await page.goto('/suscripciones');
+  await page.goto('/suscripciones/gestionar');
   await page.getByLabel('Nombre del grupo nuevo').fill('Noticias');
   await page.getByRole('button', { name: 'Crear grupo' }).click();
   const chip = page.locator('.groups .group .chip').first();
