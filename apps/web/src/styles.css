@@ -192,6 +192,9 @@ img { display: block; max-width: 100%; }
 .own-player { position: relative; width: 100%; height: 100%; background: #000; }
 .own-video { width: 100%; height: 100%; display: block; background: #000; }
 .own-loading { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-weight: 600; background: rgb(0 0 0 / 0.35); }
+.own-player-error { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; padding: 24px; text-align: center; color: #fff; background: #101114; }
+.own-player-error p { max-width: 520px; margin: 0; color: #d4d4d8; line-height: 1.5; }
+.own-player-error .btn { min-height: 40px; }
 .bridge-hint { font-size: 14px; color: var(--text-2); margin: 12px 0 0; }
 .bridge-hint a { color: var(--new); font-weight: 600; }
 
@@ -356,7 +359,7 @@ code { background: var(--chip); padding: 1px 8px; border-radius: 8px; font-size:
   .short-player { border-radius: 0; height: 100%; width: 100%; aspect-ratio: auto; max-width: none; }
   .short-actions { position: absolute; right: 8px; bottom: 96px; color: #fff; }
   .short-actions .round { background: rgb(0 0 0 / 0.45); color: #fff; }
-  .short-nav { display: none; }
+  .short-nav { display: flex; flex-direction: row; justify-content: center; align-items: center; gap: 12px; min-height: 48px; padding: 4px 0; }
 }
 
 .tabs-bar { display: flex; gap: 8px; border-bottom: 1px solid var(--line); margin: 0 0 24px; }
@@ -556,7 +559,7 @@ img.avatar { object-fit: cover; background: var(--chip); }
 #player-slot { position: relative; }
 @media (max-width: 792px) {
   .player-dock.on-page { border-radius: 0; }
-  /* Un iframe oficial de YouTube no debe reducirse por debajo de 200 × 200 px. */
+  /* El minirreproductor conserva un área cómoda para vídeo y controles propios. */
   .player-dock.mini { left: auto; right: 8px; bottom: calc(60px + env(safe-area-inset-bottom)); width: 200px; min-width: 200px; display: flex; flex-direction: column; }
   .player-dock.mini .player-dock-video { width: 200px; height: 200px; min-height: 200px; aspect-ratio: auto; background: #000; }
   .player-dock.mini.vertical { width: 200px; }
@@ -604,16 +607,6 @@ img.avatar { object-fit: cover; background: var(--chip); }
   .watch-actions { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
   .watch-actions .btn { flex: none; }
   .watch-row { flex-wrap: wrap; }
-}
-@media (max-width: 792px) {
-  /* El iframe oficial es cross-origin: no interceptamos sus toques ni su UI. */
-  .shorts-stage.official { display: flex; flex-direction: column; align-items: stretch; }
-  .shorts-stage.official .short-wrap { flex: 1; min-height: 0; height: auto; flex-direction: column; align-items: stretch; gap: 0; }
-  .shorts-stage.official .short-player { width: 100%; height: auto; flex: 1; min-height: 0; }
-  .shorts-stage.official .short-actions { position: static; flex-direction: row; justify-content: space-around; padding: 8px 16px; color: var(--text); }
-  .shorts-stage.official .short-actions .round { background: var(--chip); color: var(--text); }
-  .shorts-stage.official .short-actions span { margin: 0; }
-  .shorts-stage.official .short-nav { display: flex; flex-direction: row; justify-content: center; flex: none; min-height: 48px; padding: 4px 0; }
 }
 .search-q { color: var(--text-2); font-size: 14px; margin: 8px 0; }
 .menu.up { top: auto; bottom: 34px; }
