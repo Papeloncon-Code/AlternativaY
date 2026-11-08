@@ -55,21 +55,27 @@ jobs:
   gateway:
     name: Gateway multimedia (PoC) · pruebas
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('apps/media-gateway/package.json') != '' }}
-    defaults: { run: { working-directory: apps/media-gateway } }
+    # hashFiles() no está disponible en jobs.<id>.if: el trabajo se ejecuta siempre y cada paso comprueba si existe el paquete.
+    defaults: { run: { working-directory: . } }
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: ¿Hay gateway en esta rama?
+        id: hay
+        run: |
+          if [ -f apps/media-gateway/package.json ]; then echo "si=true" >> "$GITHUB_OUTPUT"
+          else echo "si=false" >> "$GITHUB_OUTPUT"; echo "Sin apps/media-gateway en esta rama, nada que probar."; fi
+      - if: steps.hay.outputs.si == 'true'
+        uses: actions/setup-node@v4
         with: { node-version: '${{ env.NODE_VERSION }}' }
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - run: npm ci
-      - run: (cd ../web && npm ci)   # copia de Shaka para la página de prueba
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:all
+      - if: steps.hay.outputs.si == 'true'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - if: steps.hay.outputs.si == 'true'
+        working-directory: apps/media-gateway
+        run: npm ci && (cd ../web && npm ci) && npx playwright install --with-deps chromium && npm run test:all
 
   desplegar:
     name: Despliegue en Cloudflare y humo en producción
-    needs: [avisos, web]
+    needs: [avisos, web, gateway]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: produccion
