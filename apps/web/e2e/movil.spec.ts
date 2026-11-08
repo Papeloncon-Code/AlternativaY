@@ -55,7 +55,7 @@ test('#13 el reproductor ocupa todo el ancho; #16 el menu ⋮ no queda bajo la b
   expect(Math.round((await page.locator('#player-slot').boundingBox())!.width)).toBe(390);
 });
 
-test('minirreproductor móvil: iframe oficial no baja de 200 × 200 px ni tapa controles', async ({ page }) => {
+test('minirreproductor móvil: conserva el reproductor propio y no crea iframe', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.vcard .vthumb').first()).toBeVisible({ timeout: 15_000 });
   await page.locator('.vcard .vthumb').first().click();
