@@ -65,7 +65,7 @@ function parseRange(value, size) {
 }
 function etagMatches(value, etag) {
   if (!value || !etag) return false;
-  const normalize = (tag) => tag.trim().replace(/^W\\//, '');
+  const normalize = (tag) => { const trimmed = tag.trim(); return trimmed.startsWith('W/') ? trimmed.slice(2) : trimmed; };
   return value.split(',').some((tag) => tag.trim() === '*' || normalize(tag) === normalize(etag));
 }
 function objectMetadata(obj, headers) {
