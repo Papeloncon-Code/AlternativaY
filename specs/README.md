@@ -1,34 +1,49 @@
 # Cómo trabajamos: SDD en TodoTube
 
-Proceso basado en GitHub Spec Kit (*specify → clarify → plan → tasks → analyze → implement*) y en las lecciones de práctica recogidas el 2026-11-07:
-- [guía de Spec Kit](https://vinitshahdeo.substack.com/p/spec-driven-development-github-spec-kit);
-- [desfase de especificaciones](https://www.scalablepath.com/ai/spec-driven-development-workflow);
-- [análisis de Thoughtworks, resumido](https://daily.dev/posts/understanding-spec-driven-development-kiro-spec-kit-and-tessl-wbu9w3aj6);
-- [especificaciones que los agentes siguen](https://code-of-us.beehiiv.com/p/specification-driven-development-update-how-to-write-better-specs-that-ai-agents-actually-follow).
+Proceso basado en Spec-Driven Development. El código, las pruebas y las decisiones de arquitectura deben describir el mismo comportamiento.
 
-## Estructura
-| Carpeta | Qué contiene |
+## Estructura vigente
+
+| Carpeta | Estado y función |
 |---|---|
-| `000-constitucion/` | Principios no negociables |
-| `001-plataforma/` | Visión global, arquitectura, UX y roadmap (documentos marco) |
-| `002-mvp/` | **Índice** del alcance del MVP, modelo de datos, API, definición de terminado y tareas transversales |
-| `003-spike-websub/` | Prueba técnica de avisos (en ejecución) |
-| `004-web-v0/` | Web v0.1 (**publicada**) |
-| `010…016/` | **Una carpeta por funcionalidad**: `spec.md` (qué y por qué), `plan.md` (cómo), `tasks.md` |
-| `_plantillas/` | Plantillas para funcionalidades nuevas |
+| 000-constitucion/ | Principios no negociables; v3.0, vigente |
+| 001-plataforma/ | Visión y arquitectura objetivo a largo plazo; no describe todo lo desplegado |
+| 002-mvp/ | Índice histórico de requisitos y tareas transversales |
+| 003-spike-websub/ | Spike de WebSub; Worker desplegado, medición de latencia/cobertura pendiente |
+| 004-web-v0/ | Historial de la primera web desplegada; la reproducción fue sustituida por ADR-011 |
+| 005-diseno/ | Sistema de diseño y decisión visual |
+| 006-spike-reproductor-propio/ | Investigación histórica de la ruta con Puente; supersedida en transporte |
+| 007-paridad-funcional/ | Catálogo de requisitos de interfaz; backlog y referencia visual |
+| 008-gateway-multimedia/ | Gateway R2 para archivos propios/licenciados; especificación activa |
+| 010…016/ | Backlog futuro de YouTube, avisos, importación, biblioteca, sync, fuentes y PWA |
+| _plantillas/ | Plantillas de nuevas funcionalidades |
 
-## Pasos para cada funcionalidad
-1. **Especificar** (`spec.md`): qué y por qué, historias y criterios de aceptación medibles. **Sin tecnologías.** Máximo unas 2 páginas: si el resumen necesita dos “y”, dividir.
-2. **Aclarar:** listar cada duda como `- [ ]` en “Aclaraciones pendientes”. No se cierra el plan con dudas que cambien el diseño. *No inventar lo que falta.*
-3. **Planificar** (`plan.md`): cómo, enlazando la arquitectura y los ADR. Las decisiones con alternativas van a un ADR.
-4. **Tareas** (`tasks.md`): cada tarea indica qué criterios cumple (`→ CA10.3`).
-5. **Revisar coherencia:** `python3 tools/spec-check.py`. Comprueba que todos los criterios tienen tarea, que están los 3 archivos y el tamaño de la especificación. Con errores no se empieza a programar.
-6. **Implementar:** cada criterio tiene al menos una prueba automática que empieza por su ID.
-7. **Verificar:** anotar el resultado de cada criterio en `spec.md` (como en `004-web-v0` §5), incluido lo que **no** se pudo verificar.
+## Orden de autoridad
 
-## Reglas contra los errores más comunes
-- **Desfase entre especificación y código** (el error número uno): un PR que cambia el comportamiento **actualiza su `spec.md` en el mismo PR**. Si el código y la especificación discrepan, se corrige uno de los dos, nunca se deja así.
-- **Proceso proporcional:** los arreglos pequeños (erratas, dependencias, fallos sin cambio de comportamiento) no necesitan especificación; basta con un commit claro. Las funcionalidades y los cambios de rumbo sí la necesitan.
-- **Cambios de rumbo** = un ADR nuevo en `docs/adr/` y la actualización de las especificaciones afectadas (ejemplos: ADR-005, ADR-007).
-- **Una especificación equivocada genera código equivocado:** los criterios se revisan con el propietario antes de implementar.
-- **Mismo nombre para lo mismo:** “canal seguido” (no suscripción, salvo en YouTube), “aviso” (notificación push), “vídeo nuevo” (publicado hace < 48 h y no visto antes).
+1. Constitución vigente.
+2. ADR aceptadas más recientes.
+3. Especificación funcional activa.
+4. Plan y tareas.
+5. Código y pruebas.
+6. Informes históricos.
+
+Una ADR supersedida se conserva como historial, no como instrucción. A fecha 2026-11-08, ADR-011 gobierna el transporte y reemplaza las partes contradictorias de ADR-005/010.
+
+## Pasos SDD
+
+1. Especificar qué y por qué con criterios medibles.
+2. Resolver dudas que cambien el diseño antes de implementar.
+3. Planificar cómo, enlazando arquitectura y ADR.
+4. Crear tareas trazables a criterios de aceptación.
+5. Ejecutar python3 tools/spec-check.py.
+6. Implementar cada criterio con pruebas automáticas.
+7. Registrar evidencia real; un test omitido no cuenta como aprobado.
+8. Para dependencias externas (Cloudflare/R2, DNS, navegadores reales), registrar el provisionamiento y una prueba de integración operativa.
+
+## Reglas
+
+- Un PR que cambia comportamiento actualiza la especificación correspondiente.
+- No declarar una característica desplegada por tener código o tests unitarios.
+- Los estados válidos de trabajo son: Backlog, En construcción, Parcial, Implementado en código, Desplegado, Verificado en producción, Supersedido y Bloqueado.
+- Una PoC con fixtures no demuestra compatibilidad con un proveedor externo real.
+- Cualquier cambio de rumbo crea/actualiza una ADR y corrige todas las referencias contradictorias.
