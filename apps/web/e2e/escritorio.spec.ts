@@ -8,12 +8,12 @@ test('H1 · cada filtro visible cambia los resultados (si no, no se muestra)', a
   const ok = trackErrors(page);
   await page.goto('/'); await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });
   const total = Number(await page.locator('.page').getAttribute('data-total'));
-  const chips = page.locator('.chips-scroll .chip');
-  const n = await chips.count();
-  for (let i = 1; i < n; i++) {
-    const label = await chips.nth(i).textContent();
-    await chips.nth(i).click();
-    await expect(chips.nth(i)).toHaveAttribute('aria-pressed', 'true');
+  // Por nombre, no por posición: la lista puede crecer mientras se cargan más vídeos (un canal nuevo desplaza a los demás).
+  const labels = (await page.locator('.chips-scroll .chip').allTextContents()).slice(1);
+  for (const label of labels) {
+    const chip = page.locator('.chips-scroll .chip', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }).first();
+    await chip.click();
+    await expect(chip).toHaveAttribute('aria-pressed', 'true');
     // Se confirma visiblemente el filtro y su número de resultados (la primera pantalla puede coincidir).
     await expect(page.locator('.filter-count')).toContainText(label!);
     const count = Number((await page.locator('.filter-count').textContent())!.match(/\d+/)![0]);
