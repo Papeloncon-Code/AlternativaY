@@ -12,7 +12,7 @@ import { useTitle } from '../title';
 import { getState } from '../store';
 import { setAvatar } from '../avatars';
 import { toast } from '../toast';
-import type { RemoteChannel, RemoteVideo } from '../remote';
+import type { RemoteChannel, RemoteVideo } from '../api';
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 

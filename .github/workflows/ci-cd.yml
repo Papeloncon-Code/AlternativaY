@@ -71,29 +71,15 @@ jobs:
         with: { name: playwright-informe, path: apps/web/test-results, retention-days: 7 }
 
   gateway:
-    name: Gateway multimedia (PoC) · pruebas
+    name: Media Gateway · pruebas unitarias
     runs-on: ubuntu-latest
-    # hashFiles() no está disponible en jobs.<id>.if; se comprueba la existencia en un paso.
-    defaults: { run: { working-directory: . } }
+    defaults: { run: { working-directory: apps/media-gateway } }
     steps:
       - uses: actions/checkout@v4
-      - name: ¿Hay gateway en esta rama?
-        id: hay
-        run: |
-          if [ -f apps/media-gateway/package.json ]; then echo "si=true" >> "$GITHUB_OUTPUT"
-          else echo "si=false" >> "$GITHUB_OUTPUT"; echo "Sin apps/media-gateway en esta rama, nada que probar."; fi
-      - if: steps.hay.outputs.si == 'true'
-        uses: actions/setup-node@v4
-        with: { node-version: '${{ env.NODE_VERSION }}' }
-      - if: steps.hay.outputs.si == 'true'
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      - if: steps.hay.outputs.si == 'true'
-        working-directory: apps/media-gateway
-        run: |
-          npm ci && (cd ../web && npm ci)
-          npm i --no-save "playwright@$(node -p "require('../web/node_modules/@playwright/test/package.json').version")"
-          npx playwright install --with-deps chromium
-          npm run test:all
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: apps/media-gateway/package-lock.json }
+      - run: npm ci
+      - run: npm test
 
   desplegar:
     name: Despliegue en Cloudflare y humo en producción
