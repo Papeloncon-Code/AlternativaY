@@ -1,9 +1,10 @@
 # Cloudflare + GitHub Actions: credenciales y migración D1 008
 
-Este proyecto usa dos Workers existentes y una D1 compartida:
+El entorno tiene dos Workers existentes, una D1 compartida y un tercer Worker de medios en preparación:
 
 - Worker web: `todotube`
 - Worker de avisos: `alternativay-websub`
+- Media Gateway (nuevo): `todotube-media-gateway` — código integrado; requiere crear R2 y provisionar el Worker antes de desplegar.
 - Base D1: `alternativay-websub`
 - D1 ID: `676928c8-1061-40cc-9d67-9f7395c9c958`
 
@@ -28,12 +29,14 @@ Se separan los tokens deliberadamente. El token de despliegue no necesita permis
 ## Crear el token de despliegue
 
 1. En el dashboard de Cloudflare, abre **Account API Tokens** → **Create Token** → **Custom**.
-2. Concede el rol **Workers Editor** solo a los dos Workers existentes: `todotube` y `alternativay-websub`.
-3. Limita el recurso a la cuenta correcta.
-4. No añadas permisos D1 ni permisos de zona para Routes/Custom Domains: los `wrangler.toml` actuales usan `workers_dev = true` y el workflow no configura ni modifica rutas de zonas.
-5. Copia el token una sola vez al secreto GitHub `CLOUDFLARE_API_TOKEN`.
+2. Para los dos Workers existentes, concede Workers Editor limitado a `todotube` y `alternativay-websub`.
+3. Para el nuevo Worker, primero créalo desde Workers & Pages en el Dashboard (nombre `todotube-media-gateway`). Después amplía el alcance del token para incluir ese Worker con rol Editor. Un token limitado a los dos Workers antiguos no puede crear ni desplegar un tercero.
+4. Alternativa: un token de despliegue con Workers Admin a nivel de producto puede crear Workers nuevos, pero tiene permisos mucho más amplios; no es la opción de mínimo privilegio.
+5. Limita el recurso a la cuenta correcta.
+6. No añadas permisos D1 ni Workers Routes Write: el despliegue usa workers.dev, y Cloudflare indica que un binding R2 no requiere permisos R2 adicionales para desplegar el Worker.
+7. Copia el token una sola vez al secreto GitHub `CLOUDFLARE_API_TOKEN`.
 
-Cloudflare documenta que desplegar un Worker existente requiere Editor; crear Workers nuevos requiere Admin. Si en el futuro se añade otro Worker, habrá que ampliar el alcance de forma deliberada, no ahora.
+Cloudflare documenta que un Worker existente requiere Editor y crear uno nuevo requiere Workers Admin a nivel de producto. Los bindings R2/D1/KV no necesitan permisos propios para desplegar el Worker; esos permisos solo aplican si el token también gestiona los recursos directamente.
 
 ## Crear el token específico de D1
 
@@ -95,3 +98,44 @@ Un job global en verde no demuestra por sí solo que hubo despliegue: comprueba 
 ## Corrección de despliegue 2026-11-08
 
 El job de despliegue comprobó que los secretos existían, pero Wrangler recibió el error Cloudflare `7003` al resolver `/accounts/<id>/workers/services/alternativay-websub`. Cloudflare asocia este error con un Account ID incorrecto. Se fijó el Account ID de la cuenta activa en ambos `wrangler.toml` y se retiró la dependencia del secreto `CLOUDFLARE_ACCOUNT_ID` en los workflows de despliegue y de migración. Los workflows ahora solo requieren el API Token correspondiente. El siguiente push a `main` debe volver a validar esta corrección; no se debe declarar el despliegue correcto hasta que ambos pasos `wrangler deploy` y el smoke test final terminen en verde.
+
+
+## Media Gateway R2 · provisionamiento necesario
+
+El código y el workflow del Gateway están en main, pero Cloudflare todavía no tiene creado el bucket R2 ni el Worker nuevo.
+
+### 1. Crear el bucket R2
+
+1. Cloudflare Dashboard → **R2 Object Storage** → **Create bucket**.
+2. Nombre exacto: `todotube-media`.
+3. No es público ni tiene dominio propio: el Worker accede por binding R2.
+4. El bucket no debe alojar streams de YouTube; solo archivos que se puedan distribuir legalmente.
+
+### 2. Crear el Worker
+
+1. Cloudflare Dashboard → **Workers & Pages** → **Create** → **Worker**.
+2. Nombre exacto: `todotube-media-gateway`.
+3. Puedes dejar un Hello World inicial; el workflow manual lo sustituirá con el código del repositorio.
+4. Una vez creado, limita el API Token de GitHub para que incluya este Worker con rol **Workers Editor**. Si no se hace, Wrangler no podrá publicar un Worker que aún no existe.
+5. El archivo apps/media-gateway/wrangler.toml declara el binding MEDIA_BUCKET con bucket_name todotube-media.
+
+### 3. Publicar
+
+1. GitHub → Actions → **Deploy · Media Gateway** → **Run workflow** sobre main.
+2. Espera a que el workflow termine.
+3. Verifica en el Worker la ruta `/health`: debe responder JSON con ok=true.
+4. Verifica `/v1/catalog`: debe devolver items vacío si aún no hay archivos públicos.
+
+### 4. Configurar el secreto de carga
+
+En Cloudflare → Workers & Pages → todotube-media-gateway → Settings → Variables and Secrets:
+
+- Añade un **Secret** llamado `MEDIA_UPLOAD_TOKEN`.
+- Usa un valor aleatorio de alta entropía generado en un gestor seguro.
+- No lo guardes en GitHub, en código ni en el navegador. Se utiliza solo para llamadas administrativas PUT/DELETE.
+
+### 5. Primera prueba real
+
+Sube un archivo MP4/WebM propio, con licencia verificada, usando el endpoint administrativo documentado en specs/008-gateway-multimedia/plan.md. Después comprueba GET, HEAD, Range/206 y seek en Chrome y Firefox. No marques el Gateway como verificado en producción hasta completar esta prueba.
+
+La cuenta actual tiene token de despliegue limitado a Workers existentes; por ello, el paso de crear el Worker en Dashboard y después incluirlo en el alcance del token es necesario para mantener mínimo privilegio.

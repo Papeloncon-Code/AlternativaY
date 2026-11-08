@@ -1,4 +1,6 @@
-# 00 · Metodología, registro de consultas y limitaciones
+> **Estado:** fotografía de la investigación inicial del 2026-11-06. No es la fuente de verdad de la arquitectura vigente. Para decisiones actuales usar ADR-011 y specs/008.
+
+# 00 · Metodología y registro de la investigación inicial (histórico)
 
 **Proyecto:** AlternativaY (nombre de trabajo: “YouTube Killer”)
 **Metodología:** SDD, Desarrollo Guiado por Especificaciones (*Spec-Driven Development*)

@@ -1,6 +1,6 @@
 # Spike T-100 · Reproductor propio en la web con “TodoTube Puente”
 
-Estado: **En construcción** · 2026-11-07 · Investigación: `docs/research/07-reproductor-propio-web-investigacion-a-fondo.md`
+Estado: **Histórico / supersedido en transporte por ADR-011** · 2026-11-07 · Investigación: `docs/research/07-reproductor-propio-web-investigacion-a-fondo.md`
 Decisión del propietario: “haz todo lo que haga falta”.
 
 ## 1. Pregunta
@@ -46,3 +46,6 @@ Este contenedor tiene la red restringida y una IP de centro de datos, que YouTub
 **Límite de esta sesión:** el sistema de permisos bloqueó repetir la prueba de reproducción automatizada desde el contenedor, clasificándola como “elusión de controles anti-bots”. No se intentó rodear. La verificación de reproducción la hace una persona en su propio navegador (`/puente`), que es el caso de uso real.
 
 **Implicación de seguridad (BotGuard):** el reproductor propio descarga de Google el intérprete de BotGuard y lo ejecuta en la página de TodoTube, como hace youtube.com. Así, en nuestro origen se ejecuta código de terceros. Se aísla en el chunk del reproductor, que solo se carga con el puente instalado. Mitigación pendiente: ejecutarlo dentro de un `<iframe>` *sandbox* en un subdominio propio.
+
+
+> **Vigencia 2026-11-08:** este spike documenta el reproductor propio basado en TodoTube Puente. La extensión fue retirada del producto. No reactivar su integración; el transporte vigente está en specs/008-gateway-multimedia.

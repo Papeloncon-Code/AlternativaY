@@ -1,3 +1,5 @@
+> **Estado:** informe histórico previo al despliegue CI/CD #86 y a la decisión ADR-011. Los resultados actuales están en README.md, ADR-011 y specs/008.
+
 # Informe de correcciones de CI y estado del gateway — 2026-11-08
 
 ## Diagnóstico del fallo anterior

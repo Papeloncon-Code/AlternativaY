@@ -1,6 +1,6 @@
 # TodoTube Web v0.1: primera versión visible
 
-Estado: **En construcción** · 2026-11-07 · Decisión del propietario: empezar por la web para ver el producto; Android después.
+Estado: **Histórico: primera web desplegada; especificación supersedida parcialmente por ADR-011** · 2026-11-07 · Decisión del propietario: empezar por la web para ver el producto; Android después.
 Requisitos que cubre (parcialmente): RF-002, RF-003 (web), RF-006, RF-007, RF-012, RF-035 (lado de datos). Restricciones: constitución §I.2, porque la web no extrae YouTube.
 
 ## 1. Objetivo
@@ -65,3 +65,8 @@ Una web real, publicada en Cloudflare, donde se pueda:
 **Desviaciones respecto al plan:**
 - Los archivos de la web van **embebidos en el Worker** (`scripts/embed.mjs`). La subida de assets de Cloudflare falla en este entorno porque el proxy sustituye el token temporal de subida (401).
 - Datos locales en `localStorage` (ver §3).
+
+
+## Actualización de vigencia (2026-11-08)
+
+Este documento registra la primera versión web. No es una instrucción para reintroducir iframe ni Puente. La reproducción actual de YouTube dentro de TodoTube no está disponible; los medios propios/licenciados se reproducen mediante la especificación 008 y ADR-011.
