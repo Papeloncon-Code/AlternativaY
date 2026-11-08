@@ -9,11 +9,17 @@ Este proyecto usa dos Workers existentes y una D1 compartida:
 
 Los workflows que realizan despliegues o cambios remotos declaran el entorno GitHub `produccion`. Si todavía no existe, créalo con ese nombre en **Settings → Environments**. Después configura los valores en **Settings → Environments → produccion → Environment secrets**. No los escribas en archivos del repositorio, commits, Issues, PRs ni chats.
 
-## Secretos necesarios
+## Identificador de cuenta y secretos necesarios
+
+El Account ID no es una credencial. Se mantiene como configuración pública en ambos archivos Wrangler:
+
+- `apps/web/wrangler.toml` → `account_id = "e48698b986db439c7b5509c37d219c9a"`
+- `spikes/websub/wrangler.toml` → el mismo `account_id`
+
+Por eso **no hace falta guardar `CLOUDFLARE_ACCOUNT_ID` en GitHub** ni pasarlo por entorno. Esto evita que un valor de cuenta mal copiado haga que Wrangler intente desplegar en una cuenta distinta.
 
 | Secreto exacto | Uso | Permiso mínimo recomendado |
 |---|---|---|
-| `CLOUDFLARE_ACCOUNT_ID` | Identifica la cuenta en ambos workflows | ID de la cuenta; no es una clave secreta |
 | `CLOUDFLARE_API_TOKEN` | Despliega los Workers existentes | Workers **Editor** limitado a `todotube` y `alternativay-websub` |
 | `CLOUDFLARE_D1_API_TOKEN` | Solo ejecuta la migración D1 008 manual | Account **D1 Edit** en la cuenta que contiene esa base |
 
@@ -43,9 +49,11 @@ El permiso Cloudflare **D1 Edit** es el que otorga escritura en D1. El comando u
 En el repositorio `Papeloncon-Code/AlternativaY`:
 
 1. Abre **Settings → Environments → produccion**.
-2. En **Environment secrets**, crea los tres nombres exactamente como aparecen en la tabla.
-3. Añade el valor de cada uno directamente desde el dashboard/gestor seguro. No los pegues en el código ni en una conversación.
-4. No borres ni rotes el token anterior hasta haber creado el nuevo y validado un despliegue controlado. Si el token actual ya fue expuesto fuera del almacén seguro, revócalo y sustitúyelo inmediatamente.
+2. En **Environment secrets**, crea `CLOUDFLARE_API_TOKEN` para el despliegue.
+3. Crea `CLOUDFLARE_D1_API_TOKEN` solo si vas a ejecutar la migración manual.
+4. No crees `CLOUDFLARE_ACCOUNT_ID`: Wrangler toma el Account ID de los archivos de configuración.
+5. Añade los valores directamente desde el dashboard/gestor seguro. No los pegues en el código ni en una conversación.
+6. No borres ni rotes el token anterior hasta haber validado el despliegue controlado. Si el token se expuso fuera del almacén seguro, revócalo y sustitúyelo inmediatamente.
 
 Cloudflare exige API token y Account ID para autenticar Wrangler en un entorno CI no interactivo. Sus instrucciones oficiales recomiendan guardarlos como secretos del sistema CI, nunca en el repositorio.
 
@@ -82,3 +90,8 @@ El job de despliegue solo corre cuando el evento es un `push` a `main`. Un `work
 4. **Pruebas de humo contra la web publicada** debe terminar correctamente.
 
 Un job global en verde no demuestra por sí solo que hubo despliegue: comprueba que los pasos 2–4 no figuren como `skipped`. Este workflow no aplica migraciones D1; la migración 008 permanece como operación manual e independiente.
+
+
+## Corrección de despliegue 2026-11-08
+
+El job de despliegue comprobó que los secretos existían, pero Wrangler recibió el error Cloudflare `7003` al resolver `/accounts/<id>/workers/services/alternativay-websub`. Cloudflare asocia este error con un Account ID incorrecto. Se fijó el Account ID de la cuenta activa en ambos `wrangler.toml` y se retiró la dependencia del secreto `CLOUDFLARE_ACCOUNT_ID` en los workflows de despliegue y de migración. Los workflows ahora solo requieren el API Token correspondiente. El siguiente push a `main` debe volver a validar esta corrección; no se debe declarar el despliegue correcto hasta que ambos pasos `wrangler deploy` y el smoke test final terminen en verde.
