@@ -20,7 +20,7 @@ TodoTube separa:
 | R2 replica | Copia idéntica del archivo, Range | Código de failover en PR #26; bucket por provisionar |
 | Creator-origin | URL firmada o manifiesto HLS/DASH entregado por el titular | Adaptador pendiente |
 | Cloudflare Stream | HLS/DASH para player externo; también VOD y Live Inputs | Candidato documentado; cuenta/configuración pendientes |
-| Otras plataformas abiertas o CDN del titular | API o manifiesto de reproducción permitido por el proveedor y el titular | Evaluar servicio por servicio |
+| Creator-origin / CDN del titular | URL firmada o manifiesto del mismo vídeo, con permiso documentado | Adaptador pendiente |
 
 Cloudflare Stream documenta HLS/DASH para usar reproductores propios. Sus manifiestos son dinámicos y se deben consultar directamente, no cachear ni retransmitir desde un proxy genérico. Las URL firmadas y Allowed Origins sirven para restringir el acceso.
 
@@ -55,22 +55,35 @@ interface MediaSourceProvider {
 
 Este es un contrato de diseño, no una API ya integrada. Ningún adaptador debe aceptar URLs arbitrarias introducidas por usuarios. El host, protocolo, identidad del asset, permiso y vencimiento del enlace se validan en servidor. Tokens y URLs firmadas no se escriben en logs.
 
-## Selección y failover
+## Registro por vídeo y orden de recuperación
 
-1. El catálogo resuelve un asset canónico, no un videoId externo como si fuera una URL de stream.
-2. El broker obtiene fuentes elegibles en orden de preferencia y valida autorización, fingerprint, protocolo y vencimiento.
-3. Para la primera reproducción se prueban proveedores en paralelo con timeout corto; el primer origen compatible y sano gana.
-4. Se considera fallo recuperable un timeout de conexión, respuesta 408/425/429/5xx o error de lectura de segmentos. No se oculta un 401/403 por falta de autorización: se registra como fallo de permiso y se excluye esa fuente.
-5. Un circuito por provider + asset se abre tras fallos consecutivos y pasa a half-open después de un backoff. El estado debe residir en Durable Object/D1/KV, no solo en memoria de un Worker, para coordinar varios isolates.
-6. Si un manifiesto o segmento HLS/DASH falla, se resuelve otra fuente compatible y se reanuda por currentTime/segment timeline.
-7. Una fuente alternativa solo es apta para continuidad sin saltos cuando comparte assetFingerprint y timelineFingerprint/segment alignment. Si no, el player debe reanudar en el timestamp más cercano y comunicar buffering; no prometer continuidad invisible.
-8. Para archivos idénticos, el Gateway puede reanudar por byte offset, pero exige mediaVersion común o ETag coincidente y tamaño idéntico.
+TodoTube no debe descubrir un vídeo diferente al intentar recuperar una reproducción. Cada ficha de vídeo necesita un registro canónico:
+- `canonicalVideoId`: el identificador interno estable; puede conservar el YouTube video ID como referencia de metadatos.
+- `contentFingerprint`: prueba de identidad de la misma copia/contenido; el título o thumbnail no bastan.
+- `durationMs` y `timelineFingerprint`: impiden saltar a otra edición o a una línea temporal incompatible.
+- `sources[]`: solamente endpoints/proveedores que entregan exactamente ese asset y cuyo uso está autorizado.
+- `backupAssetId`: la copia de respaldo propia/licenciada guardada en R2/replica o en otro storage autorizado.
+- `authorizationRef`: evidencia del permiso de almacenamiento y distribución.
+
+Orden por vídeo:
+1. Mantener la fuente activa.
+2. Si hay error recuperable o el body deja de entregar bytes durante 2 segundos, probar otra fuente registrada del mismo asset.
+3. Si ninguna fuente alternativa sirve, abrir `backupAssetId` en el Gateway y reanudar desde el timestamp/byte equivalente.
+4. Si no existe fuente alternativa ni respaldo autorizado, reportar el error; jamás cambiar silenciosamente a otro vídeo.
+
+El broker obtiene fuentes elegibles en orden de preferencia y valida autorización, fingerprint, protocolo y vencimiento. Para la primera selección puede probar candidates en paralelo con timeout corto.
+
+Se considera fallo recuperable un timeout, error de red, 408/425/429/5xx o body estancado. No se oculta un 401/403 por falta de autorización: se registra como fallo de permiso y se excluye esa fuente.
+
+Un circuito por provider + asset se abre tras fallos consecutivos y pasa a half-open después de un backoff. El estado debe residir en Durable Object/D1/KV, no solo en memoria de un Worker.
+
+Una fuente alternativa solo es apta para continuidad cuando comparte assetFingerprint y timelineFingerprint/segment alignment. Para archivos idénticos, el Gateway reanuda por byte offset si coinciden mediaVersion (o ETag) y tamaño.
 
 ## Independencia real
 
 Piped declara que su backend usa NewPipeExtractor. Invidious es una implementación propia y Grayjay utiliza plugins. Estos proyectos prueban que hay arquitecturas distintas, pero no constituyen cuatro réplicas independientes del contenido de YouTube. Si los candidatos siguen consultando YouTube para el mismo asset, comparten el mismo proveedor último y pueden fallar por una modificación o restricción del origen.
 
-NewPipeExtractor también declara soporte para varias plataformas (YouTube, PeerTube, Bandcamp, SoundCloud y media.ccc.de). Esa capacidad multi-sitio puede servir para descubrimiento/adaptadores de otras plataformas, previa revisión de términos y permisos de distribución; no crea derechos de redistribución ni garantiza que YouTube permita entregar sus segmentos a un player propio.
+No se cuentan como redundancia los conectores que solo presentan otra interfaz sobre YouTube. La fuente final sigue siendo YouTube; un cambio en la entrega o en las reglas de acceso de YouTube puede afectar a todos esos conectores. Tampoco se consideran respaldo las búsquedas de otro vídeo con el mismo título.
 
 ## Contenido de YouTube
 
@@ -92,9 +105,9 @@ No registrar tokens, cookies, URLs firmadas ni datos personales. Alertar si un a
 ## Fases
 
 - **Fase A (PR #26):** R2 primario/réplica, GET/HEAD/Range y recuperación de stream truncado.
-- **Fase B:** almacenamiento de estado de salud/circuit breaker y reconciliación de réplicas incompletas.
-- **Fase C:** adaptador de URLs/manifiestos suministrados por titulares y/o Cloudflare Stream.
-- **Fase D:** integración de otras plataformas abiertas con APIs y derechos de distribución confirmados.
+- **Fase B:** registro de fuentes por vídeo, backupAssetId y circuit breaker persistente.
+- **Fase C:** fallback de fuente alternativa a backupAssetId, con recuperación de posición y validación de identidad.
+- **Fase D:** adaptadores de entrega autorizados (creator-origin/CDN o Cloudflare Stream) solo cuando distribuyen exactamente el mismo asset.
 - **Fase E:** pruebas de caos, medición de SLO y failover de extremo a extremo en staging y producción.
 
 No declarar continuidad multi-proveedor hasta que existan al menos dos proveedores de entrega independientes y pruebas en los que el usuario mantenga su posición de reproducción.
