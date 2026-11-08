@@ -56,3 +56,17 @@ test('#13 el reproductor ocupa todo el ancho; #16 el menu ⋮ no queda bajo la b
   await page.locator('.vcard .vthumb').first().click(); await page.waitForTimeout(400);
   expect(Math.round((await page.locator('#player-slot').boundingBox())!.width)).toBe(390);
 });
+
+test('minirreproductor móvil: iframe oficial no baja de 200 × 200 px ni tapa controles', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.vcard .vthumb').first()).toBeVisible({ timeout: 15_000 });
+  await page.locator('.vcard .vthumb').first().click();
+  await expect(page.locator('.player-dock iframe')).toBeAttached();
+  await page.locator('.logo-link').click();
+  await expect(page.locator('.player-dock')).toHaveClass(/mini/);
+  await expect(page.locator('.mini-cover')).toHaveCount(0);
+  const frame = await page.locator('.player-dock iframe').boundingBox();
+  expect(frame!.width).toBeGreaterThanOrEqual(200);
+  expect(frame!.height).toBeGreaterThanOrEqual(200);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
