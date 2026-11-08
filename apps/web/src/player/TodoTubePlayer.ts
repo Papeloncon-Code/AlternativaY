@@ -7,7 +7,6 @@ import { getInnertube } from './innertube';
 import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
 import { buildSabrFormat } from 'googlevideo/utils';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
-import { checkExtension } from './helpers';
 import { botguardService } from './BotguardService';
 import 'shaka-player/dist/controls.css';
 
@@ -74,7 +73,7 @@ export class TodoTubePlayer {
   private minting = false;
 
   static available(): boolean {
-    return checkExtension() && shaka.Player.isBrowserSupported();
+    return shaka.Player.isBrowserSupported();
   }
 
   async attach(video: HTMLVideoElement, container: HTMLElement): Promise<void> {

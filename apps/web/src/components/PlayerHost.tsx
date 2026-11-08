@@ -1,10 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import OfficialPlayer from './OfficialPlayer';
 import OwnPlayer from './OwnPlayer';
+import type { PlayerHandle } from '../player/handle';
 import Icon from './Icon';
 import { handleRef, pageCallbacks, patch, stop, useSession } from '../player/session';
-import { useBridge } from '../bridge';
 import { useStore } from '../store';
 import { useSponsorSkip } from '../community';
 
@@ -17,7 +16,6 @@ export default function PlayerHost() {
   const s = useSession();
   const loc = useLocation();
   const navigate = useNavigate();
-  const bridge = useBridge();
   const sbOn = useStore((st) => st.sponsorblock);
   useSponsorSkip(s?.id ?? '', handleRef, sbOn && !!s);
   const onPage = !!s && loc.pathname === `/ver/${s.id}`;
@@ -50,9 +48,8 @@ export default function PlayerHost() {
   const props = {
     id: s.id, meta: s.meta, startAt: s.startAt,
     onEnded: () => pageCallbacks.onEnded?.(),
-    onReady: (h: Parameters<NonNullable<Parameters<typeof OfficialPlayer>[0]['onReady']>>[0]) => { handleRef.current = h; },
+    onReady: (h: PlayerHandle) => { handleRef.current = h; },
   };
-  const own = bridge && !s.fallback;
   const style: CSSProperties = onPage
     ? (rect ? { position: 'absolute', ...rect } : { position: 'absolute', visibility: 'hidden' })
     : {};
@@ -60,8 +57,7 @@ export default function PlayerHost() {
   return (
     <div ref={box} className={`player-dock${onPage ? ' on-page' : ' mini'}${s.vertical ? ' vertical' : ''}`} style={style}>
       <div className="player-dock-video">
-        {own ? <OwnPlayer key={s.id} {...props} onFail={(r) => patch({ fallback: r })} onDetails={(d) => patch({ details: d })} />
-          : <OfficialPlayer key={s.id} {...props} />}
+        <OwnPlayer key={s.id} {...props} onFail={(r) => console.warn('[TodoTube] No se pudo iniciar el reproductor propio:', r)} onDetails={(d) => patch({ details: d })} />
       </div>
       {!onPage && (
         <div className="mini-bar">

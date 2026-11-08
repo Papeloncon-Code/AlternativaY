@@ -43,7 +43,6 @@ export default function Watch() {
   const autoplay = useStore((s) => s.autoplay) && !focus; // en Foco no se encadenan vídeos
   const ownerKey = useStore((s) => s.ownerKey);
   const session = useSession();
-  const fallback = session?.id === id ? session.fallback : '';
   const details = session?.id === id ? session.details : null;
   // Sin Puente: descripción, visitas y me gusta del RSS público, guardados por nuestro servidor (ADR-006, enmienda 3).
   const [pub, setPub] = useState<VideoData | null>(null);
@@ -170,7 +169,6 @@ export default function Watch() {
             : <p className="desc-text muted">{hasBridge() ? 'Cargando la descripción…' : video || pub ? 'La descripción de este vídeo aún no está disponible.' : <>La descripción de los vídeos de fuera de tus canales se muestra con <Link to="/puente">TodoTube Puente</Link>.</>}</p>}
           {description && <button type="button" className="desc-toggle" onClick={(e) => { e.stopPropagation(); setDescOpen((o) => !o); }}>{descOpen ? 'Mostrar menos' : '…más'}</button>}
         </div>
-        {fallback && <p className="bridge-hint">El reproductor TodoTube no pudo cargar este vídeo ({fallback}); se usa el reproductor de reserva.</p>}
         {!video && !feed.loading && !saved && !navMeta && !listMeta && !oe && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir a Principal</Link></p>}
       </div>
       {validId && <aside className="watch-side" aria-label="A continuación">
