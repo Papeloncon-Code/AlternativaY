@@ -26,7 +26,10 @@ function makeObject(bytes, opts = {}) {
   return {
     bytes, size: bytes.length, uploaded: new Date('2026-11-08T00:00:00Z'), httpEtag: '"fixture-etag"',
     httpMetadata: opts.httpMetadata || { contentType: 'video/mp4' }, customMetadata: opts.customMetadata || { title: 'Fixture', creator: 'Owner', license: 'owned', visibility: 'public' },
-    writeHttpMetadata(headers) { headers.set('Content-Type', this.httpMetadata.contentType); },
+    writeHttpMetadata(headers) {
+      headers.set('Content-Type', this.httpMetadata.contentType);
+      if (this.httpMetadata.cacheControl) headers.set('Cache-Control', this.httpMetadata.cacheControl);
+    },
   };
 }
 function env() { const bucket = new MemoryR2(); bucket.objects.set('media/demo_123', makeObject(new TextEncoder().encode('0123456789'))); return { MEDIA_BUCKET: bucket, MEDIA_UPLOAD_TOKEN: 'a'.repeat(40), ALLOWED_ORIGINS: 'https://todotube.papelon.workers.dev,http://localhost:5173' }; }
@@ -40,6 +43,7 @@ test('GET supports byte ranges and preserves streaming status headers', async ()
   const r = await worker.fetch(req('/v1/media/demo_123', { headers: { Range: 'bytes=2-5', Origin: 'https://todotube.papelon.workers.dev' } }), env());
   assert.equal(r.status, 206); assert.equal(r.headers.get('Content-Range'), 'bytes 2-5/10');
   assert.equal(await r.text(), '2345');
+  assert.match(r.headers.get('Cache-Control') || '', /public/);
 });
 test('HEAD returns metadata and no body', async () => {
   const r = await worker.fetch(req('/v1/media/demo_123', { method: 'HEAD' }), env());
@@ -50,10 +54,21 @@ test('unsatisfiable range returns 416', async () => {
   const r = await worker.fetch(req('/v1/media/demo_123', { headers: { Range: 'bytes=99-' } }), env());
   assert.equal(r.status, 416); assert.equal(r.headers.get('Content-Range'), 'bytes */10');
 });
-test('private objects are not publicly readable', async () => {
-  const e = env(); e.MEDIA_BUCKET.objects.get('media/demo_123').customMetadata.visibility = 'private';
-  const r = await worker.fetch(req('/v1/media/demo_123'), e);
-  assert.equal(r.status, 404);
+test('private objects are not publicly readable and never use a public cache policy', async () => {
+  const e = env();
+  const object = e.MEDIA_BUCKET.objects.get('media/demo_123');
+  object.customMetadata.visibility = 'private';
+  object.httpMetadata.cacheControl = 'public, max-age=300';
+
+  const anonymous = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(anonymous.status, 404);
+
+  const authorized = await worker.fetch(req('/v1/media/demo_123', {
+    headers: { Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN },
+  }), e);
+  assert.equal(authorized.status, 200);
+  assert.equal(authorized.headers.get('Cache-Control'), 'private, no-store');
+  assert.doesNotMatch(authorized.headers.get('Cache-Control') || '', /public/i);
 });
 test('upload requires authorization and explicit ownership/licence metadata', async () => {
   const e = env();
@@ -63,6 +78,14 @@ test('upload requires authorization and explicit ownership/licence metadata', as
   assert.equal(missingLicence.status, 400);
   const uploaded = await worker.fetch(req('/v1/admin/media/new_1', { method: 'PUT', body: 'video', headers: { Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN, 'Content-Type': 'video/mp4', 'Content-Length': '5', 'X-Media-Title': 'New', 'X-Media-Creator': 'Owner', 'X-Media-License': 'owned', 'X-Media-Visibility': 'public' } }), e);
   assert.equal(uploaded.status, 201);
+
+  const duplicate = await worker.fetch(req('/v1/admin/media/new_1', { method: 'PUT', body: 'other', headers: {
+    Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN, 'Content-Type': 'video/mp4', 'Content-Length': '5',
+    'X-Media-Title': 'Replacement', 'X-Media-Creator': 'Owner', 'X-Media-License': 'owned',
+    'X-Media-Visibility': 'public',
+  } }), e);
+  assert.equal(duplicate.status, 409);
+  assert.equal(new TextDecoder().decode(e.MEDIA_BUCKET.objects.get('media/new_1').bytes), 'video');
 });
 test('catalog only lists explicitly public objects', async () => {
   const e = env();
@@ -73,4 +96,18 @@ test('catalog only lists explicitly public objects', async () => {
 test('unapproved browser origins are rejected', async () => {
   const r = await worker.fetch(req('/v1/catalog', { headers: { Origin: 'https://evil.test' } }), env());
   assert.equal(r.status, 403);
+});
+
+test('malformed encoded media IDs return 400 instead of throwing', async () => {
+  const r = await worker.fetch(req('/v1/media/%ZZ'), env());
+  assert.equal(r.status, 400);
+});
+
+test('deleting a missing media ID returns 404', async () => {
+  const e = env();
+  const r = await worker.fetch(req('/v1/admin/media/not_here', {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN },
+  }), e);
+  assert.equal(r.status, 404);
 });
