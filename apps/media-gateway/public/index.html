@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gateway multimedia · prueba experimental</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; padding: 16px; max-width: 900px; margin-inline: auto; }
+    .warn { background: #8a5a00; color: #fff; padding: 12px 16px; border-radius: 8px; font-weight: 600; }
+    video { width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; }
+    section { margin: 24px 0; }
+    code { font-size: 13px; }
+  </style>
+</head>
+<body>
+  <p class="warn">ENTORNO EXPERIMENTAL (spec 008, ADR-009). Vídeo de prueba propio servido a través del gateway. Nada de YouTube.</p>
+  <section>
+    <h2>1 · HTML5 &lt;video&gt;</h2>
+    <video id="html5" controls muted playsinline preload="metadata"></video>
+  </section>
+  <section>
+    <h2>2 · Shaka Player con DASH (fetch + Range con CORS, como el reproductor real)</h2>
+    <video id="shaka" controls muted playsinline></video>
+    <p id="shaka-state"><code>cargando…</code></p>
+  </section>
+  <script src="shaka-player.compiled.js"></script>
+  <script>
+    // Formato según el navegador: H.264 si lo admite; si no, VP9/Opus (mismo vídeo de prueba).
+    const probe = document.createElement('video');
+    window.fixture = probe.canPlayType('video/mp4; codecs="avc1.640028, mp4a.40.2"') ? ['test-video.mp4', 'video/mp4'] : ['test-video.webm', 'video/webm'];
+    window.gwUrl = 'http://127.0.0.1:8787/media/' + window.fixture[0];
+    document.getElementById('html5').src = window.gwUrl;
+    window.shakaReady = (async () => {
+      const el = document.getElementById('shaka');
+      const state = document.getElementById('shaka-state');
+      shaka.polyfill.installAll();
+      if (!shaka.Player.isBrowserSupported()) { state.textContent = 'Shaka no es compatible con este navegador'; return 'unsupported'; }
+      const player = new shaka.Player();
+      await player.attach(el);
+      window.shakaErrors = [];
+      player.addEventListener('error', (e) => window.shakaErrors.push(String(e.detail?.code)));
+      await player.load('http://127.0.0.1:8787/media/test-dash.mpd', 0, 'application/dash+xml');
+      state.textContent = 'cargado';
+      window.shakaPlayer = player;
+      return 'loaded';
+    })().catch((e) => { document.getElementById('shaka-state').textContent = 'error ' + (e.code || e.message); window.shakaErrors = [String(e.code || e.message)]; return 'error'; });
+  </script>
+</body>
+</html>

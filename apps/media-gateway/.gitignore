@@ -1,0 +1,5 @@
+node_modules/
+fixtures/
+.wrangler/
+public/shaka-player.compiled.js
+results/

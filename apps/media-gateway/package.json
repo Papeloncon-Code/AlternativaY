@@ -1,0 +1,18 @@
+{
+  "name": "todotube-media-gateway-dev",
+  "private": true,
+  "type": "module",
+  "description": "PoC aislada del gateway multimedia (spec 008, ADR-009). Solo fixtures propios; no desplegar.",
+  "scripts": {
+    "fixture": "bash scripts/make-fixture.sh && cp ../web/node_modules/shaka-player/dist/shaka-player.compiled.js public/",
+    "test": "node --test test/unit.test.mjs",
+    "test:integration": "node --test --test-concurrency=1 test/integration.test.mjs",
+    "test:browser": "node --test --test-concurrency=1 test/browser.test.mjs",
+    "test:all": "npm run fixture && npm test && npm run test:integration && npm run test:browser",
+    "dev": "wrangler dev --local --port 8787 --ip 127.0.0.1",
+    "deploy": "echo 'PoC experimental: el despliegue está deshabilitado (ADR-009).' && exit 1"
+  },
+  "devDependencies": {
+    "wrangler": "4.152.0"
+  }
+}
