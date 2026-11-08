@@ -1,30 +1,58 @@
 version: 2
 
 updates:
-  # Aplicación web: dependencias de producción y desarrollo.
+  # Aplicación web: actualizaciones menores y parches agrupados; majors requieren migración revisada.
   - package-ecosystem: "npm"
     directory: "/apps/web"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    groups:
+      web-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Gateway multimedia: mantener actualizadas sus dependencias al crecer.
+  # Gateway multimedia.
   - package-ecosystem: "npm"
     directory: "/apps/media-gateway"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    groups:
+      gateway-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # Servicio WebSub / notificaciones.
   - package-ecosystem: "npm"
     directory: "/spikes/websub"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    groups:
+      websub-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
-  # Acciones utilizadas por CI/CD y despliegues.
+  # Acciones de GitHub: majors quedan como migraciones explícitas.
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    groups:
+      actions-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
