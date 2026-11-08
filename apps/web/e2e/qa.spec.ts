@@ -104,7 +104,8 @@ test('#23 la pestaña lleva el título del vídeo; #24 vídeo por enlace con su 
 
 test('#17 el botón Crear cabe en «Guardar en…»', async ({ page }) => {
   await page.goto(await firstVideo(page));
-  await page.getByRole('button', { name: /Guardar/ }).first().click();
+  await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Guardar en…' })).toBeVisible();
   const [b, d] = await Promise.all([page.locator('.save-new .btn').boundingBox(), page.locator('.save-dialog').boundingBox()]);
   expect(b!.x + b!.width).toBeLessThanOrEqual(d!.x + d!.width);
 });
