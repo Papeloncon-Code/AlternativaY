@@ -23,7 +23,7 @@ test('H1 · cada filtro visible cambia los resultados (si no, no se muestra)', a
   ok();
 });
 
-test('P3–P6 · buscador: “/”, sugerencias, recientes, Esc; sin Puente explica qué busca', async ({ page }) => {
+test('P3–P6 · buscador: “/”, sugerencias, recientes, Esc; consulta remota sin extensión', async ({ page }) => {
   const ok = trackErrors(page);
   await page.goto('/'); await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });
   await page.keyboard.press('/');
@@ -34,7 +34,7 @@ test('P3–P6 · buscador: “/”, sugerencias, recientes, Esc; sin Puente expl
   await expect(page.locator('.suggest')).toHaveCount(0);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/buscar\?q=news/);
-  // Sin Puente se busca en todo (el servidor lee la página pública de resultados): ya no hay aviso de «solo tus canales».
+  // La búsqueda se resuelve mediante el servicio propio, sin extensión de navegador.
   await expect(page.locator('.sresult').first()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator('.search-scope')).toHaveCount(0);
   await page.locator('#q').fill(''); await page.locator('#q').focus();
@@ -142,34 +142,23 @@ test('L3 · foto real del canal cuando se conoce; iniciales si falla', async ({ 
   await expect(page.locator(`.side-item[href="/canal/${chId}"] img.avatar`)).toBeVisible();
 });
 
-test('Permisos · avisos con el diálogo nativo al llegar (como YouTube); luego la tarjeta del Puente', async ({ browser }) => {
-  const ctx = await browser.newContext({ viewport: { width: 1366, height: 768 } });
-  const page = await ctx.newPage();
-  // Se registra cada petición del diálogo nativo y se simula que la persona pulsa «Bloquear».
-  await page.addInitScript(() => {
-    (window as any).__asked = 0;
-    let state: NotificationPermission = 'default'; // primera visita: el navegador aún no ha preguntado
-    Object.defineProperty(Notification, 'permission', { get: () => state, configurable: true });
-    Notification.requestPermission = async () => { (window as any).__asked++; state = 'denied'; return 'denied'; };
-  });
-  await page.goto('/');
-  await expect.poll(() => page.evaluate(() => (window as any).__asked), { timeout: 10_000 }).toBe(1);
-  await expect(page.locator('.perm')).toHaveCount(0); // una petición por visita
-  await page.reload();
-  const card = page.locator('.perm');
-  await expect(card).toBeVisible({ timeout: 10_000 });
-  await expect(card).toContainText('sin anuncios');
-  expect(await page.evaluate(() => (window as any).__asked)).toBe(0); // tras «Bloquear» no se vuelve a pedir
-  await card.getByRole('button', { name: 'Ahora no' }).click();
-  await expect(card).toHaveCount(0);
-  await ctx.close();
+test('Biblioteca de medios: estado claro cuando el Gateway todavía no está desplegado', async ({ page }) => {
+  await page.route('**/v1/catalog', (route) => route.fulfill({
+    status: 503,
+    contentType: 'application/json',
+    headers: { 'access-control-allow-origin': 'https://todotube.papelon.workers.dev' },
+    body: JSON.stringify({ error: 'Gateway no disponible' }),
+  }));
+  await page.goto('/medios');
+  await expect(page.getByRole('heading', { name: 'Medios propios' })).toBeVisible();
+  await expect(page.getByText('Gateway no disponible')).toBeVisible();
+  await expect(page.getByText(/Puente/i)).toHaveCount(0);
 });
 
-test('Puente simulado que falla: la búsqueda no depende de él (la hace el servidor) y no se rompe', async ({ page }) => {
-  // Puente falso que rechaza todo: no sale ninguna petición a YouTube desde el navegador.
-  await page.addInitScript(() => { (window as any).todotubeBridge = { installed: true, version: 'test', fetch: () => Promise.reject(new Error('sin red (prueba)')) }; });
-  const ok = trackErrors(page);
-  await page.goto('/buscar?q=lofi');
-  await expect(page.locator('.sresult').first()).toBeVisible({ timeout: 20_000 });
-  ok();
+test('YouTube se abre en su origen; TodoTube no intenta extraer ni insertar iframe', async ({ page }) => {
+  await page.goto('/shorts');
+  await expect(page.locator('.short-player .own-player')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.short-player iframe')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Abrir el vídeo original' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Abrir medios propios' })).toBeVisible();
 });
