@@ -8,7 +8,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { useChannels, useFeed } from '../data';
 import Avatar from '../components/Avatar';
 import { actions, useStore, type Meta } from '../store';
-import { ago, clock, fmtCount, fmtViews } from '../format';
+import { ago, fmtCount, fmtViews } from '../format';
 import VideoCard from '../components/VideoCard';
 import Icon from '../components/Icon';
 import { ErrorBox } from '../components/States';
@@ -100,16 +100,7 @@ export default function Watch() {
         {/* Hueco del reproductor: el reproductor único (PlayerHost) se coloca encima. */}
         <div id="player-slot" className={`player-frame${isShort ? ' vertical' : ''}`}>
           {!validId && <ErrorBox message="Enlace de vídeo no válido." />}
-          {countdown != null && upNext && (
-            <div className="upnext" role="dialog" aria-label="Siguiente vídeo">
-              <p>Siguiente en {countdown}</p>
-              <div className="upnext-card"><img src={thumb(upNext.id)} alt="" /><div><b>{upNext.title}</b><span>{upNext.channel}</span></div></div>
-              <div className="upnext-actions">
-                <button type="button" className="btn" onClick={() => setCountdown(null)}>Cancelar</button>
-                <button type="button" className="btn primary" onClick={() => navigate(`/ver/${upNext.id}${q}`)}>Reproducir ahora</button>
-              </div>
-            </div>
-          )}
+}
         </div>
       </div>
       <div className="watch-main">
@@ -135,14 +126,14 @@ export default function Watch() {
         </div>
         <div className={`desc${descOpen ? ' open' : ''}`} onClick={() => setDescOpen(true)}>
           <p className="desc-meta">
-            {[fmtViews(views), video?.publishedAt ? ago(video.publishedAt) : '', details?.lengthSeconds ? clock(details.lengthSeconds) : '', startAt >= 5 ? `continúa en ${clock(startAt)}` : ''].filter(Boolean).join(' · ')}
+            {[fmtViews(views), video?.publishedAt ? ago(video.publishedAt) : '', startAt >= 5 ? `continúa en ${clock(startAt)}` : ''].filter(Boolean).join(' · ')}
           </p>
           {description
             ? <p className="desc-text"><Linkify text={description} /></p>
             : <p className="desc-text muted">{video || pub ? 'La descripción de este vídeo aún no está disponible.' : 'Este vídeo no está en tus novedades.'}</p>}
           {description && <button type="button" className="desc-toggle" onClick={(e) => { e.stopPropagation(); setDescOpen((o) => !o); }}>{descOpen ? 'Mostrar menos' : '…más'}</button>}
         </div>
-        {!video && !feed.loading && !saved && !navMeta && !listMeta && !oe && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir a Principal</Link></p>}
+        {!video && !feed.loading && !saved && !navMeta && !listMeta && !oe && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir a Inicio</Link></p>}
       </div>
       {validId && <aside className="watch-side" aria-label="A continuación">
         <div className="side-head">
