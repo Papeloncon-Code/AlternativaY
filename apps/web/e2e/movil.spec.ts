@@ -153,3 +153,27 @@ test('navegación móvil actual: Inicio/Subs arriba y Inicio/Shorts/Crear/Tú ab
   await page.goto('/ver/dQw4w9WgXcQ');
   await expect(page.locator('.mobile-feed-tabs')).toHaveCount(0);
 });
+
+
+test('Crear: cierra con Escape y clic fuera sin crear elementos por accidente', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  const create = page.getByRole('button', { name: 'Crear' });
+  await expect(create).toBeVisible();
+  await create.click();
+  const dialog = page.getByRole('dialog', { name: 'Crear en TodoTube' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel('Nueva lista de reproducción')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(create).toHaveAttribute('aria-expanded', 'false');
+
+  await create.click();
+  await expect(dialog).toBeVisible();
+  await page.mouse.click(6, 110);
+  await expect(dialog).toHaveCount(0);
+  await expect(create).toHaveAttribute('aria-expanded', 'false');
+
+  const data = await page.evaluate(() => JSON.parse(localStorage.getItem('todotube:v1') || '{}'));
+  expect(data.playlists ?? []).toHaveLength(0);
+});
