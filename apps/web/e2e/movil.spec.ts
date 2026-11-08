@@ -110,11 +110,17 @@ test('navegación móvil actual: Inicio/Subs arriba y Inicio/Shorts/Crear/Tú ab
   const feeds = page.locator('.mobile-feed-tabs');
   await expect(feeds).toBeVisible();
   await expect(feeds.locator('.mobile-feed-tab.active')).toHaveText('Inicio');
-  // Tras el primer vistazo, la fila se oculta; el gesto de volver hacia arriba la recupera.
-  await page.waitForTimeout(2350);
-  await expect(feeds).toHaveClass(/is-collapsed/);
+  // El scroll hacia abajo contrae la fila; volver hacia arriba la recupera y reinicia
+  // el temporizador, sin que el timer inicial la esconda mientras el usuario interactúa.
+  await page.waitForTimeout(1200);
   await page.evaluate(() => window.scrollTo(0, 320));
   await page.mouse.wheel(0, -140);
+  await expect(feeds).not.toHaveClass(/is-collapsed/);
+  await page.waitForTimeout(1100);
+  await expect(feeds).not.toHaveClass(/is-collapsed/);
+  await page.waitForTimeout(800);
+  await expect(feeds).toHaveClass(/is-collapsed/);
+  await page.mouse.wheel(0, -120);
   await expect(feeds).not.toHaveClass(/is-collapsed/);
 
   const bottom = page.locator('.bottombar');
