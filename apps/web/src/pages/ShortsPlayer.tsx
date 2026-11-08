@@ -100,9 +100,9 @@ export default function ShortsPlayer() {
           {cur && (ownPlayer
             ? <OwnPlayer key={id} {...props} onFail={setFallback} />
             : <OfficialPlayer key={id} {...props} />)}
-          <button type="button" className="short-gesture" aria-label={paused ? 'Reproducir' : 'Pausar'} onClick={() => { if (!handle.current) return; handle.current.togglePlay(); setPaused((p) => !p); }}>
+          {ownPlayer && <button type="button" className="short-gesture" aria-label={paused ? 'Reproducir' : 'Pausar'} onClick={() => { if (!handle.current) return; handle.current.togglePlay(); setPaused((p) => !p); }}>
             {paused && <span className="short-state"><Icon name="play" size={40} /></span>}
-          </button>
+          </button>}
           {/* Con el reproductor de reserva, el propio vídeo ya trae título y sonido: no se duplican encima (#5). */}
           {ownPlayer && <button type="button" className="short-mute" aria-label={muted ? 'Activar sonido' : 'Silenciar'} onClick={() => { handle.current?.toggleMute(); setMuted((m) => !m); }}>
             <Icon name={muted ? 'muted' : 'volume'} size={22} />

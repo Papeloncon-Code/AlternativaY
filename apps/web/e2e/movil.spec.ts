@@ -21,16 +21,14 @@ test('buscador móvil: abrir, sugerir y cerrar con Esc', async ({ page }) => {
   await expect(page.locator('.topbar.searching')).toHaveCount(0);
 });
 
-test('Shorts: deslizar hacia arriba pasa al siguiente', async ({ page }) => {
-  await page.goto('/shorts'); await expect(page).toHaveURL(/\/shorts\/[\w-]{11}/);
+test('Shorts móvil: el fallback navega con botones externos sin cubrir el iframe', async ({ page }) => {
+  await page.goto('/shorts');
+  await expect(page).toHaveURL(/\/shorts\/[\w-]{11}/);
   const u1 = page.url();
-  const box = await page.locator('.short-player').boundingBox();
-  const x = box!.x + box!.width / 2, y = box!.y + box!.height * 0.6;
-  await page.evaluate(([x, y]) => {
-    const el = document.elementFromPoint(x, y)!; const t = (yy: number) => new Touch({ identifier: 1, target: el, clientX: x, clientY: yy });
-    el.dispatchEvent(new TouchEvent('touchstart', { touches: [t(y)], changedTouches: [t(y)], bubbles: true }));
-    el.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(y - 200)], bubbles: true }));
-  }, [x, y]);
+  await expect(page.locator('.shorts-stage.official')).toHaveCount(1);
+  await expect(page.locator('.short-gesture')).toHaveCount(0);
+  await expect(page.locator('.short-nav')).toBeVisible();
+  await page.locator('.short-nav button[aria-label="Short siguiente"]').click();
   await expect(page).not.toHaveURL(u1);
 });
 
@@ -55,4 +53,18 @@ test('#13 el reproductor ocupa todo el ancho; #16 el menu ⋮ no queda bajo la b
   await page.keyboard.press('Escape');
   await page.locator('.vcard .vthumb').first().click(); await page.waitForTimeout(400);
   expect(Math.round((await page.locator('#player-slot').boundingBox())!.width)).toBe(390);
+});
+
+test('minirreproductor móvil: iframe oficial no baja de 200 × 200 px ni tapa controles', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.vcard .vthumb').first()).toBeVisible({ timeout: 15_000 });
+  await page.locator('.vcard .vthumb').first().click();
+  await expect(page.locator('.player-dock iframe')).toBeAttached();
+  await page.locator('.logo-link').click();
+  await expect(page.locator('.player-dock')).toHaveClass(/mini/);
+  await expect(page.locator('.mini-cover')).toHaveCount(0);
+  const frame = await page.locator('.player-dock iframe').boundingBox();
+  expect(frame!.width).toBeGreaterThanOrEqual(200);
+  expect(frame!.height).toBeGreaterThanOrEqual(200);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

@@ -556,19 +556,18 @@ img.avatar { object-fit: cover; background: var(--chip); }
 #player-slot { position: relative; }
 @media (max-width: 792px) {
   .player-dock.on-page { border-radius: 0; }
-  .player-dock.mini { left: 8px; right: 8px; bottom: calc(60px + env(safe-area-inset-bottom)); width: auto; display: grid; grid-template-columns: 128px 1fr; }
-  .player-dock.mini .player-dock-video { width: 128px; }
-  .player-dock.mini.vertical { width: auto; }
-  .player-dock.mini.vertical .player-dock-video { aspect-ratio: 16 / 9; }
+  /* Un iframe oficial de YouTube no debe reducirse por debajo de 200 × 200 px. */
+  .player-dock.mini { left: auto; right: 8px; bottom: calc(60px + env(safe-area-inset-bottom)); width: 200px; min-width: 200px; display: flex; flex-direction: column; }
+  .player-dock.mini .player-dock-video { width: 200px; height: 200px; min-height: 200px; aspect-ratio: auto; background: #000; }
+  .player-dock.mini.vertical { width: 200px; }
+  .player-dock.mini.vertical .player-dock-video { width: 200px; height: 200px; min-height: 200px; aspect-ratio: auto; }
+  .player-dock.mini .mini-bar { width: 200px; min-width: 0; box-sizing: border-box; }
 }
 
 .player-dock { position: relative; }
 .player-dock.on-page { position: absolute; }
 .mini-bar { min-width: 0; }
 .mini-bar .icon-btn { flex: none; }
-.mini-cover { position: absolute; left: 0; top: 0; width: 100%; aspect-ratio: 16 / 9; border: 0; background: transparent; cursor: pointer; z-index: 2; }
-.player-dock.mini.vertical .mini-cover { aspect-ratio: 9 / 16; }
-@media (max-width: 792px) { .mini-cover { width: 128px; } .player-dock.mini.vertical .mini-cover { aspect-ratio: 16 / 9; } }
 @media (max-width: 792px) { .mini-expand { display: none; } }
 
 /* ---- Correcciones de la revisión independiente (QA 2026-11-07) ---- */
@@ -607,11 +606,14 @@ img.avatar { object-fit: cover; background: var(--chip); }
   .watch-row { flex-wrap: wrap; }
 }
 @media (max-width: 792px) {
-  .shorts-stage.official .short-wrap { flex-direction: column; align-items: stretch; gap: 0; }
-  .shorts-stage.official .short-player { height: auto; flex: 1; min-height: 0; }
+  /* El iframe oficial es cross-origin: no interceptamos sus toques ni su UI. */
+  .shorts-stage.official { display: flex; flex-direction: column; align-items: stretch; }
+  .shorts-stage.official .short-wrap { flex: 1; min-height: 0; height: auto; flex-direction: column; align-items: stretch; gap: 0; }
+  .shorts-stage.official .short-player { width: 100%; height: auto; flex: 1; min-height: 0; }
   .shorts-stage.official .short-actions { position: static; flex-direction: row; justify-content: space-around; padding: 8px 16px; color: var(--text); }
   .shorts-stage.official .short-actions .round { background: var(--chip); color: var(--text); }
   .shorts-stage.official .short-actions span { margin: 0; }
+  .shorts-stage.official .short-nav { display: flex; flex-direction: row; justify-content: center; flex: none; min-height: 48px; padding: 4px 0; }
 }
 .search-q { color: var(--text-2); font-size: 14px; margin: 8px 0; }
 .menu.up { top: auto; bottom: 34px; }

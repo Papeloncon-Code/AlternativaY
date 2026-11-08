@@ -47,20 +47,36 @@ test('#4 un Short de fuera de tus canales se puede ver', async ({ page }) => {
   await expect(page.getByText('no está entre los de tus canales')).toHaveCount(0);
 });
 
+test('Shorts sin Puente conserva los controles del reproductor oficial', async ({ page }) => {
+  await page.goto('/shorts');
+  const frame = page.locator('.short-player iframe');
+  await expect(frame).toBeAttached();
+  const src = await frame.getAttribute('src');
+  expect(new URL(src!).searchParams.get('controls')).toBe('1');
+  await expect(page.locator('.short-gesture')).toHaveCount(0);
+});
+
 test('#19 ↓ en el buscador no cambia de Short; #20 «Atrás» vuelve al Short anterior', async ({ page }) => {
   await page.goto('/shorts'); await expect(page.locator('.short-nav small')).toHaveText(/^1 \//, { timeout: 15_000 });
   const u1 = page.url();
   await page.locator('#q').click(); await page.keyboard.type('a'); await page.keyboard.press('ArrowDown');
   await expect(page.locator('.short-nav small')).toHaveText(/^1 \//);
-  await page.keyboard.press('Escape'); await page.locator('.short-gesture').focus();
+  await page.keyboard.press('Escape'); await page.locator('.short-nav button[aria-label="Short siguiente"]').focus();
   await page.keyboard.press('ArrowDown');
   await expect(page).not.toHaveURL(u1);
   await page.goBack();
   await expect(page).toHaveURL(u1);
 });
 
-test('#18 un gesto del panel táctil pasa un solo Short', async ({ page }) => {
+test('#18 el siguiente Short se puede abrir sin bloquear los controles del embed oficial', async ({ page }) => {
   await page.goto('/shorts'); await expect(page.locator('.short-nav small')).toHaveText(/^1 \//, { timeout: 15_000 });
+  if (await page.locator('.shorts-stage.official').count()) {
+    await expect(page.locator('.short-gesture')).toHaveCount(0);
+    await page.locator('.short-nav button[aria-label="Short siguiente"]').click();
+    await expect(page.locator('.short-nav small')).toHaveText(/^2 \//);
+    return;
+  }
+  // Con reproductor propio, un gesto de rueda pasa un solo Short.
   const box = (await page.locator('.short-player').boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   for (let i = 0; i < 30; i++) { await page.mouse.wheel(0, 40); await page.waitForTimeout(40); }
