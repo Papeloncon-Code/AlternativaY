@@ -1,8 +1,7 @@
 const PREFIX = 'media/';
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 90 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
-  'video/mp4', 'video/webm', 'video/ogg', 'video/mp2t',
-  'application/vnd.apple.mpegurl', 'application/x-mpegurl', 'application/dash+xml',
+  'video/mp4', 'video/webm', 'video/ogg',
   'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/webm',
 ]);
 function allowedOrigins(env) {
@@ -109,7 +108,7 @@ async function upload(req, env, id) {
   const licenseReference = (req.headers.get('X-Media-License-Reference') || '').trim().slice(0, 300);
   const length = Number(req.headers.get('Content-Length'));
   if (!ALLOWED_TYPES.has(type)) return json(req, env, { error: 'Content-Type multimedia no permitido' }, 415);
-  if (!Number.isSafeInteger(length) || length <= 0 || length > MAX_UPLOAD_BYTES) return json(req, env, { error: 'Content-Length obligatorio; máximo 2 GiB' }, 413);
+  if (!Number.isSafeInteger(length) || length <= 0 || length > MAX_UPLOAD_BYTES) return json(req, env, { error: 'Content-Length obligatorio; máximo 90 MiB' }, 413);
   if (!title || !creator) return json(req, env, { error: 'X-Media-Title y X-Media-Creator son obligatorios' }, 400);
   if (license !== 'owned' && license !== 'licensed') return json(req, env, { error: 'X-Media-License debe ser owned o licensed' }, 400);
   if (license === 'licensed' && !licenseReference) return json(req, env, { error: 'El contenido licenciado requiere X-Media-License-Reference' }, 400);

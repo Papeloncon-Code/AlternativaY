@@ -1,4 +1,4 @@
-// Interfaz común de los dos reproductores (propio y oficial) para atajos, siguiente automático y modo cine.
+// Interfaz de control del reproductor propio de TodoTube para atajos, siguiente automático y modo cine.
 export type PlayerHandle = {
   togglePlay: () => void;
   seekBy: (sec: number) => void;

@@ -8,14 +8,12 @@
     "build": "tsc -b && vite build && node scripts/embed.mjs",
     "preview": "vite preview",
     "deploy": "npm run build && npm run e2e && wrangler deploy",
-    "postinstall": "node scripts/patch-shaka-types.mjs",
     "e2e": "playwright test --trace off"
   },
   "dependencies": {
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "react-router-dom": "6.28.0",
-    "shaka-player": "^4.16.54"
+    "react-router-dom": "6.28.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

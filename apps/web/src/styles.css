@@ -771,3 +771,20 @@ img.avatar { object-fit: cover; background: var(--chip); }
 .gateway-loading, .gateway-error { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; padding: 24px; text-align: center; color: #fff; background: #101114; }
 .gateway-error p { max-width: 540px; color: #ccc; }
 @media (max-width: 640px) { .media-row { gap: 10px; padding: 10px; } .media-icon { width: 42px; height: 42px; } .media-size { display: none; } }
+
+
+.gateway-controls { display:flex; align-items:center; gap:10px; padding:10px 12px; background:#17191d; color:#fff; }
+.gateway-controls button { border:1px solid #42454b; border-radius:7px; padding:7px 10px; background:#25282e; color:#fff; cursor:pointer; }
+.gateway-time { min-width:42px; font-size:12px; font-variant-numeric:tabular-nums; text-align:center; color:#ddd; }
+.gateway-seek { flex:1; min-width:60px; accent-color:#c8f169; }
+.gateway-volume, .gateway-rate { display:flex; align-items:center; gap:5px; font-size:11px; color:#bbb; }
+.gateway-volume input { width:68px; accent-color:#c8f169; }
+.gateway-rate select { max-width:64px; padding:5px; border-radius:6px; }
+.gateway-player:fullscreen { display:flex; flex-direction:column; justify-content:center; }
+.gateway-player:fullscreen .gateway-video { flex:1; min-height:0; }
+@media (max-width: 760px) {
+  .gateway-controls { flex-wrap:wrap; gap:6px; }
+  .gateway-seek { order:3; flex-basis:100%; }
+  .gateway-time { font-size:11px; }
+  .gateway-volume { display:none; }
+}
