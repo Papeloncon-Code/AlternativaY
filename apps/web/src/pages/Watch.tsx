@@ -8,7 +8,7 @@ import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'reac
 import { useChannels, useFeed } from '../data';
 import Avatar from '../components/Avatar';
 import { actions, useStore, type Meta } from '../store';
-import { ago, clock, fmtCount, fmtViews } from '../format';
+import { ago, clock, fmtViews } from '../format';
 import VideoCard from '../components/VideoCard';
 import Icon from '../components/Icon';
 import { ErrorBox } from '../components/States';

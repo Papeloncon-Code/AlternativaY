@@ -48,7 +48,7 @@ export default function Privacy() {
             <tr><td>Cloudflare R2 y Media Gateway</td><td>Cuando consultas la biblioteca o reproduces un archivo publicado en Medios propios</td><td>Cloudflare recibe la solicitud del catálogo o del archivo. El Gateway está diseñado para archivos propios o licenciados; no obtiene ni retransmite segmentos de YouTube</td></tr>
           </tbody>
         </table>
-        <p className="note">TodoTube muestra vídeos de YouTube como metadatos, miniaturas y enlaces al origen. No inserta el reproductor oficial, no carga `youtube-nocookie.com` y no retransmite segmentos de `googlevideo.com`. Al pulsar “Abrir origen”, pasas a YouTube y se aplican sus propias cookies, políticas y controles de privacidad.</p>
+        <p className="note">TodoTube muestra vídeos de YouTube como metadatos, miniaturas y enlaces al origen. No inserta el reproductor oficial, no carga youtube-nocookie.com ni retransmite segmentos de googlevideo.com. Al pulsar “Abrir origen”, pasas a YouTube y se aplican sus propias cookies, políticas y controles de privacidad.</p>
       </section>
 
       <section className="panel">

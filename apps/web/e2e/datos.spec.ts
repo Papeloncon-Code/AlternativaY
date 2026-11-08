@@ -50,7 +50,7 @@ test('Privacidad: página enlazada desde el menú y Ajustes', async ({ page }) =
   await expect(page).toHaveURL(/\/privacidad$/);
   await expect(page.locator('h1')).toHaveText('Privacidad');
   await expect(page.locator('.ptable').nth(1)).toContainText('Solo si activas Web Push');
-  await expect(page.locator('.privacy')).toContainText('no carga youtube-nocookie.com');
+  await expect(page.locator('.privacy')).toContainText('no carga youtube-nocookie.com ni retransmite segmentos de googlevideo.com');
   await page.goto('/ajustes');
   await expect(page.locator('.panel').getByRole('link', { name: /Privacidad/ })).toHaveAttribute('href', '/privacidad');
 });
