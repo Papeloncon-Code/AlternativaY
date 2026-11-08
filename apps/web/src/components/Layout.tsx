@@ -265,7 +265,7 @@ export default function Layout() {
               <button type="submit" className="btn primary" disabled={!playlistName.trim()}>Crear lista</button>
             </form>
             <div className="create-quick-actions">
-              <Link to="/suscripciones/gestionar" onClick={() => setCreateOpen(false)}><Icon name="users" size={20} /><span><b>Seguir canales</b><small>Añadir canales a tus suscripciones</small></span><Icon name="chevron-right" size={18} /></Link>
+              <Link to="/suscripciones/gestionar" onClick={() => setCreateOpen(false)}><Icon name="subs" size={20} /><span><b>Seguir canales</b><small>Añadir canales a tus suscripciones</small></span><Icon name="next" size={18} /></Link>
               <Link to="/medios" onClick={() => setCreateOpen(false)}><Icon name="library" size={20} /><span><b>Medios propios</b><small>Ver archivos autorizados en tu biblioteca</small></span><Icon name="chevron-right" size={18} /></Link>
             </div>
           </section>
