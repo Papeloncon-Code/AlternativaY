@@ -793,3 +793,7 @@ img.avatar { object-fit: cover; background: var(--chip); }
 .player-kicker { color: #b8bdc7; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
 .own-player-compact { width: 100%; aspect-ratio: 16 / 9; min-height: 0; display: grid; place-items: center; background: #101114; color: #c3c7cf; font-size: 12px; }
 .mini-source { display: grid; place-items: center; text-decoration: none; }
+
+
+/* El minirreproductor debe permanecer fijado al viewport; el posicionamiento relative solo corresponde al host de página. */
+.player-dock.mini { position: fixed; }

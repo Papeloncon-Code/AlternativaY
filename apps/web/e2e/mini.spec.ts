@@ -20,6 +20,10 @@ test('W8 · el reproductor ocupa su hueco; la ficha externa pasa a mini y vuelve
   await expect(page.locator('.player-dock iframe')).toHaveCount(0);
   await page.locator('.logo-link').click();
   await expect(host).toHaveClass(/mini/);
+  await expect(host).toHaveCSS('position', 'fixed');
+  const miniBox = await host.boundingBox();
+  expect(miniBox).not.toBeNull();
+  expect(miniBox!.y + miniBox!.height).toBeLessThanOrEqual(await page.evaluate(() => innerHeight));
   await expect(page.locator('.player-dock .own-player-compact')).toContainText('Contenido externo');
   await expect(page.getByRole('link', { name: 'Abrir vídeo original' })).toBeVisible();
   await expect(page.locator('.mini-cover')).toHaveCount(0);
