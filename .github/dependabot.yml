@@ -1,0 +1,30 @@
+version: 2
+
+updates:
+  # Aplicación web: dependencias de producción y desarrollo.
+  - package-ecosystem: "npm"
+    directory: "/apps/web"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Gateway multimedia: mantener actualizadas sus dependencias al crecer.
+  - package-ecosystem: "npm"
+    directory: "/apps/media-gateway"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Servicio WebSub / notificaciones.
+  - package-ecosystem: "npm"
+    directory: "/spikes/websub"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+
+  # Acciones utilizadas por CI/CD y despliegues.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
