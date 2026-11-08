@@ -1,144 +1,137 @@
+import { useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTitle } from '../title';
-import Avatar from '../components/Avatar';
-import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
-import { addChannel, fetchChannels, removeChannel, type Channel } from '../api';
-import { useAsync } from '../useAsync';
-import { actions, useStore } from '../store';
-import { Empty, ErrorBox } from '../components/States';
+import { useFeed, useChannels, feedMore, loadMoreFeed } from '../data';
+import { isBlocked } from '../filters';
+import { useStore } from '../store';
+import VideoCard from '../components/VideoCard';
+import ShortCard from '../components/ShortCard';
+import Chips from '../components/Chips';
+import Sentinel from '../components/Sentinel';
 import Icon from '../components/Icon';
-import BellMenu, { type Bell } from '../components/BellMenu';
-import PushToggle from '../components/PushToggle';
-import { setChannelBell } from '../push';
-
-const STATUS: Record<Channel['status'], { label: string; cls: string; help: string }> = {
-  verified: { label: 'Avisos activos', cls: 'ok', help: 'Te avisamos al momento cuando publica.' },
-  requested: { label: 'Activando…', cls: 'wait', help: 'Activando los avisos de este canal.' },
-  pending: { label: 'Pendiente', cls: 'wait', help: 'Se procesará en los próximos minutos.' },
-  invalid: { label: 'Sin confirmar', cls: 'bad', help: 'No se pudo confirmar el canal.' },
-};
+import { Empty, ErrorBox, SkeletonGrid } from '../components/States';
 
 export default function Subscriptions() {
-  const list = useAsync(fetchChannels);
-  const ownerKey = useStore((s) => s.ownerKey);
-  const [input, setInput] = useState('');
-  const [label, setLabel] = useState('');
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [addOpen, setAddOpen] = useState(false);
+  const feed = useFeed();
+  const channels = useChannels();
+  const [params, setParams] = useSearchParams();
+  const activeFilter = params.get('f') || 'todos';
+  const hidden = useStore((s) => s.hidden);
+  const words = useStore((s) => s.blockWords);
+  const groups = useStore((s) => s.groups);
 
-  async function unfollow(c: Channel) {
-    if (!ownerKey) { setMsg({ ok: false, text: 'Pon tu clave de propietario en Ajustes para dejar de seguir canales.' }); return; }
-    if (!confirm(`¿Dejar de seguir ${c.name}?`)) return;
-    try { await removeChannel(c.id, ownerKey); setMsg({ ok: true, text: `Has dejado de seguir ${c.name}.` }); list.reload(); }
-    catch (err) { setMsg({ ok: false, text: err instanceof Error ? err.message : String(err) }); }
-  }
+  const followed = useMemo(() => (channels.data ?? []).filter((c) => c.status !== 'invalid'), [channels.data]);
+  const followedIds = useMemo(() => new Set(followed.map((c) => c.id)), [followed]);
+  const followedVideos = useMemo(
+    () => (feed.data ?? []).filter((v) => followedIds.has(v.channelId) && !hidden[v.id] && !isBlocked(v.title, words)),
+    [feed.data, followedIds, hidden, words]
+  );
+  const availableGroups = groups.filter((g) => g.channels.some((id) => followedIds.has(id)));
+  const filters = [
+    { key: 'todos', label: 'Todos' },
+    { key: 'videos', label: 'Vídeos' },
+    { key: 'shorts', label: 'Shorts' },
+    ...availableGroups.map((g) => ({ key: 'g:' + g.id, label: g.name })),
+    ...followed.map((c) => ({ key: 'c:' + c.id, label: c.name }))
+  ];
+  const validFilter = filters.some((f) => f.key === activeFilter) ? activeFilter : 'todos';
 
-  async function bell(c: Channel, v: Bell) {
-    if (!ownerKey) { setMsg({ ok: false, text: 'Pon tu clave de propietario en Ajustes para cambiar los avisos.' }); return; }
-    try { await setChannelBell(c.id, v, ownerKey); list.reload(); }
-    catch (err) { setMsg({ ok: false, text: err instanceof Error ? err.message : String(err) }); }
-  }
+  const filtered = useMemo(() => {
+    if (validFilter === 'videos') return followedVideos.filter((v) => v.kind !== 'short');
+    if (validFilter === 'shorts') return followedVideos.filter((v) => v.kind === 'short');
+    if (validFilter.startsWith('c:')) return followedVideos.filter((v) => v.channelId === validFilter.slice(2) && v.kind !== 'short');
+    if (validFilter.startsWith('g:')) {
+      const group = availableGroups.find((g) => g.id === validFilter.slice(2));
+      return followedVideos.filter((v) => v.kind !== 'short' && group?.channels.includes(v.channelId));
+    }
+    return followedVideos.filter((v) => v.kind !== 'short');
+  }, [followedVideos, validFilter, availableGroups]);
 
-  async function submit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true); setMsg(null);
-    try {
-      const r = await addChannel(input, label, ownerKey);
-      setMsg({ ok: true, text: r.created ? 'Canal añadido. Sus avisos se activan en unos minutos.' : 'Ya seguías este canal.' });
-      setInput(''); setLabel(''); list.reload(); setAddOpen(false);
-    } catch (err) {
-      setMsg({ ok: false, text: err instanceof Error ? err.message : String(err) });
-    } finally { setBusy(false); }
-  }
+  const shorts = useMemo(() => {
+    if (validFilter === 'videos') return [];
+    if (validFilter === 'shorts') return followedVideos.filter((v) => v.kind === 'short');
+    if (validFilter.startsWith('c:')) return followedVideos.filter((v) => v.kind === 'short' && v.channelId === validFilter.slice(2));
+    if (validFilter.startsWith('g:')) {
+      const group = availableGroups.find((g) => g.id === validFilter.slice(2));
+      return followedVideos.filter((v) => v.kind === 'short' && group?.channels.includes(v.channelId));
+    }
+    return followedVideos.filter((v) => v.kind === 'short').slice(0, 20);
+  }, [followedVideos, validFilter, availableGroups]);
 
-  const order = { verified: 0, requested: 1, pending: 2, invalid: 3 } as const;
-  const items = [...(list.data ?? [])].sort((a, b) => (order[a.status] ?? 2) - (order[b.status] ?? 2));
-  const active = items.filter((c) => c.status === 'verified').length;
   useTitle('Suscripciones');
+  const label = filters.find((f) => f.key === validFilter)?.label ?? 'Todos';
+  const hasMore = !feedMore().done;
+
+  if (feed.loading || channels.loading) return <div className="page subscription-feed"><SkeletonGrid n={8} /></div>;
+
+  if (feed.error || channels.error) {
+    const message = feed.error ? `No se pudieron cargar las novedades (${feed.error}).` : `No se pudieron cargar tus canales (${channels.error}).`;
+    return <div className="page subscription-feed"><FeedHeader count={followed.length} /><ErrorBox message={message} onRetry={feed.error ? feed.reload : channels.reload} /></div>;
+  }
+
+  if (followed.length === 0) {
+    return <div className="page subscription-feed">
+      <FeedHeader count={0} />
+      <Empty title="Tus suscripciones aparecerán aquí">
+        <p>Sigue canales para ver sus publicaciones recientes en un solo feed.</p>
+        <Link className="btn primary" to="/suscripciones/gestionar">Buscar y seguir canales</Link>
+      </Empty>
+    </div>;
+  }
+
+  if (followedVideos.length === 0) {
+    return <div className="page subscription-feed" data-total="0">
+      <FeedHeader count={followed.length} />
+      <Empty title="Todavía no hay novedades de tus canales">
+        <p>Cuando publiquen vídeos, aparecerán en este feed.</p>
+        <Link className="btn" to="/suscripciones/gestionar">Gestionar suscripciones</Link>
+      </Empty>
+    </div>;
+  }
 
   return (
-    <div className="page">
-      <header className="page-head page-head-row subscriptions-head">
-        <div>
-          <h1>Suscripciones</h1>
-          {items.length > 0 && <p className="sub">{items.length} canales · {active} con avisos al momento</p>}
-        </div>
-        <button type="button" className="btn primary" aria-expanded={addOpen} aria-controls="add-channel-panel"
-          onClick={() => { setAddOpen((open) => !open); setMsg(null); }}>
-          <Icon name={addOpen ? 'close' : 'plus'} size={18} /> {addOpen ? 'Cerrar' : 'Seguir canal'}
-        </button>
-      </header>
-
-      <PushToggle compact />
-      {msg && <p className={msg.ok ? 'ok-text' : 'bad-text'} role="status">{msg.text}</p>}
-      {addOpen && <form id="add-channel-panel" className="panel add-form" onSubmit={submit}>
-        <h2><Icon name="plus" size={18} /> Seguir un canal</h2>
-        <label>
-          Enlace o ID del canal
-          <input value={input} onChange={(e) => setInput(e.target.value)} required placeholder="Pega aquí el enlace o ID del canal" inputMode="url" autoComplete="off" />
-        </label>
-        <label>
-          Nombre (opcional)
-          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nombre para identificarlo" maxLength={80} />
-        </label>
-        {!ownerKey && <p className="note">Para seguir canales, configura primero tu clave de propietario en <Link to="/ajustes">Ajustes</Link>.</p>}
-        <div className="row-btns">
-          <button className="btn primary" disabled={busy || !ownerKey}>{busy ? 'Añadiendo…' : 'Seguir'}</button>
-          <button type="button" className="btn" disabled={busy} onClick={() => { setAddOpen(false); setMsg(null); }}>Cancelar</button>
-        </div>
-      </form>}
-
-      {list.error && <ErrorBox message={`No se pudo cargar la lista (${list.error}).`} onRetry={list.reload} />}
-      {list.data && items.length === 0 && <Empty title="Todavía no sigues ningún canal">
-        <p>Añade el primero con el botón «Seguir canal».</p>
-        <button type="button" className="btn primary" onClick={() => setAddOpen(true)}>Seguir el primer canal</button>
-      </Empty>}
-      <ul className="channel-list">
-        {items.map((c) => {
-          const st = STATUS[c.status] ?? STATUS.pending;
-          return (
-            <li key={c.id} className="channel">
-              <Link to={`/canal/${c.id}`} className="channel-av" aria-label={`Canal ${c.name}`}><Avatar name={c.name} id={c.id} size={40} /></Link>
-              <div className="channel-main">
-                <Link to={`/canal/${c.id}`} className="channel-name">{c.name}</Link>
-                <span className="card-meta">{c.videos === 1 ? '1 vídeo reciente' : `${c.videos} vídeos recientes`}</span>
+    <div className="page subscription-feed" data-total={filtered.length}>
+      <FeedHeader count={followed.length} total={followedVideos.length} />
+      <Chips items={filters} value={validFilter} onChange={(next) => setParams(next === 'todos' ? {} : { f: next }, { replace: true })} />
+      {validFilter === 'shorts' ? (
+        <section className="subscription-feed-section">
+          <div className="subscription-feed-section-head"><h2>Shorts</h2><span>{filtered.length} publicaciones</span></div>
+          <div className="shorts-row subscription-shorts-grid">
+            {filtered.map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} views={v.views} />)}
+          </div>
+        </section>
+      ) : (
+        <section className="subscription-feed-section">
+          <div className="subscription-feed-section-head">
+            <h2>{validFilter === 'todos' ? 'Vídeos recientes' : label}</h2>
+            <span>{filtered.length} {filtered.length === 1 ? 'vídeo' : 'vídeos'}</span>
+          </div>
+          {filtered.length > 0
+            ? <div className="vgrid">{filtered.map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} isNew={v.source !== 'baseline'} />)}</div>
+            : <Empty title="No hay vídeos en este filtro"><p>Prueba otra categoría o vuelve a Todos.</p></Empty>}
+          {shorts.length > 0 && (
+            <section className="shelf subscription-shorts" aria-labelledby="sub-shorts-title">
+              <div className="page-head-row">
+                <h2 id="sub-shorts-title"><Icon name="shorts" size={22} /> Shorts</h2>
+                <button type="button" className="link-btn" onClick={() => setParams({ f: 'shorts' }, { replace: true })}>Ver todos</button>
               </div>
-              <span className={`status ${st.cls}`} title={st.help}><Icon name="bell" size={14} /> {st.label}</span>
-              <BellMenu name={c.name} value={c.notify ?? 'all'} onChange={(v) => bell(c, v)} onUnfollow={() => unfollow(c)} />
-            </li>
-          );
-        })}
-      </ul>
-
-      {items.length > 0 && <Groups channels={items.filter((c) => c.status !== 'invalid').map((c) => ({ id: c.id, name: c.name }))} />}
+              <div className="shorts-row">
+                {shorts.slice(0, 20).map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} views={v.views} />)}
+              </div>
+            </section>
+          )}
+        </section>
+      )}
+      <Sentinel onVisible={() => { if (hasMore) void loadMoreFeed(); }} />
+      {hasMore && <SkeletonGrid n={4} />}
+      {!hasMore && <p className="list-end">Has llegado al final de las publicaciones cargadas.</p>}
     </div>
   );
 }
 
-// Grupos de suscripciones (A3, como los perfiles de FreeTube): cada grupo aparece como filtro en Principal.
-function Groups({ channels }: { channels: { id: string; name: string }[] }) {
-  const groups = useStore((s) => s.groups);
-  const [name, setName] = useState('');
-  return (
-    <section className="panel groups" aria-labelledby="h-groups">
-      <h2 id="h-groups"><Icon name="subs" size={18} /> Grupos</h2>
-      <p className="note">Agrupa canales (por ejemplo, “Noticias” o “Tecnología”) y fíltralos con un toque en Principal.</p>
-      <form className="row-btns" onSubmit={(e) => { e.preventDefault(); if (name.trim()) { actions.addGroup(name); setName(''); } }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del grupo nuevo" maxLength={40} aria-label="Nombre del grupo nuevo" />
-        <button className="btn primary" disabled={!name.trim()}>Crear grupo</button>
-      </form>
-      {groups.map((g) => (
-        <div key={g.id} className="group">
-          <div className="group-head"><b>{g.name}</b><span className="card-meta">{g.channels.length} canales</span>
-            <button type="button" className="btn small" onClick={() => { if (confirm(`¿Borrar el grupo «${g.name}»? Los canales siguen en tus suscripciones.`)) actions.removeGroup(g.id); }}>Borrar</button></div>
-          <div className="chips" role="group" aria-label={`Canales del grupo ${g.name}`}>
-            {channels.map((c) => (
-              <button key={c.id} type="button" className={`chip${g.channels.includes(c.id) ? ' on' : ''}`} aria-pressed={g.channels.includes(c.id)} onClick={() => actions.toggleGroupChannel(g.id, c.id)}>{c.name}</button>
-            ))}
-          </div>
-        </div>
-      ))}
-    </section>
-  );
+function FeedHeader({ count, total }: { count: number; total?: number }) {
+  return <div className="subscription-feed-head">
+    <div><h1>Suscripciones</h1><p className="sub">{count} canales seguidos{total == null ? '' : ` · ${total} publicaciones disponibles`}</p></div>
+    <Link className="btn subscription-manage-link" to="/suscripciones/gestionar"><Icon name="settings" size={18} /> Gestionar suscripciones</Link>
+  </div>;
 }
