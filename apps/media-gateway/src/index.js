@@ -2,6 +2,8 @@ const PREFIX = 'media/';
 const MAX_UPLOAD_BYTES = 90 * 1024 * 1024;
 const DEFAULT_ORIGIN_TIMEOUT_MS = 1800;
 const MAX_ORIGIN_TIMEOUT_MS = 5000;
+const DEFAULT_WRITE_TIMEOUT_MS = 45000;
+const MAX_WRITE_TIMEOUT_MS = 120000;
 const ALLOWED_TYPES = new Set([
   'video/mp4', 'video/webm', 'video/ogg',
   'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/webm',
@@ -87,6 +89,11 @@ function originTimeout(env) {
   if (!Number.isFinite(configured) || configured < 50) return DEFAULT_ORIGIN_TIMEOUT_MS;
   return Math.min(configured, MAX_ORIGIN_TIMEOUT_MS);
 }
+function writeTimeout(env) {
+  const configured = Number(env.MEDIA_WRITE_TIMEOUT_MS);
+  if (!Number.isFinite(configured) || configured < 1000) return DEFAULT_WRITE_TIMEOUT_MS;
+  return Math.min(configured, MAX_WRITE_TIMEOUT_MS);
+}
 function withTimeout(promise, timeoutMs) {
   let timer;
   const timeout = new Promise((_, reject) => {
@@ -160,7 +167,7 @@ function failoverBody(initialBody, initialIndex, origins, env, key, head, range,
         const expectedVersion = head.customMetadata?.mediaVersion;
         const candidateVersion = candidateHead.customMetadata?.mediaVersion;
         if (expectedVersion && candidateVersion !== expectedVersion) continue;
-        if (!expectedVersion && head.httpEtag && candidateHead.httpEtag && candidateHead.httpEtag !== head.httpEtag) continue;
+        if (!expectedVersion && (!head.httpEtag || !candidateHead.httpEtag || candidateHead.httpEtag !== head.httpEtag)) continue;
         const remaining = end - offset + 1;
         if (remaining <= 0) return null;
         const nextObject = await withTimeout(
@@ -330,12 +337,13 @@ async function upload(req, env, id) {
   if (heads.some((result) => result.value)) return json(req, env, { error: 'Ya existe un medio con ese ID' }, 409);
 
   const bodies = splitBody(req.body, origins.length);
+  const mediaVersion = crypto.randomUUID();
   const options = {
     httpMetadata: { contentType: type, cacheControl: visibility === 'public' ? 'public, max-age=300' : 'private, no-store' },
-    customMetadata: { title, creator, license, licenseReference, visibility },
+    customMetadata: { title, creator, license, licenseReference, visibility, mediaVersion },
   };
   const writes = await Promise.allSettled(origins.map((bucket, index) =>
-    withTimeout(bucket.put(key, bodies[index], options), originTimeout(env))
+    withTimeout(bucket.put(key, bodies[index], options), writeTimeout(env))
   ));
   const written = writes.filter((result) => result.status === 'fulfilled').length;
   if (!written) return json(req, env, { error: 'No se pudo guardar el archivo en ningún origen' }, 503);
