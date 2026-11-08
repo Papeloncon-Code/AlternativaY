@@ -71,3 +71,13 @@ test('M3 · nuestro servidor no recibe la página en la que estás', async ({ pa
   expect(refs.length).toBeGreaterThan(0);
   expect(refs.filter((r) => r.includes('/buscar') || r.includes('noticias'))).toEqual([]);
 });
+
+test('duración sobre la miniatura (pestaña pública «Vídeos» del canal)', async ({ page }) => {
+  const feed = (await (await page.request.get('/api/feed?limit=1000')).json()).items as { id: string; channelId: string; duration?: number | null; kind: string | null }[];
+  const v = feed.find((x) => x.duration && x.kind !== 'short');
+  test.skip(!v, 'el servidor aún no ha leído la duración de ningún vídeo');
+  await page.goto(`/canal/${v!.channelId}/videos`);
+  const card = page.locator('.ch-grid .vcard', { has: page.locator(`a[href="/ver/${v!.id}"]`) }).first();
+  const m = Math.floor(v!.duration! / 60) % 60, s = v!.duration! % 60, h = Math.floor(v!.duration! / 3600);
+  await expect(card.locator('.vdur')).toHaveText(h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`);
+});

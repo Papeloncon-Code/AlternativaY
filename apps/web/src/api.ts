@@ -1,5 +1,7 @@
 export type Video = {
   views?: number | null;
+  /** Segundos (pestaña pública «Vídeos» del canal); null si aún no se conoce. */
+  duration?: number | null;
   likes?: number | null;
   id: string;
   title: string | null;

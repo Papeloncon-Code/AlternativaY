@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { thumb } from '../api';
-import { ago, agoShort, fmtViews, shortNumber } from '../format';
+import { ago, agoShort, clock, fmtViews, shortNumber } from '../format';
 import { actions, useStore } from '../store';
 import Icon from './Icon';
 import Avatar from './Avatar';
@@ -12,7 +12,7 @@ import { openSave } from './SaveDialog';
 
 type Props = {
   id: string; title: string; channel: string; channelId: string;
-  publishedAt?: number | null; isNew?: boolean; progress?: number; short?: boolean; compact?: boolean; list?: string; views?: number | null;
+  publishedAt?: number | null; isNew?: boolean; progress?: number; short?: boolean; compact?: boolean; list?: string; views?: number | null; duration?: number | null;
   /** En la página del canal no se repiten la foto ni el nombre del canal (como en la referencia). */
   noChannel?: boolean;
   /** Estante: datos en forma corta («▷ 4 M  hace 1 d»), como en la referencia. */
@@ -20,7 +20,7 @@ type Props = {
 };
 
 // Tarjeta de vídeo con la estructura que la gente ya conoce: miniatura, avatar del canal, título en 2 líneas, canal y fecha, menú ⋮.
-export default function VideoCard({ id, title, channel, channelId, publishedAt, isNew, progress, short, compact, list, views, noChannel, dense }: Props) {
+export default function VideoCard({ id, title, channel, channelId, publishedAt, isNew, progress, short, compact, list, views, noChannel, dense, duration }: Props) {
   const fav = useStore((s) => Boolean(s.favorites[id]));
   const later = useStore((s) => Boolean(s.watchLater[id]));
   const watched = useStore((s) => Boolean(s.watched[id]));
@@ -66,6 +66,7 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
     <article ref={card} className={`vcard${compact ? ' compact' : ''}${noChannel ? ' nochan' : ''}`}>
       <Link to={href} className="vthumb" aria-label={shownTitle} onMouseEnter={() => prefetchVideo(id)} onFocus={() => prefetchVideo(id)} onTouchStart={() => prefetchVideo(id)}>
         <img src={brand.thumb && !thumbFailed ? brand.thumb : thumb(id)} alt="" loading="lazy" width={480} height={270} onError={() => setThumbFailed(true)} />
+        {duration ? <span className="vdur" aria-label={`Duración ${clock(duration)}`}>{clock(duration)}</span> : null}
         {pct != null && <span className="vprog"><span style={{ width: `${Math.min(100, pct * 100)}%` }} /></span>}
       </Link>
       <div className="vinfo">

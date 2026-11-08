@@ -26,7 +26,9 @@ CREATE TABLE IF NOT EXISTS videos (
   views         INTEGER,          -- del RSS público (media:statistics)
   likes         INTEGER,          -- del RSS público (media:starRating count)
   description   TEXT,             -- del RSS público (media:description)
-  stats_at      INTEGER
+  stats_at      INTEGER,
+  duration      INTEGER,          -- segundos (pestaña pública «Vídeos» del canal)
+  approx        INTEGER           -- 1 = fecha aproximada (vídeo anterior al RSS, «hace 3 semanas»)
 );
 CREATE TABLE IF NOT EXISTS events (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -746,3 +746,7 @@ img.avatar { object-fit: cover; background: var(--chip); }
 .vmeta-dense svg { stroke-width: 2.4; }
 .linkified { color: var(--new); text-decoration: none; overflow-wrap: anywhere; }
 .linkified:hover { text-decoration: underline; }
+/* Duración sobre la miniatura (medida en la referencia: 12 px/500, fondo negro al 60 %, radio 4, relleno 1×4, a 8 px de la esquina). */
+.vdur { position: absolute; right: 8px; bottom: 8px; padding: 1px 4px; border-radius: 4px; background: rgb(0 0 0 / .6); color: #fff; font-size: 12px; font-weight: 500; line-height: 18px; pointer-events: none; }
+.vprog ~ .vdur, .vdur:has(+ .vprog) { bottom: 12px; }
+.ch-shelf-row .vdur { right: 4px; bottom: 4px; }

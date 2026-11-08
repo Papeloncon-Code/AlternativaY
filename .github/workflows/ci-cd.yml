@@ -1,6 +1,6 @@
 # CI/CD de TodoTube.
 # CI: en cada push y PR → compilación, tipos, pruebas del servidor de avisos, de la web (Playwright) y, si existe, del gateway.
-# CD: solo en push a la rama de trabajo publicada y solo si todo lo anterior pasa → despliegue en Cloudflare y
+# CD: solo en push a main (rama de producción desde 2026-11-08) y solo si todo lo anterior pasa → despliegue en Cloudflare y
 #     pruebas de humo contra la web publicada. Secretos necesarios (Settings → Secrets and variables → Actions):
 #     CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID. Sin ellos, el despliegue se salta con un aviso.
 name: CI/CD
@@ -70,7 +70,7 @@ jobs:
   desplegar:
     name: Despliegue en Cloudflare y humo en producción
     needs: [avisos, web]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/sdd/investigacion-y-especificacion'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: produccion
     env:

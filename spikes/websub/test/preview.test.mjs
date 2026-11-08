@@ -84,3 +84,44 @@ test('cabecera: enlaces que no son http(s) y banners fuera de la CDN se descarta
   assert.equal(r.header.banner, null);
   assert.equal(r.header.verified, false);
 });
+
+import { readChannelVideos, parseViewsLabel, parseDuration, parseAgo, storeChannelVideos } from '../src/index.js';
+const lockup = (id, dur, views, ago) => ({ lockupViewModel: {
+  contentId: id, contentType: 'LOCKUP_CONTENT_TYPE_VIDEO',
+  contentImage: { thumbnailViewModel: { overlays: [{ thumbnailBottomOverlayViewModel: { badges: [{ thumbnailBadgeViewModel: { text: dur } }] } }] } },
+  metadata: { lockupMetadataViewModel: { title: { content: `Vídeo ${id} {x}` }, metadata: { contentMetadataViewModel: { metadataRows: [{ metadataParts: [
+    { text: { content: 'x' }, accessibilityLabel: views }, { text: { content: 'y' }, accessibilityLabel: ago },
+  ] }] } } } },
+} });
+
+test('pestaña «Vídeos»: id, título, duración, visualizaciones y antigüedad de cada vídeo', async () => {
+  const items = [lockup('aaaaaaaaaaa', '22:28', '82 millones de visualizaciones', 'hace 7 días'), lockup('bbbbbbbbbbb', '1:02:03', '1,2 mil visualizaciones', 'hace 3 semanas'), lockup('ccccccccccc', 'EN DIRECTO', '5 visualizaciones', 'hace 1 hora')];
+  const html = `<meta property="og:title" content="C">${'x'.repeat(50_000)}"richGridRenderer":{"contents":[${items.map((i) => `{"richItemRenderer":{"content":${JSON.stringify(i)}}}`).join(',')}]}${'z'.repeat(9000)}"header":${JSON.stringify(cabecera)},"x":1`;
+  const r = await readChannelVideos(fakeFetch(html, 2039), 'UCaaaaaaaaaaaaaaaaaaaaaa');
+  assert.equal(r.lockups.length, 3);
+  assert.deepEqual(r.lockups[0], { id: 'aaaaaaaaaaa', title: 'Vídeo aaaaaaaaaaa {x}', dur: 1348, views: 82_000_000, age: 7 * 8.64e7 });
+  assert.equal(r.lockups[1].dur, 3723); assert.equal(r.lockups[1].views, 1200);
+  assert.equal(r.lockups[2].dur, null);
+  assert.equal(r.header.handle, '@canaluno');
+});
+
+test('números y duraciones en español', () => {
+  assert.equal(parseViewsLabel('2,1 mil millones de visualizaciones'), 2_100_000_000);
+  assert.equal(parseViewsLabel('604.111 visualizaciones'), 604_111);
+  assert.equal(parseViewsLabel('Programado para el 3 dic'), null);
+  assert.equal(parseDuration('9:05'), 545);
+  assert.equal(parseAgo('hace 1 año'), 3.1536e10);
+});
+
+test('vídeos de la pestaña: los recién subidos (< 2 días) no se añaden, para no robarle el aviso a WebSub', async () => {
+  const calls = [];
+  const env = { DB: { prepare: (sql) => ({ bind: (...a) => ({ sql, a }) }), batch: async (s) => { calls.push(...s); } } };
+  await storeChannelVideos(env, 'UCaaaaaaaaaaaaaaaaaaaaaa', [
+    { id: 'nuevo000000', title: 'Recién subido', dur: 60, views: 10, age: 3.6e6 },
+    { id: 'viejo000000', title: 'De hace un mes', dur: 600, views: 1000, age: 30 * 8.64e7 },
+  ], 1_800_000_000_000);
+  const inserts = calls.filter((c) => c.sql.startsWith('INSERT'));
+  assert.equal(inserts.length, 1);
+  assert.equal(inserts[0].a[0], 'viejo000000');
+  assert.equal(calls.filter((c) => c.sql.startsWith('UPDATE')).length, 2); // la duración sí se guarda en los dos
+});

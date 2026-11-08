@@ -253,12 +253,46 @@ export function parseFeatured(json) {
   };
 }
 
-export async function readChannelPreview(fetchFn, channelId) {
-  const r = await fetchFn(`https://www.youtube.com/channel/${channelId}?hl=es`, { headers: { 'accept-language': 'es' }, redirect: 'follow' });
+// Vídeos de la pestaña pública «Vídeos» del canal (los ~30 más recientes): id, título, duración, visualizaciones y antigüedad.
+const LOCKUP_KEY = '"lockupViewModel":';
+const UNITS = { segundo: 1e3, minuto: 6e4, hora: 3.6e6, día: 8.64e7, dia: 8.64e7, semana: 6.048e8, mes: 2.592e9, año: 3.1536e10, ano: 3.1536e10 };
+export function parseAgo(label) {
+  const m = /hace\s+(\d+)\s+(segundo|minuto|hora|d[ií]a|semana|mes|año|ano)/i.exec(label || '');
+  return m ? Number(m[1]) * UNITS[m[2].toLowerCase()] : null;
+}
+export function parseViewsLabel(label) {
+  const m = /^([\d.,]+)\s*(mil millones|millones|millón|mil)?\s+(?:de\s+)?visualizaci/i.exec((label || '').trim());
+  if (!m) return null;
+  const mult = { 'mil millones': 1e9, millones: 1e6, 'millón': 1e6, mil: 1e3 }[(m[2] || '').toLowerCase()] ?? 1;
+  const n = mult === 1 ? Number(m[1].replace(/[.,]/g, '')) : Number(m[1].replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(n) ? Math.round(n * mult) : null;
+}
+export function parseDuration(t) {
+  if (typeof t !== 'string' || !/^\d{1,2}(:\d{2}){1,2}$/.test(t.trim())) return null;
+  return t.trim().split(':').reduce((acc, x) => acc * 60 + Number(x), 0);
+}
+export function parseLockup(json) {
+  let o; try { o = JSON.parse(json); } catch { return null; }
+  if (o?.contentType !== 'LOCKUP_CONTENT_TYPE_VIDEO' || !/^[\w-]{11}$/.test(o.contentId ?? '')) return null;
+  const md = o.metadata?.lockupMetadataViewModel;
+  const parts = (findKey(md?.metadata, 'metadataRows') ?? []).flatMap((r) => r.metadataParts ?? []);
+  const badge = findKey(o.contentImage, 'thumbnailBadgeViewModel');
+  const viewsPart = parts.find((p) => /visualizaci/i.test(p?.accessibilityLabel ?? ''));
+  const agoPart = parts.find((p) => /^hace /i.test(p?.accessibilityLabel ?? p?.text?.content ?? ''));
+  return {
+    id: o.contentId, title: clip(md?.title?.content, 200), dur: parseDuration(badge?.text),
+    views: parseViewsLabel(viewsPart?.accessibilityLabel), age: parseAgo(agoPart?.accessibilityLabel ?? agoPart?.text?.content),
+  };
+}
+
+// Lee una página pública del canal por partes y captura, en orden, los objetos JSON que interesan.
+async function readChannelPage(fetchFn, url, { featured: wantFeatured = false, lockups: wantLockups = false } = {}) {
+  const r = await fetchFn(url, { headers: { 'accept-language': 'es' }, redirect: 'follow' });
   if (!r.ok || !r.body) return { status: r.status };
   const reader = r.body.getReader();
   const dec = new TextDecoder();
   let buf = ''; let read = 0; let image = null; let title = null; let header = null; let featured = null;
+  const lockups = [];
   let cap = null; // objeto JSON que se está capturando: { name, text, max }
   try {
     reading: while (read < 4_000_000) {
@@ -272,7 +306,8 @@ export async function readChannelPreview(fetchFn, channelId) {
           const obj = sliceJsonObject(cap.text);
           if (!obj && cap.text.length <= cap.max) continue;
           if (cap.name === 'header') { header = obj ? parseChannelHeader(obj) : null; break reading; }
-          featured = obj ? parseFeatured(obj) : null;
+          if (cap.name === 'featured') featured = obj ? parseFeatured(obj) : null;
+          else if (obj && lockups.length < 60) { const l = parseLockup(obj); if (l) lockups.push(l); }
           text = obj ? cap.text.slice(obj.length) : ''; cap = null; buf = '';
           continue;
         }
@@ -280,10 +315,9 @@ export async function readChannelPreview(fetchFn, channelId) {
         // Búsqueda de texto nativa (más barata que una expresión regular en cada trozo).
         image ??= after(buf, '<meta property="og:image" content="');
         title ??= after(buf, '<meta property="og:title" content="');
-        const h = buf.indexOf(HEADER_KEY);
-        const f = featured || cap ? -1 : buf.indexOf(FEATURED_KEY);
-        if (f >= 0 && (h < 0 || f < h)) { cap = { name: 'featured', text: '', max: 30_000 }; text = buf.slice(f + FEATURED_KEY.length); buf = ''; }
-        else if (h >= 0) { cap = { name: 'header', text: '', max: HEADER_MAX }; text = buf.slice(h + 9); buf = ''; } // desde la llave de {"pageHeaderRenderer":…}
+        const found = [[HEADER_KEY, 'header', 9, HEADER_MAX], [wantFeatured && !featured ? FEATURED_KEY : null, 'featured', FEATURED_KEY.length, 30_000], [wantLockups ? LOCKUP_KEY : null, 'lockup', LOCKUP_KEY.length, 40_000]]
+          .filter(([k]) => k).map(([k, name, skip, max]) => ({ i: buf.indexOf(k), name, skip, max })).filter((x) => x.i >= 0).sort((x, y) => x.i - y.i)[0];
+        if (found) { cap = { name: found.name, text: '', max: found.max }; text = buf.slice(found.i + found.skip); buf = ''; }
       }
     }
   } finally {
@@ -296,17 +330,37 @@ export async function readChannelPreview(fetchFn, channelId) {
     if (u.protocol === 'https:' && AVATAR_HOST.test(u.hostname)) avatar = u.href.replace(/=s\d+(-|$)/, '=s176$1');
   } catch { /* sin foto */ }
   const name = title ? title.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim().slice(0, 80) : null;
-  return { status: r.status, avatar, name, header, read };
+  return { status: r.status, avatar, name, header, lockups, read };
+}
+export const readChannelPreview = (fetchFn, channelId) => readChannelPage(fetchFn, `https://www.youtube.com/channel/${channelId}?hl=es`, { featured: true });
+export const readChannelVideos = (fetchFn, channelId) => readChannelPage(fetchFn, `https://www.youtube.com/channel/${channelId}/videos?hl=es`, { lockups: true });
+
+// Guarda los vídeos de la pestaña «Vídeos»: duración (y visualizaciones si faltan) de los conocidos; los que no
+// conocíamos se añaden SOLO si tienen al menos 2 días (así un vídeo recién subido nunca se marca como «ya visto»
+// antes de que llegue su aviso por WebSub). Su fecha es aproximada («hace 3 semanas»), como la que muestra la página.
+export async function storeChannelVideos(env, channelId, lockups, now) {
+  const stmts = [];
+  for (const l of lockups) {
+    stmts.push(env.DB.prepare('UPDATE videos SET duration = COALESCE(?, duration), views = COALESCE(views, ?) WHERE video_id = ?').bind(l.dur, l.views, l.id));
+    if (l.age != null && l.age >= 2 * 8.64e7 && l.title) {
+      stmts.push(env.DB.prepare("INSERT OR IGNORE INTO videos (video_id, channel_id, title, published_at, first_source, first_seen_at, kind, views, duration, approx) VALUES (?,?,?,?,'baseline',?,'video',?,?,1)")
+        .bind(l.id, channelId, l.title, now - l.age, now, l.views, l.dur));
+    }
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+  return stmts.length;
 }
 
 async function refreshChannelPreview(env, now) {
-  // Hasta 3 canales por ejecución (relleno inicial en ~1 h); cada canal, como mucho una vez al día.
+  // Hasta 2 canales por ejecución (relleno inicial en ~70 min); cada canal, como mucho una vez al día y dos páginas:
+  // Inicio (foto, cabecera, destacado) y Vídeos (los ~30 más recientes con su duración). ADR-006, enmiendas 3 a 5.
   const { results } = await env.DB.prepare(
-    "SELECT channel_id FROM channels WHERE status IN ('requested','verified','pending') AND (avatar_at IS NULL OR avatar_at < ?) ORDER BY COALESCE(avatar_at, 0) ASC LIMIT 3"
+    "SELECT channel_id FROM channels WHERE status IN ('requested','verified','pending') AND (avatar_at IS NULL OR avatar_at < ?) ORDER BY COALESCE(avatar_at, 0) ASC LIMIT 2"
   ).bind(now - 24 * 3600 * 1000).all();
   for (const ch of results) {
     let res = {};
     try { res = await readChannelPreview(fetch, ch.channel_id); } catch { /* red */ }
+    try { const v = await readChannelVideos(fetch, ch.channel_id); if (v.lockups?.length) await storeChannelVideos(env, ch.channel_id, v.lockups, now); } catch { /* red */ }
     // Se anota la fecha aunque falle: como mucho un intento al día por canal (si YouTube lo bloquea, quedan iniciales).
     await env.DB.prepare('UPDATE channels SET avatar = COALESCE(?, avatar), avatar_at = ?, label = COALESCE(label, ?), header = COALESCE(?, header) WHERE channel_id = ?')
       .bind(res.avatar ?? null, now, res.name ?? null, res.header ? JSON.stringify(res.header) : null, ch.channel_id).run();

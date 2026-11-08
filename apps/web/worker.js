@@ -20,7 +20,7 @@ async function api(request, env, url) {
     const { results } = await env.DB.prepare(
       `SELECT v.video_id AS id, v.title, v.published_at AS publishedAt, v.channel_id AS channelId,
               COALESCE(c.label, v.channel_id) AS channel, v.first_source AS source, v.first_seen_at AS seenAt, v.kind AS kind,
-              v.views AS views, v.likes AS likes
+              v.views AS views, v.likes AS likes, v.duration AS duration
        FROM videos v LEFT JOIN channels c ON c.channel_id = v.channel_id
        WHERE (c.status IS NULL OR c.status <> 'removing') AND v.published_at < ?
        ORDER BY v.published_at DESC LIMIT ?`

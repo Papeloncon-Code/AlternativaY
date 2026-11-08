@@ -132,3 +132,14 @@ sequenceDiagram
 3. Los enlaces se abren directamente en su web (sin pasar por `youtube.com/redirect`), con `rel="noopener noreferrer nofollow"`.
 4. Coste medido: ~30–40 ms de proceso en Node con la página real; en Cloudflare se comprueba con la analítica. Para no pasarse, 3 canales por ejecución (antes 5).
 5. Lo demás del panel «Acerca de» (todos los enlaces, fecha de alta, visitas totales) queda 🔌 solo con Puente.
+
+## Enmienda 5 (2026-11-08): pestaña pública «Vídeos» del canal
+**Problema:** sin Puente, cada canal solo mostraba los ~15 vídeos del RSS más lo publicado desde que se sigue (MrBeast: 15), y ninguna tarjeta tenía duración.
+
+**Hallazgo (página real de MrBeast, 2026-11-08):** la pestaña pública «Vídeos» (`/channel/ID/videos`, ~1,4 MB) trae los **30 vídeos más recientes** con id, título, duración («22:28»), visualizaciones («82 millones de visualizaciones») y antigüedad («hace 7 días»), y la misma cabecera pública. Los vídeos anteriores a esos 30 solo llegan con la API interna paginada (`/youtubei/v1/browse`): **no** la usa el servidor.
+
+**Decisión del propietario (2026-11-08, «sí a todo»):**
+1. Una vez al día por canal, además de la página de Inicio, se lee la pestaña «Vídeos» por partes. 2 canales por ejecución (CPU medida en Cloudflare: 100–190 ms por ejecución con 3 canales y una página; sin errores).
+2. A los vídeos ya conocidos se les añade la **duración** (y las visualizaciones si faltaban).
+3. Los que no conocíamos se añaden con **fecha aproximada** (`approx = 1`) y como «ya vistos» (`baseline`), **solo si tienen al menos 2 días**: así un vídeo recién subido nunca se registra antes de que llegue su aviso por WebSub (que lo daría por visto y no avisaría).
+4. El historial completo del canal sigue siendo 🔌 solo con Puente.
