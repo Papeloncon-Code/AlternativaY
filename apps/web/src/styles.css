@@ -84,7 +84,7 @@ img { display: block; max-width: 100%; }
 .notif-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--new); margin-top: 16px; }
 .notif-text { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .notif-text small { display: block; color: var(--text-2); margin-top: 4px; font-size: 12px; }
-.notif-item img:not(.avatar) { border-radius: 8px; aspect-ratio: 16 / 9; object-fit: cover; }
+.notif-item img:not(.avatar), .notif-thumb-empty { display: block; width: 86px; height: 48px; border-radius: 8px; aspect-ratio: 16 / 9; object-fit: cover; background: var(--chip); }
 .notif-empty { padding: 24px 16px; color: var(--text-2); }
 
 /* ---------- Menú lateral ---------- */

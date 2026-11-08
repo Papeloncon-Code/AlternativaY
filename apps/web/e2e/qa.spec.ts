@@ -14,6 +14,14 @@ test('#1 el título va justo debajo del reproductor', async ({ page }) => {
   expect(gap).toBeLessThan(40);
 });
 
+
+test('H3 · las fechas del feed se interpretan como milisegundos Unix', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.vcard').first().locator('.vmeta-row')).toContainText('hace 1 hora');
+  await expect(page.locator('.vcard').first().locator('.vmeta-row')).not.toContainText('56 años');
+});
+
 test('#12 modo cine a todo el ancho', async ({ page }) => {
   await page.goto(await firstVideo(page));
   await expect(page.locator('.watch-title')).toBeVisible(); await page.waitForTimeout(300);

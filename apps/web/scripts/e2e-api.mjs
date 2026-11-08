@@ -1,8 +1,18 @@
 import http from 'node:http';
 
 const PORT = Number(process.env.E2E_API_PORT || 4174);
-const now = Math.floor(Date.now() / 1000);
 const nowMs = Date.now();
+const now = nowMs;
+// Public sample video IDs keep thumbnail requests realistic in screenshot audits.
+const videoThumbIds = [
+  'dQw4w9WgXcQ', '9bZkp7q19f0', 'kJQP7kiw5Fk', 'JGwWNGJdvx8',
+  'CevxZvSJLk8', 'OPf0YbXqDm0', 'YQHsXMglC9A', 't4H_Zoh7G5A',
+  'fJ9rUzIMcCz7', 'kffacxfA7G4', 'e-ORhEE9VVg', 'hLQl3WQQoQ0',
+];
+const shortThumbIds = [
+  'e-ORhEE9VVg', 'hLQl3WQQoQ0', 'YQHsXMglC9A', 'CevxZvSJLk8',
+  'OPf0YbXqDm0', 't4H_Zoh7G5A', 'kJQP7kiw5Fk', '9bZkp7q19f0',
+];
 const channelIds = [
   'UCNye-wNBqNL5ZzHSJj3l8Bg',
   'UCaaaaaaaaaaaaaaaaaaaaaa',
@@ -16,7 +26,11 @@ const svg = (width, height, fill) => `data:image/svg+xml,${encodeURIComponent(
 
 const videos = Array.from({ length: 400 }, (_, i) => {
   const channelIndex = Math.floor(i / 100);
-  const id = i === 0 ? 'dQw4w9WgXcQ' : `TD${String(i).padStart(9, '0')}`;
+  const id = i < videoThumbIds.length
+    ? videoThumbIds[i]
+    : i >= 36 && i < 36 + shortThumbIds.length
+      ? shortThumbIds[i - 36]
+      : `TD${String(i).padStart(9, '0')}`;
   const isLong = (i % 50) < 36;
   const title = i % 3 === 0
     ? `News briefing ${i + 1}: actualidad y tecnología`
@@ -24,11 +38,11 @@ const videos = Array.from({ length: 400 }, (_, i) => {
   return {
     id,
     title: i === 0 ? 'Rick Astley - Never Gonna Give You Up' : title,
-    publishedAt: now - i * 3600,
+    publishedAt: now - (i + 1) * 3_600_000,
     channelId: channelIds[channelIndex],
     channel: ['Canal Noticias Uno', 'Canal Tecnología Dos', 'Canal Cultura Tres', 'Canal Ciencia Cuatro'][channelIndex],
     source: i % 3 === 0 ? 'rss' : i % 3 === 1 ? 'websub' : 'baseline',
-    // La app compara seenAt con Date.now() en milisegundos; publishedAt, en cambio, son segundos Unix.
+    // publishedAt y seenAt son milisegundos Unix, igual que el parser Atom y D1 en producción.
     seenAt: nowMs - i * 1_800_000,
     kind: isLong ? 'video' : 'short',
     views: 100000 - i * 97,
@@ -71,7 +85,7 @@ const mmss = (sec) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0
 const searchResults = (q) => ({
   channels: [{ id: 'UCdddddddddddddddddddddd', name: `Canal Externo ${q}`, avatar: svg(176, 176, '#5a4a8a'), handle: '@canalexterno', subs: '446 mil suscriptores', about: 'Canal de pruebas que no está entre los seguidos.', verified: true }],
   videos: Array.from({ length: 20 }, (_, i) => ({
-    id: `SR${String(i).padStart(9, '0')}`, title: `Resultado ${i + 1} para «${q}»`, channel: 'Canal Externo', channelId: 'UCdddddddddddddddddddddd',
+    id: i < 8 ? videoThumbIds[i] : `SR${String(i).padStart(9, '0')}`, title: `Resultado ${i + 1} para «${q}»`, channel: 'Canal Externo', channelId: 'UCdddddddddddddddddddddd',
     channelAvatar: svg(68, 68, '#5a4a8a'), verified: true, duration: i % 7 === 6 ? undefined : mmss(120 + i * 37), views: `${i + 1} mil visualizaciones`,
     published: `hace ${i + 1} d`, snippet: 'Fragmento de la descripción del resultado.', live: false, short: i % 7 === 6,
   })),
@@ -83,7 +97,7 @@ const publicChannel = (id) => ({
     banner: svg(2560, 400, '#5a4a8a'), featured: null,
   } },
   videos: Array.from({ length: 30 }, (_, i) => ({
-    id: `PC${String(i).padStart(9, '0')}`, title: `Vídeo ${i + 1} del canal externo`, publishedAt: nowMs - (i + 1) * 86_400_000, channelId: id, channel: 'Canal Externo',
+    id: i < 8 ? videoThumbIds[i + 4] : `PC${String(i).padStart(9, '0')}`, title: `Vídeo ${i + 1} del canal externo`, publishedAt: nowMs - (i + 1) * 86_400_000, channelId: id, channel: 'Canal Externo',
     source: 'baseline', seenAt: 0, kind: 'video', views: 200000 - i * 5000, likes: null, duration: 300 + i * 61,
   })),
 });

@@ -38,6 +38,13 @@ function useTheme() {
   }, [theme]);
 }
 
+function NotificationThumbnail({ id }: { id: string }) {
+  const [failed, setFailed] = useState(false);
+  return failed
+    ? <span className="notif-thumb-empty" aria-hidden="true" />
+    : <img src={thumb(id)} alt="" width={86} height={48} loading="lazy" onError={() => setFailed(true)} />;
+}
+
 function Notifications() {
   const feed = useFeed();
   const [open, setOpen] = useState(false);
@@ -92,7 +99,7 @@ function Notifications() {
                   <span className={`notif-dot${v.seenAt > openedSeenAt ? '' : ' seen'}`} aria-hidden="true" />
                   <Avatar name={v.channel} id={v.channelId} size={40} />
                   <span className="notif-text"><span className="notif-line"><b>{v.channel}</b> ha subido{v.kind === 'short' ? ' un Short' : ''}: {v.title}</span><small>{ago(v.seenAt)}</small></span>
-                  <img src={thumb(v.id)} alt="" width={86} height={48} loading="lazy" />
+                  <NotificationThumbnail id={v.id} />
                 </Link>
                 <button type="button" className="icon-btn notif-kebab" aria-label="Opciones del aviso" aria-haspopup="menu" aria-expanded={menuFor === v.id}
                   onClick={() => setMenuFor((m) => (m === v.id ? '' : v.id))}><Icon name="more" size={20} /></button>
