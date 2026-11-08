@@ -11,15 +11,9 @@ const THEMES = [
 
 const SHORTCUTS: [string, string][] = [
   ['/', 'Ir al buscador'],
-  ['K o espacio', 'Reproducir / pausar'],
-  ['J / L', 'Retroceder / avanzar 10 s'],
-  ['← / →', 'Retroceder / avanzar 5 s'],
-  ['M', 'Silenciar'],
-  ['F', 'Pantalla completa'],
+  ['F', 'Pantalla completa de la ficha'],
   ['T', 'Modo cine'],
-  ['< / >', 'Bajar / subir velocidad'],
-  ['0–9', 'Saltar al 0 %–90 % del vídeo'],
-  ['Mayús + N', 'Siguiente vídeo'],
+  ['Mayús + N', 'Siguiente vídeo de la lista'],
   ['↑ / ↓ (Shorts)', 'Short anterior / siguiente'],
 ];
 
@@ -65,6 +59,7 @@ export default function AccountMenu() {
           <hr />
           <Link role="menuitem" to="/tu" onClick={done}><Icon name="user" size={20} />Tu biblioteca</Link>
           <Link role="menuitem" to="/historial" onClick={done}><Icon name="hist" size={20} />Historial</Link>
+          <Link role="menuitem" to="/medios" onClick={done}><Icon name="library" size={20} />Medios propios</Link>
           <hr />
           <button type="button" role="menuitem" aria-haspopup="menu" onClick={() => setView('theme')}>
             <Icon name="moon" size={20} />Aspecto: {THEMES.find((t) => t.value === theme)?.label}<Icon name="next" size={16} />
@@ -76,7 +71,6 @@ export default function AccountMenu() {
           <hr />
           <Link role="menuitem" to="/ajustes" onClick={done}><Icon name="settings" size={20} />Ajustes</Link>
           <Link role="menuitem" to="/ajustes#datos" onClick={done}><Icon name="download" size={20} />Exportar e importar datos</Link>
-          <Link role="menuitem" to="/puente" onClick={done}><Icon name="play" size={20} />TodoTube Puente</Link>
           <Link role="menuitem" to="/privacidad" onClick={done}><Icon name="shield" size={20} />Privacidad</Link>
         </div>
       )}

@@ -47,6 +47,13 @@ export default function You() {
   return (
     <div className="page">
       <h1 className="page-title">Tú</h1>
+      <section className="shelf" aria-labelledby="h-media">
+        <div className="page-head-row">
+          <h2 id="h-media"><Icon name="library" size={22} /> Medios propios</h2>
+          <Link className="btn" to="/medios">Ver biblioteca</Link>
+        </div>
+        <p className="sub">Archivos propios o licenciados disponibles en el Media Gateway de TodoTube.</p>
+      </section>
       <Shelf kind="historial" icon="hist" />
       <Shelf kind="ver-mas-tarde" icon="clock" />
       <Shelf kind="me-gusta" icon="like" />
