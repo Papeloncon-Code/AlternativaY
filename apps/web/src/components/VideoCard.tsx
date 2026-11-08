@@ -5,7 +5,6 @@ import { ago, agoShort, clock, fmtViews, shortNumber } from '../format';
 import { actions, useStore } from '../store';
 import Icon from './Icon';
 import Avatar from './Avatar';
-import { prefetchVideo } from '../player/warm';
 import { shareVideo, toast } from '../toast';
 import { useBranding } from '../community';
 import { openSave } from './SaveDialog';
@@ -64,7 +63,7 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
 
   return (
     <article ref={card} className={`vcard${compact ? ' compact' : ''}${noChannel ? ' nochan' : ''}`}>
-      <Link to={href} className="vthumb" aria-label={shownTitle} onMouseEnter={() => prefetchVideo(id)} onFocus={() => prefetchVideo(id)} onTouchStart={() => prefetchVideo(id)}>
+      <Link to={href} className="vthumb" aria-label={shownTitle}>
         <img src={brand.thumb && !thumbFailed ? brand.thumb : thumb(id)} alt="" loading="lazy" width={480} height={270} onError={() => setThumbFailed(true)} />
         {duration ? <span className="vdur" aria-label={`Duración ${clock(duration)}`}>{clock(duration)}</span> : null}
         {pct != null && <span className="vprog"><span style={{ width: `${Math.min(100, pct * 100)}%` }} /></span>}

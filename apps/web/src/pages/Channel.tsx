@@ -64,7 +64,7 @@ function AboutDialog({ name, id, h, onClose }: { name: string; id: string; h: Ch
               <span className="about-ico"><Icon name="link" size={20} /></span>
               <span><strong>{h.link.text}</strong><small>{h.link.url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</small></span>
             </a>
-            {h.link.more && <p className="note">{h.link.more.replace(/^y /, 'Hay ')}: se ven en YouTube o con TodoTube Puente.</p>}
+            {h.link.more && <p className="note">{h.link.more.replace(/^y /, 'Hay ')}: pueden consultarse en el canal original.</p>}
           </>
         )}
         <h3>Más información</h3>

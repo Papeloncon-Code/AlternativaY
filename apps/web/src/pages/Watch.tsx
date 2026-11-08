@@ -3,7 +3,6 @@ import Linkify from '../components/Linkify';
 import { useTitle } from '../title';
 import { openSave } from '../components/SaveDialog';
 import { isBlocked } from '../filters';
-import { hasBridge } from '../bridge';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useChannels, useFeed } from '../data';
@@ -166,7 +165,7 @@ export default function Watch() {
           </p>
           {description
             ? <p className="desc-text"><Linkify text={description} /></p>
-            : <p className="desc-text muted">{hasBridge() ? 'Cargando la descripción…' : video || pub ? 'La descripción de este vídeo aún no está disponible.' : <>La descripción de los vídeos de fuera de tus canales se muestra con <Link to="/puente">TodoTube Puente</Link>.</>}</p>}
+            : <p className="desc-text muted">{video || pub ? 'La descripción de este vídeo aún no está disponible.' : 'Este vídeo no está en tus novedades.'}</p>}
           {description && <button type="button" className="desc-toggle" onClick={(e) => { e.stopPropagation(); setDescOpen((o) => !o); }}>{descOpen ? 'Mostrar menos' : '…más'}</button>}
         </div>
         {!video && !feed.loading && !saved && !navMeta && !listMeta && !oe && <p className="note">Este vídeo no está en tus novedades. <Link to="/">Ir a Principal</Link></p>}
