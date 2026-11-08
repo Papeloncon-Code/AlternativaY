@@ -34,7 +34,8 @@
 - [ ] E1 Sugerencias y recientes.
 - [ ] E2 Resultados, filtros y estados.
 - [ ] E3 Cabecera/tabs de canal.
-- [ ] E4 Alta de canal, notificaciones, grupos y responsive.
+- [x] E4 Separar el feed de Suscripciones de la gestión de canales: `/suscripciones` muestra publicaciones; `/suscripciones/gestionar` conserva altas, bajas, avisos y grupos.
+- [ ] E5 Ajustar el feed de Suscripciones con estados vacío/error, filtros de canal/grupo, Shorts e infinite scroll en desktop y móvil.
 
 ## F. Biblioteca y ajustes
 - [ ] F1 Historial, Ver más tarde, Me gusta y listas.
