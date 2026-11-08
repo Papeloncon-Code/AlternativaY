@@ -34,6 +34,14 @@ function authorized(req, env) {
   return typeof expected === 'string' && expected.length > 20 && actual.startsWith('Bearer ') && actual.slice(7) === expected;
 }
 function validId(id) { return /^[A-Za-z0-9_-]{1,80}$/.test(id); }
+function decodeValidId(value) {
+  try {
+    const id = decodeURIComponent(value);
+    return validId(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
 function parseRange(value, size) {
   if (!value) return null;
   const m = /^bytes=(\d*)-(\d*)$/.exec(value.trim());
@@ -62,9 +70,14 @@ function objectMetadata(obj, headers) {
 async function readMedia(req, env, id) {
   const key = PREFIX + id;
   const head = await env.MEDIA_BUCKET.head(key);
-  if (!head || (head.customMetadata?.visibility !== 'public' && !authorized(req, env))) return json(req, env, { error: 'Medio no encontrado' }, 404);
+  const isPublic = head?.customMetadata?.visibility === 'public';
+  if (!head || (!isPublic && !authorized(req, env))) return json(req, env, { error: 'Medio no encontrado' }, 404);
+
+  // Never allow an authenticated private object to inherit a public cache policy from R2 metadata.
+  const cacheControl = isPublic ? 'public, max-age=300, stale-while-revalidate=60' : 'private, no-store';
   const headers = cors(req, env);
   objectMetadata(head, headers);
+  headers.set('Cache-Control', cacheControl);
   if (req.headers.get('If-None-Match') && req.headers.get('If-None-Match') === head.httpEtag) return new Response(null, { status: 304, headers });
   const range = parseRange(req.headers.get('Range'), head.size);
   if (range?.invalid) {
@@ -79,9 +92,9 @@ async function readMedia(req, env, id) {
   const obj = await env.MEDIA_BUCKET.get(key, range ? { range: { offset: range.start, length: range.length } } : {});
   if (!obj) return json(req, env, { error: 'Medio no encontrado' }, 404);
   objectMetadata(obj, headers);
+  headers.set('Cache-Control', cacheControl);
   headers.set('Content-Length', String(range ? range.length : head.size));
   if (range) headers.set('Content-Range', 'bytes ' + range.start + '-' + range.end + '/' + head.size);
-  headers.set('Cache-Control', 'public, max-age=300, stale-while-revalidate=60');
   return new Response(obj.body, { status: range ? 206 : 200, headers });
 }
 async function catalog(req, env) {
@@ -112,8 +125,10 @@ async function upload(req, env, id) {
   if (!title || !creator) return json(req, env, { error: 'X-Media-Title y X-Media-Creator son obligatorios' }, 400);
   if (license !== 'owned' && license !== 'licensed') return json(req, env, { error: 'X-Media-License debe ser owned o licensed' }, 400);
   if (license === 'licensed' && !licenseReference) return json(req, env, { error: 'El contenido licenciado requiere X-Media-License-Reference' }, 400);
-  await env.MEDIA_BUCKET.put(PREFIX + id, req.body, {
-    httpMetadata: { contentType: type, cacheControl: 'public, max-age=300' },
+  const key = PREFIX + id;
+  if (await env.MEDIA_BUCKET.head(key)) return json(req, env, { error: 'Ya existe un medio con ese ID' }, 409);
+  await env.MEDIA_BUCKET.put(key, req.body, {
+    httpMetadata: { contentType: type, cacheControl: visibility === 'public' ? 'public, max-age=300' : 'private, no-store' },
     customMetadata: { title, creator, license, licenseReference, visibility },
   });
   return json(req, env, { ok: true, id, visibility }, 201);
@@ -127,18 +142,20 @@ export default {
     if (url.pathname === '/v1/catalog' && req.method === 'GET') return catalog(req, env);
     const media = /^\/v1\/media\/([^/]+)$/.exec(url.pathname);
     if (media && ['GET', 'HEAD'].includes(req.method)) {
-      const id = decodeURIComponent(media[1]);
-      if (!validId(id)) return json(req, env, { error: 'ID inválido' }, 400);
+      const id = decodeValidId(media[1]);
+      if (!id) return json(req, env, { error: 'ID inválido' }, 400);
       return readMedia(req, env, id);
     }
     const admin = /^\/v1\/admin\/media\/([^/]+)$/.exec(url.pathname);
     if (admin) {
-      const id = decodeURIComponent(admin[1]);
-      if (!validId(id)) return json(req, env, { error: 'ID inválido' }, 400);
+      const id = decodeValidId(admin[1]);
+      if (!id) return json(req, env, { error: 'ID inválido' }, 400);
       if (req.method === 'PUT') return upload(req, env, id);
       if (req.method === 'DELETE') {
         if (!authorized(req, env)) return json(req, env, { error: 'No autorizado' }, 401);
-        await env.MEDIA_BUCKET.delete(PREFIX + id);
+        const key = PREFIX + id;
+        if (!(await env.MEDIA_BUCKET.head(key))) return json(req, env, { error: 'Medio no encontrado' }, 404);
+        await env.MEDIA_BUCKET.delete(key);
         return json(req, env, { ok: true, id });
       }
     }
