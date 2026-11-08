@@ -12,6 +12,7 @@ export default function Settings() {
   const [key, setKey] = useState(ownerKey);
   const [saved, setSaved] = useState(false);
   useTitle('Ajustes');
+  const sb = useStore((s) => s.sponsorblock);
   const da = useStore((s) => s.dearrow);
   const focus = useStore((s) => s.focus);
   const words = useStore((s) => s.blockWords);
@@ -34,7 +35,7 @@ export default function Settings() {
     try {
       let j; try { j = JSON.parse(await f.text()); } catch { throw new Error('Este archivo no es una copia de TodoTube.'); }
       if (j?.app !== 'todotube' || typeof j.data !== 'object' || !j.data) throw new Error('Este archivo no es una copia de TodoTube.');
-      const allowed = ['favorites', 'watchLater', 'history', 'progress', 'watched', 'hidden', 'notifHidden', 'searches', 'theme', 'autoplay', 'theater', 'sidebar', 'focus', 'dearrow', 'blockWords', 'groups', 'playlists'];
+      const allowed = ['favorites', 'watchLater', 'history', 'progress', 'watched', 'hidden', 'notifHidden', 'searches', 'theme', 'autoplay', 'theater', 'sidebar', 'focus', 'sponsorblock', 'dearrow', 'blockWords', 'groups', 'playlists'];
       const data = Object.fromEntries(Object.entries(j.data).filter(([k]) => allowed.includes(k)));
       if (!confirm(`Se sustituirán tus datos de este navegador (historial, Me gusta, Ver más tarde…) por los de la copia del ${String(j.exportedAt ?? '').slice(0, 10) || 'archivo'}. ¿Continuar?`)) return;
       actions.importAll(data);
@@ -58,8 +59,10 @@ export default function Settings() {
         <PushToggle />
       </section>
       <section className="panel">
-        <h2>Personalización del feed</h2>
-        <label className="setting-row"><span><b>Títulos alternativos</b><small>Cuando existe una propuesta válida de la comunidad, muestra ese título en lugar del original. Pasa el ratón por el título para ver el original. Usa datos de <a href="https://dearrow.ajay.app/" target="_blank" rel="noreferrer">DeArrow</a>.</small></span>
+        <h2>Vídeos más limpios</h2>
+        <label className="setting-row"><span><b>Saltar patrocinios</b><small>Salta solo los tramos de patrocinio, autopromoción y “suscríbete” que la comunidad ha marcado, con opción de deshacer. Usa datos de <a href="https://sponsor.ajay.app/" target="_blank" rel="noreferrer">SponsorBlock</a> (CC BY-NC-SA 4.0). No se envía qué vídeo ves: solo 4 caracteres de una huella.</small></span>
+          <input type="checkbox" role="switch" checked={sb} onChange={() => actions.toggleSponsorBlock()} /></label>
+        <label className="setting-row"><span><b>Títulos sin clickbait</b><small>Sustituye títulos engañosos por los que vota la comunidad. Pasa el ratón por el título para ver el original. Usa datos de <a href="https://dearrow.ajay.app/" target="_blank" rel="noreferrer">DeArrow</a>.</small></span>
           <input type="checkbox" role="switch" checked={da} onChange={() => actions.toggleDeArrow()} /></label>
         <label className="setting-row"><span><b>Modo Foco</b><small>Una sola columna con lo nuevo de tus canales, sin menú, filtros, Shorts ni recomendaciones.</small></span>
           <input type="checkbox" role="switch" checked={focus} onChange={() => actions.toggleFocus()} /></label>
@@ -96,7 +99,7 @@ export default function Settings() {
       <section className="panel">
         <h2>Acerca de</h2>
         <p className="note"><Link to="/privacidad">Privacidad: qué datos hay y dónde</Link></p>
-        <p className="note">TodoTube. Los avisos dependen de la entrega de WebSub/RSS y de los permisos de notificación del navegador. Favoritos e historial se guardan en este navegador.</p>
+        <p className="note">TodoTube Web v0.2. Las novedades llegan al momento en cuanto tus canales publican. Tus favoritos e historial se quedan en este navegador.</p>
       </section>
     </div>
   );

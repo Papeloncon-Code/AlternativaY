@@ -1,5 +1,13 @@
-// Metadatos comunitarios DeArrow. No reproduce, modifica ni retransmite medios.
-import { useEffect, useState } from 'react';
+// Datos de la comunidad que aportan las alternativas (spec 007 · A1 y A2):
+// - SponsorBlock: tramos de patrocinio, autopromoción y "suscríbete" para saltarlos.
+// - DeArrow: títulos y miniaturas sin clickbait votados por la comunidad.
+// Privacidad: se consulta por los 4 primeros caracteres del SHA-256 del ID (k-anonimato), así el
+// servicio no sabe qué vídeo concreto estás viendo. Verificado 2026-11-07: CORS `*` en ambas API.
+// Licencia de los datos: CC BY-NC-SA 4.0 (https://github.com/ajayyy/SponsorBlock/wiki/Database-and-API-License).
+import { useEffect, useRef, useState } from 'react';
+import type { PlayerHandle } from './player/handle';
+import { toast } from './toast';
+import { dueSkip, mergeSegments } from './skip';
 
 const API = 'https://sponsor.ajay.app/api';
 
@@ -8,6 +16,67 @@ async function prefixOf(id: string): Promise<string> {
   return [...new Uint8Array(buf)].slice(0, 2).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// ---------- SponsorBlock ----------
+export type Segment = { start: number; end: number; category: string };
+export const SKIP_CATEGORIES = ['sponsor', 'selfpromo', 'interaction'] as const;
+const CAT_LABEL: Record<string, string> = { sponsor: 'Patrocinio', selfpromo: 'Autopromoción', interaction: 'Petición de suscripción' };
+
+const segCache = new Map<string, Promise<Segment[]>>();
+export function getSegments(id: string): Promise<Segment[]> {
+  let p = segCache.get(id);
+  if (!p) {
+    p = (async () => {
+      const cats = encodeURIComponent(JSON.stringify(SKIP_CATEGORIES));
+      const r = await fetch(`${API}/skipSegments/${await prefixOf(id)}?categories=${cats}&actionTypes=${encodeURIComponent('["skip"]')}`);
+      if (r.status === 404) return []; // ningún vídeo con ese prefijo tiene tramos
+      if (!r.ok) throw new Error(`SponsorBlock ${r.status}`);
+      const list = (await r.json()) as { videoID: string; segments: { segment: [number, number]; category: string }[] }[];
+      const mine = list.find((v) => v.videoID === id)?.segments ?? [];
+      return mergeSegments(mine.map((s) => ({ start: s.segment[0], end: s.segment[1], category: s.category }))
+        .filter((s) => s.end - s.start >= 1));
+    })();
+    p.catch(() => segCache.delete(id));
+    segCache.set(id, p);
+  }
+  return p;
+}
+
+/** Tramos de un vídeo (solo consulta; para mostrar el aviso en la página). */
+export function useSegments(id: string, enabled: boolean): Segment[] {
+  const [segments, setSegments] = useState<Segment[]>([]);
+  useEffect(() => {
+    setSegments([]);
+    if (!enabled || !id) return;
+    let alive = true;
+    getSegments(id).then((s) => { if (alive) setSegments(s); }).catch(() => {});
+    return () => { alive = false; };
+  }, [id, enabled]);
+  return segments;
+}
+
+/** Salta automáticamente los tramos votados, con aviso y "Deshacer" (vuelve al inicio del tramo una vez). */
+export function useSponsorSkip(id: string, handle: { current: PlayerHandle | null }, enabled: boolean) {
+  const segments = useSegments(id, enabled);
+  const skipped = useRef(new Set<number>());
+  useEffect(() => { skipped.current.clear(); }, [id]);
+  useEffect(() => {
+    if (!enabled || !segments.length) return;
+    const t = setInterval(() => {
+      const h = handle.current;
+      if (!h) return;
+      const i = dueSkip(segments, h.getTime(), skipped.current);
+      if (i < 0) return;
+      const s = segments[i];
+      skipped.current.add(i); // al deshacer no se vuelve a saltar ese tramo
+      h.seekTo(s.end);
+      toast(`${CAT_LABEL[s.category] ?? 'Tramo'} saltado`, { label: 'Deshacer', run: () => handle.current?.seekTo(s.start) });
+    }, 250);
+    return () => clearInterval(t);
+  }, [segments, enabled, handle]);
+  return segments;
+}
+
+// ---------- DeArrow ----------
 export type Branding = { title?: string; thumb?: string };
 type RawBranding = Record<string, {
   titles: { title: string; original: boolean; votes: number; locked: boolean }[];

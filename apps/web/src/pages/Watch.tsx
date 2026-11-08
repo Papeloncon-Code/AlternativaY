@@ -16,7 +16,7 @@ import { handleRef, pageCallbacks, play, useSession } from '../player/session';
 import { hostEl } from '../components/PlayerHost';
 import BellMenu, { type Bell } from '../components/BellMenu';
 import { setChannelBell } from '../push';
-import { fetchVideo, removeChannel, thumb, type VideoData } from '../api';
+import { fetchVideo, removeChannel, type VideoData } from '../api';
 import { shareVideo, toast } from '../toast';
 import { useBranding, useSegments } from '../community';
 
