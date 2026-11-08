@@ -4,6 +4,8 @@ const DEFAULT_ORIGIN_TIMEOUT_MS = 1800;
 const MAX_ORIGIN_TIMEOUT_MS = 5000;
 const DEFAULT_WRITE_TIMEOUT_MS = 45000;
 const MAX_WRITE_TIMEOUT_MS = 120000;
+const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 8000;
+const MAX_STREAM_IDLE_TIMEOUT_MS = 30000;
 const ALLOWED_TYPES = new Set([
   'video/mp4', 'video/webm', 'video/ogg',
   'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/webm',
@@ -98,6 +100,11 @@ function writeTimeout(env) {
   const configured = Number(env.MEDIA_WRITE_TIMEOUT_MS);
   if (!Number.isFinite(configured) || configured < 1000) return DEFAULT_WRITE_TIMEOUT_MS;
   return Math.min(configured, MAX_WRITE_TIMEOUT_MS);
+}
+function streamIdleTimeout(env) {
+  const configured = Number(env.MEDIA_STREAM_IDLE_TIMEOUT_MS);
+  if (!Number.isFinite(configured) || configured < 50) return DEFAULT_STREAM_IDLE_TIMEOUT_MS;
+  return Math.min(configured, MAX_STREAM_IDLE_TIMEOUT_MS);
 }
 function withTimeout(promise, timeoutMs) {
   let timer;
@@ -198,8 +205,11 @@ function failoverBody(initialBody, initialIndex, origins, env, key, head, range,
           }
           let result;
           try {
-            result = await reader.read();
+            result = await withTimeout(reader.read(), streamIdleTimeout(env));
           } catch {
+            // Some origins stall without closing or erroring the body. Treat an idle
+            // read as a recoverable failure and move to the next verified copy.
+            void reader.cancel().catch(() => {});
             reader = await nextReader();
             if (!reader) {
               controller.close();
