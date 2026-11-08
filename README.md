@@ -42,12 +42,6 @@ Worker `todotube-media-gateway` en `apps/media-gateway`:
 | `todotube-media-gateway` | Código integrado; provisionamiento pendiente |
 | R2 `todotube-media` | Bucket pendiente |
 
-## Límites explícitos
-
-- No se extraen, descargan ni retransmiten streams YouTube.
-- No hay proxy genérico, falsificación de BotGuard/PoToken, rotación de IP ni suplantación de cliente.
-- Marcar un objeto `owned`/`licensed` no sustituye comprobar sus derechos.
-- No existe cliente Android nativo, cuentas ni sincronización.
 
 ## Desarrollo y pruebas
 
