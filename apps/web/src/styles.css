@@ -826,3 +826,21 @@ img.avatar { object-fit: cover; background: var(--chip); }
   .player-message-actions { width: 100%; gap: 6px; }
   .player-message-actions .btn { min-height: 34px; height: 34px; padding: 0 11px; font-size: 12px; }
 }
+
+
+/* Feed de Suscripciones: publicaciones separadas de la pantalla administrativa. */
+.subscription-feed-head { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:16px; }
+.subscription-feed-head h1 { margin:0; }
+.subscription-feed-head .sub { margin:4px 0 0; }
+.subscription-feed-section { margin-top:20px; }
+.subscription-feed-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.subscription-feed-section-head h2 { margin:0; font-size:20px; line-height:28px; }
+.subscription-feed-section-head > span { color:var(--text-2); font-size:13px; }
+.subscription-manage-link { flex:none; }
+.subscription-shorts { margin-top:28px; }
+.subscription-shorts-grid { margin-top:20px; }
+@media (max-width: 640px) {
+  .subscription-feed-head { align-items:flex-start; }
+  .subscription-manage-link { width:40px; height:40px; overflow:hidden; justify-content:center; padding:0; font-size:0; gap:0; }
+  .subscription-manage-link svg { flex:none; }
+}
