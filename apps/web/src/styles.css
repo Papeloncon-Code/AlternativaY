@@ -655,7 +655,7 @@ img.avatar { object-fit: cover; background: var(--chip); }
 .ch-meta { margin: 0; font-size: 14px; line-height: 22px; color: var(--text-2); display: flex; flex-wrap: wrap; }
 .ch-meta strong { color: var(--text); font-weight: 600; }
 .ch-meta span + span::before { content: '•'; margin: 0 4px; }
-.ch-desc { display: flex; align-items: baseline; max-width: 600px; margin-top: 12px; padding: 0; border: 0; background: none; font: inherit; font-size: 14px; line-height: 20px; color: var(--text-2); cursor: pointer; text-align: left; }
+.ch-desc { display: flex; align-items: baseline; max-width: min(600px, 100%); margin-top: 12px; padding: 0; border: 0; background: none; font: inherit; font-size: 14px; line-height: 20px; color: var(--text-2); cursor: pointer; text-align: left; }
 .ch-desc-text { white-space: nowrap; overflow: hidden; -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); min-width: 0; }
 .ch-more { flex: none; color: var(--text); font-weight: 600; padding-left: 4px; }
 .ch-links { margin: 12px 0 0; font-size: 14px; line-height: 20px; display: flex; gap: 4px; flex-wrap: wrap; }

@@ -7,7 +7,8 @@ export default defineConfig({
   timeout: 45_000,
   retries: 1,
   reporter: [['list']],
-  use: { baseURL: base, trace: 'off' },
+  // En entornos con proxy de salida (HTTPS_PROXY), también las peticiones directas de las pruebas (page.request) lo usan.
+  use: { baseURL: base, trace: 'off', ...(process.env.BASE_URL && process.env.HTTPS_PROXY ? { proxy: { server: process.env.HTTPS_PROXY } } : {}) },
   projects: [
     { name: 'escritorio', use: { viewport: { width: 1366, height: 768 } }, testIgnore: /movil\.spec\.ts/ },
     // Tamaño y tacto de un iPhone 13, con el Chromium instalado (WebKit no está en este entorno).

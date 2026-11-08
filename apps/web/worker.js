@@ -1,5 +1,7 @@
 // TodoTube Web v0.1: sirve la web (embebida en assets.generated.js) y una API mínima sobre la D1 del servicio de avisos.
 import ASSETS from './assets.generated.js';
+import FALLBACK_CHANNELS from './fallback-channels.json';
+import { parseAtom } from '../../spikes/websub/src/atom.js';
 // specs/004-web-v0/spec.md · Constitución §I.2: no se extrae YouTube; solo se leen datos de WebSub/RSS.
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
@@ -30,6 +32,31 @@ async function cached(key, ttl, load) {
     throw e;
   }
 }
+// Plan B si D1 no responde (p. ej., límite gratuito diario agotado): los canales salen de una copia de respaldo
+// (nombre, foto y cabecera pública; scripts/snapshot-canales.mjs) y los vídeos del RSS público de cada canal,
+// leído en directo y guardado 10 minutos. Mismas fuentes que permite la constitución §I.2.
+async function rssAll() {
+  return cached('rss-all', 600, async () => {
+    const lists = await Promise.all(FALLBACK_CHANNELS.map(async (c) => {
+      try {
+        const r = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${c.id}`, { cf: { cacheTtl: 600 } });
+        if (!r.ok) return [];
+        return parseAtom(await r.text()).entries.map((e) => ({
+          // Lo publicado en las últimas 48 h cuenta como novedad (avisos y «Nuevo»), igual que con WebSub/RSS en D1.
+          id: e.videoId, title: e.title, publishedAt: e.published, channelId: c.id, channel: c.name,
+          source: e.published && Date.now() - e.published < 48 * 3600 * 1000 ? 'rss' : 'baseline', seenAt: e.published ?? 0, kind: e.isShort == null ? null : e.isShort ? 'short' : 'video',
+          views: e.views ?? null, likes: e.likes ?? null, duration: null, description: e.description ?? null,
+        }));
+      } catch { return []; }
+    }));
+    const all = lists.flat().sort((a, b) => (b.publishedAt ?? 0) - (a.publishedAt ?? 0));
+    if (!all.length) throw new Error('RSS sin respuesta');
+    return all;
+  });
+}
+const plain = ({ description, ...v }) => v;
+const FALLBACK = { 'x-todotube-fuente': 'respaldo-rss' };
+
 const forget = (prefix) => { for (const k of memo.keys()) if (k.startsWith(prefix)) memo.delete(k); };
 
 async function api(request, env, url) {
@@ -39,30 +66,35 @@ async function api(request, env, url) {
     // Hasta 1000: la página de canal pide todos los vídeos guardados de una vez (el servidor no sabe qué canal miras).
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 60, 1), 1000);
     const before = Number(url.searchParams.get('before')) || 9e15;
-    const results = await cached(`feed:${limit}:${before}`, 60, async () => (await env.DB.prepare(
+    let results;
+    try { results = await cached(`feed:${limit}:${before}`, 60, async () => (await env.DB.prepare(
       `SELECT v.video_id AS id, v.title, v.published_at AS publishedAt, v.channel_id AS channelId,
               COALESCE(c.label, v.channel_id) AS channel, v.first_source AS source, v.first_seen_at AS seenAt, v.kind AS kind,
               v.views AS views, v.likes AS likes, v.duration AS duration
        FROM videos v LEFT JOIN channels c ON c.channel_id = v.channel_id
        WHERE (c.status IS NULL OR c.status <> 'removing') AND v.published_at < ?
        ORDER BY v.published_at DESC LIMIT ?`
-    ).bind(before, limit).all()).results);
+    ).bind(before, limit).all()).results); }
+    catch { return json({ items: (await rssAll()).filter((v) => (v.publishedAt ?? 0) < before).slice(0, limit).map(plain) }, 200, { 'cache-control': 'public, max-age=60', ...FALLBACK }); }
     return json({ items: results }, 200, { 'cache-control': 'public, max-age=60' });
   }
   // Descripciones, visitas y me gusta (del RSS público) de los vídeos recientes, TODOS en una sola respuesta:
   // así el servidor no sabe qué vídeo abres (revisión independiente, hallazgo M3).
   if (url.pathname === '/api/descriptions' && request.method === 'GET') {
-    const results = await cached('descriptions', 600, async () => (await env.DB.prepare(
+    let results;
+    try { results = await cached('descriptions', 600, async () => (await env.DB.prepare(
       `SELECT v.video_id AS id, v.description AS d, v.views AS v, v.likes AS l
        FROM videos v LEFT JOIN channels c ON c.channel_id = v.channel_id
        WHERE (c.status IS NULL OR c.status <> 'removing') AND (v.description IS NOT NULL OR v.views IS NOT NULL)
        ORDER BY v.published_at DESC LIMIT 400`
-    ).all()).results);
+    ).all()).results); }
+    catch { return json({ items: (await rssAll()).map((v) => ({ id: v.id, d: v.description, v: v.views, l: v.likes })) }, 200, { 'cache-control': 'public, max-age=600', ...FALLBACK }); }
     return json({ items: results }, 200, { 'cache-control': 'public, max-age=600' });
   }
   if (url.pathname === '/api/channels' && request.method === 'GET') {
     // Recuento de vídeos con un solo GROUP BY sobre el índice de channel_id (antes: una subconsulta por canal).
-    const results = await cached('channels', 30, async () => (await env.DB.prepare(
+    let results;
+    try { results = await cached('channels', 30, async () => (await env.DB.prepare(
       `SELECT c.channel_id AS id, COALESCE(c.label, c.channel_id) AS name, c.status, c.verified_at AS verifiedAt,
               c.last_error AS lastError, c.notify AS notify, c.avatar AS avatar, c.header AS header, COALESCE(n.n, 0) AS videos
        FROM channels c LEFT JOIN (SELECT channel_id, COUNT(*) AS n FROM videos GROUP BY channel_id) n ON n.channel_id = c.channel_id
@@ -71,7 +103,12 @@ async function api(request, env, url) {
       // Cabecera pública del canal (ADR-006, enmienda 4), guardada como JSON por el servicio de avisos.
       let header = null; try { header = r.header ? JSON.parse(r.header) : null; } catch { /* sin cabecera */ }
       return { ...r, header };
-    }));
+    })); }
+    catch {
+      const vids = await rssAll().catch(() => []);
+      const n = new Map(); for (const v of vids) n.set(v.channelId, (n.get(v.channelId) ?? 0) + 1);
+      return json({ items: FALLBACK_CHANNELS.map((c) => ({ ...c, videos: n.get(c.id) ?? 0 })) }, 200, { 'cache-control': 'no-store', ...FALLBACK });
+    }
     return json({ items: results }, 200, { 'cache-control': 'no-store' });
   }
   if (url.pathname === '/api/channels' && request.method === 'POST') {
