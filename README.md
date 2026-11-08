@@ -29,7 +29,7 @@ Worker `todotube-media-gateway` en `apps/media-gateway`:
 - Cargas replicadas y catálogo combinado; las respuestas indican estado degradado.
 - GET `/health` y `/v1/catalog`.
 - GET/HEAD de `/v1/media/:id`.
-- Streaming R2, Range, 206 y 416; cambio de réplica incluso si el stream se interrumpe, reanudando desde el siguiente byte cuando la versión coincide.
+- Streaming R2, Range, 206 y 416; cambio de réplica si el stream falla, se trunca o deja de entregar bytes, reanudando desde el siguiente byte cuando la versión coincide.
 - Carga/borrado autenticados; metadatos `owned` o `licensed`.
 - Límite de carga actual: 90 MiB por objeto.
 - No acepta URLs arbitrarias ni retransmite YouTube.
