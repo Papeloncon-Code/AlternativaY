@@ -19,7 +19,8 @@ test('W4 · la página del vídeo muestra visitas y descripción sin Puente', as
   const feed = await api(page, '/api/feed?limit=200');
   const v = feed.items.find((x: { views: number | null; kind: string }) => x.views != null && x.kind !== 'short');
   test.skip(!v, 'el servidor aún no tiene visitas');
-  const data = await api(page, `/api/video/${v.id}`);
+  const all = await api(page, '/api/descriptions');
+  const data = { description: all.items.find((x: { id: string }) => x.id === v.id)?.d };
   await page.goto(`/ver/${v.id}`);
   await expect(page.locator('.desc-meta')).toContainText('visualizaci');
   if (data.description) await expect(page.locator('.desc-text')).toContainText(data.description.slice(0, 20));
@@ -49,6 +50,24 @@ test('Privacidad: página enlazada desde el menú y Ajustes', async ({ page }) =
   await expect(page).toHaveURL(/\/privacidad$/);
   await expect(page.locator('h1')).toHaveText('Privacidad');
   await expect(page.locator('.ptable').first()).toContainText('solo si activas los avisos');
+  await expect(page.locator('.privacy')).toContainText('youtube-nocookie');
   await page.goto('/ajustes');
   await expect(page.locator('.panel').getByRole('link', { name: /Privacidad/ })).toHaveAttribute('href', '/privacidad');
+});
+
+test('G1 · ninguna cookie de YouTube al navegar por TodoTube', async ({ page, context }) => {
+  await context.route(/googlevideo\.com/, (r) => r.abort()); // sin reproducción real
+  const hosts = new Set<string>();
+  page.on('request', (r) => hosts.add(new URL(r.url()).host));
+  for (const p of ['/', '/privacidad', '/ajustes', '/suscripciones']) await page.goto(p, { waitUntil: 'networkidle' });
+  expect([...hosts].filter((h) => h === 'www.youtube.com')).toEqual([]);
+  expect((await context.cookies()).filter((c) => c.domain.includes('youtube'))).toEqual([]);
+});
+
+test('M3 · nuestro servidor no recibe la página en la que estás', async ({ page }) => {
+  const refs: string[] = [];
+  page.on('request', (r) => { if (r.url().includes('/api/')) refs.push(r.headers()['referer'] ?? ''); });
+  await page.goto('/buscar?q=noticias'); await page.waitForLoadState('networkidle');
+  expect(refs.length).toBeGreaterThan(0);
+  expect(refs.filter((r) => r.includes('/buscar') || r.includes('noticias'))).toEqual([]);
 });

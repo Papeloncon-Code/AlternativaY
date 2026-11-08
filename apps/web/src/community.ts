@@ -10,7 +10,6 @@ import { toast } from './toast';
 import { dueSkip, mergeSegments } from './skip';
 
 const API = 'https://sponsor.ajay.app/api';
-const THUMBS = 'https://dearrow-thumb.ajay.app/api/v1/getThumbnail';
 
 async function prefixOf(id: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(id));
@@ -100,10 +99,7 @@ export async function getBranding(id: string): Promise<Branding> {
   const t = b.titles[0];
   // ">" marca palabras que no deben reformatearse (src/titles/titleFormatter.ts); no se muestra.
   if (t && !t.original && (t.locked || t.votes >= 0)) out.title = t.title.replace(/(^|\s)>(\S)/g, '$1$2').trim();
-  const th = b.thumbnails[0];
-  if (th && !th.original && th.timestamp != null && (th.locked || th.votes >= 0)) {
-    out.thumb = `${THUMBS}?videoID=${encodeURIComponent(id)}&time=${th.timestamp}`;
-  }
+  // Las miniaturas alternativas no se usan: su servicio recibe el ID completo del vídeo (revisión independiente, M2).
   return out;
 }
 

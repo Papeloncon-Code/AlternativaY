@@ -107,7 +107,7 @@ export default function Search() {
       {vids.length === 0 && chans.length === 0 && <Empty title={`Ninguno de tus canales ha publicado nada sobre «${q}»`}><p>Con TodoTube Puente podrás buscar en todo y seguir canales nuevos desde aquí.</p></Empty>}
       {localShorts.length > 0 && (
         <section className="shelf" aria-label="Shorts"><h2><Icon name="shorts" size={22} /> Shorts</h2>
-          <div className="shorts-row">{localShorts.map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} />)}</div>
+          <div className="shorts-row">{localShorts.map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} views={v.views} />)}</div>
         </section>
       )}
       {localVideos.map((v) => <LocalRow key={v.id} v={v} />)}

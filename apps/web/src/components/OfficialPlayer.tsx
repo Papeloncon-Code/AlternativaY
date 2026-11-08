@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { actions, type Meta } from '../store';
-import { loadYouTubeApi } from '../youtube';
+import { EmbedPlayer } from '../player/embed';
 import { ErrorBox } from './States';
 import type { PlayerHandle } from '../player/handle';
 
@@ -17,41 +17,36 @@ export default function OfficialPlayer({ id, meta, startAt, onEnded, onReady, lo
   cb.current = { onEnded, onReady };
 
   useEffect(() => {
-    let player: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    let player: EmbedPlayer | undefined;
     let timer: number | undefined;
-    let cancelled = false;
-    const save = () => { try { actions.saveProgress(metaRef.current, player.getCurrentTime(), player.getDuration()); } catch { /* no listo */ } };
-    loadYouTubeApi().then((YT) => {
-      if (cancelled || !hostRef.current) return;
-      const el = document.createElement('div');
-      hostRef.current.replaceChildren(el);
-      player = new YT.Player(el, {
-        host: 'https://www.youtube-nocookie.com',
-        videoId: id,
-        playerVars: { start: Math.floor(startAt), rel: 0, playsinline: 1, autoplay: 1, ...(loop ? { loop: 1, playlist: id, controls: 0, disablekb: 1, iv_load_policy: 3, fs: 0 } : {}) },
-        events: {
-          onReady: () => {
-            cb.current.onReady?.({
-              togglePlay: () => (player.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo()),
-              seekBy: (sec: number) => player.seekTo(Math.max(0, player.getCurrentTime() + sec), true),
-              seekToFraction: (f: number) => player.seekTo(player.getDuration() * f, true),
-              toggleMute: () => (player.isMuted() ? player.unMute() : player.mute()),
-              changeRate: (d: number) => { const r = Math.min(2, Math.max(0.25, +(player.getPlaybackRate() + d).toFixed(2))); player.setPlaybackRate(r); return r; },
-              restart: () => { player.seekTo(0, true); player.playVideo(); },
-              getTime: () => { try { return player.getCurrentTime(); } catch { return 0; } },
-              seekTo: (sec: number) => player.seekTo(sec, true),
-            });
-          },
-          onStateChange: (e: { data: number }) => {
-            if (e.data === 1) { actions.addHistory(metaRef.current); window.clearInterval(timer); timer = window.setInterval(save, 5000); }
-            if (e.data === 2 || e.data === 0) { window.clearInterval(timer); save(); }
-            if (e.data === 0 && !loop) cb.current.onEnded?.();
-          },
-          onError: (e: { data: number }) => setError(e.data === 101 || e.data === 150 ? 'El autor no permite reproducir este vídeo aquí.' : 'Este vídeo no está disponible.'),
+    const save = () => { if (player && player.getDuration() > 0) actions.saveProgress(metaRef.current, player.getCurrentTime(), player.getDuration()); };
+    if (hostRef.current) {
+      const p = new EmbedPlayer(hostRef.current, id, {
+        start: Math.floor(startAt), rel: 0, playsinline: 1, autoplay: 1,
+        ...(loop ? { loop: 1, playlist: id, controls: 0, disablekb: 1, iv_load_policy: 3, fs: 0 } : {}),
+      }, {
+        onReady: () => {
+          cb.current.onReady?.({
+            togglePlay: () => (p.getPlayerState() === 1 ? p.pauseVideo() : p.playVideo()),
+            seekBy: (sec: number) => p.seekTo(Math.max(0, p.getCurrentTime() + sec)),
+            seekToFraction: (f: number) => p.seekTo(p.getDuration() * f),
+            toggleMute: () => (p.isMuted() ? p.unMute() : p.mute()),
+            changeRate: (d: number) => { const r = Math.min(2, Math.max(0.25, +(p.getPlaybackRate() + d).toFixed(2))); p.setPlaybackRate(r); return r; },
+            restart: () => { p.seekTo(0); p.playVideo(); },
+            getTime: () => p.getCurrentTime(),
+            seekTo: (sec: number) => p.seekTo(sec),
+          });
         },
+        onStateChange: (st) => {
+          if (st === 1) { actions.addHistory(metaRef.current); window.clearInterval(timer); timer = window.setInterval(save, 5000); }
+          if (st === 2 || st === 0) { window.clearInterval(timer); save(); }
+          if (st === 0 && !loop) cb.current.onEnded?.();
+        },
+        onError: (code) => setError(code === 101 || code === 150 ? 'El autor no permite reproducir este vídeo aquí.' : 'Este vídeo no está disponible.'),
       });
-    }).catch((e: Error) => setError(e.message));
-    return () => { cancelled = true; window.clearInterval(timer); if (player) { save(); player.destroy?.(); } };
+      player = p;
+    }
+    return () => { window.clearInterval(timer); if (player) { save(); player.destroy(); } };
   }, [id, startAt, loop, retry]);
 
   return error ? <ErrorBox message={error} onRetry={() => { setError(''); setRetry((n) => n + 1); }} /> : <div ref={hostRef} className="player-host" />;

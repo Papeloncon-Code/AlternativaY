@@ -12,7 +12,7 @@ import OwnPlayer from '../components/OwnPlayer';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import { shareVideo, toast } from '../toast';
-import { ago } from '../format';
+import { ago, fmtCount } from '../format';
 import { Empty } from '../components/States';
 import type { PlayerHandle } from '../player/handle';
 
@@ -115,7 +115,7 @@ export default function ShortsPlayer() {
         </div>
         <div className="short-actions">
           <button type="button" className={`round${fav ? ' on' : ''}`} aria-pressed={fav} aria-label="Me gusta" onClick={() => { actions.toggleFavorite(meta); toast(fav ? 'Quitado de Me gusta' : 'Añadido a Me gusta'); }}><Icon name="like" size={24} /></button>
-          <span>Me gusta</span>
+          <span>{cur?.likes ? fmtCount(cur.likes + (fav ? 1 : 0)) : 'Me gusta'}</span>
           <button type="button" className="round" aria-label="Compartir" onClick={() => shareVideo(id, meta.title)}><Icon name="share" size={24} /></button>
           <span>Compartir</span>
           <Link to={`/canal/${meta.channelId}`} className="round avatar-link" aria-label={`Canal ${meta.channel}`}><Avatar name={meta.channel || 'Canal'} id={meta.channelId || id} size={40} /></Link>

@@ -27,6 +27,7 @@ const paths: Record<string, string> = {
   like: 'M7 21H4V10h3zM7 10l4-7c1.7 0 2.8 1.4 2.4 3L12.8 9H19a2 2 0 0 1 2 2.3l-1.3 7.6A2.5 2.5 0 0 1 17.2 21H7',
   more: 'M12 6.5h.01M12 12h.01M12 17.5h.01',
   close: 'M6 6l12 12M18 6 6 18',
+  shield: 'M12 3l7 3v6c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6z',
   pause: 'M8 5v14M16 5v14',
   expand: 'M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7',
   keyboard: 'M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M7 14h10',

@@ -150,7 +150,7 @@ export default function Watch() {
               onUnfollow={() => bell(() => removeChannel(channel.id, ownerKey), `Has dejado de seguir ${channel.name}`)} />}
           </div>
           <div className="watch-actions">
-            <button type="button" className={`btn${fav ? ' on' : ''}`} aria-pressed={fav} onClick={() => { actions.toggleFavorite(meta); toast(fav ? 'Quitado de Me gusta' : 'Añadido a Me gusta'); }}>
+            <button type="button" className={`btn${fav ? ' on' : ''}`} aria-pressed={fav} aria-label={fav ? 'Quitar de Me gusta' : 'Me gusta'} onClick={() => { actions.toggleFavorite(meta); toast(fav ? 'Quitado de Me gusta' : 'Añadido a Me gusta'); }}>
               <Icon name="like" size={18} /> {pub?.likes != null ? fmtCount(pub.likes + (fav ? 1 : 0)) : fav ? 'Te gusta' : 'Me gusta'}
             </button>
             <button type="button" className="btn" onClick={() => shareVideo(id, meta.title)}><Icon name="share" size={18} /> Compartir</button>
@@ -166,7 +166,7 @@ export default function Watch() {
           </p>
           {description
             ? <p className="desc-text">{description}</p>
-            : <p className="desc-text muted">{pub ? 'Este vídeo no tiene descripción.' : hasBridge() ? 'Cargando la descripción…' : <>La descripción de los vídeos de fuera de tus canales se muestra con <Link to="/puente">TodoTube Puente</Link>.</>}</p>}
+            : <p className="desc-text muted">{hasBridge() ? 'Cargando la descripción…' : video || pub ? 'La descripción de este vídeo aún no está disponible.' : <>La descripción de los vídeos de fuera de tus canales se muestra con <Link to="/puente">TodoTube Puente</Link>.</>}</p>}
           {description && <button type="button" className="desc-toggle" onClick={(e) => { e.stopPropagation(); setDescOpen((o) => !o); }}>{descOpen ? 'Mostrar menos' : '…más'}</button>}
         </div>
         {fallback && <p className="bridge-hint">El reproductor TodoTube no pudo cargar este vídeo ({fallback}); se usa el reproductor de reserva.</p>}

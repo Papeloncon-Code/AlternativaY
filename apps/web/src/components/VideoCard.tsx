@@ -69,7 +69,7 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
         <div className="vtext">
           <Link to={href} className="vtitle" title={brand.title ? `Título original: ${title}` : title}>{shownTitle}</Link>
           <Link to={`/canal/${channelId}`} className="vmeta vchan">{channel}</Link>
-          <span className="vmeta">{[fmtViews(views), publishedAt ? ago(publishedAt) : '', watched ? 'visto' : ''].filter(Boolean).join(' · ')}</span>
+          <span className="vmeta vmeta-row">{[fmtViews(views), publishedAt ? ago(publishedAt) : '', watched ? 'visto' : ''].filter(Boolean).map((t, i) => <span key={i}>{t}</span>)}</span>
           {isNew && !watched && <span className="badge-nuevo">Nuevo</span>}
         </div>
         <div className="vmenu" ref={ref}>

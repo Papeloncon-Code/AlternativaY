@@ -62,7 +62,7 @@ export default function Settings() {
         <h2>Vídeos más limpios</h2>
         <label className="setting-row"><span><b>Saltar patrocinios</b><small>Salta solo los tramos de patrocinio, autopromoción y “suscríbete” que la comunidad ha marcado, con opción de deshacer. Usa datos de <a href="https://sponsor.ajay.app/" target="_blank" rel="noreferrer">SponsorBlock</a> (CC BY-NC-SA 4.0). No se envía qué vídeo ves: solo 4 caracteres de una huella.</small></span>
           <input type="checkbox" role="switch" checked={sb} onChange={() => actions.toggleSponsorBlock()} /></label>
-        <label className="setting-row"><span><b>Títulos y miniaturas sin clickbait</b><small>Sustituye títulos y miniaturas engañosos por los que vota la comunidad. Pasa el ratón por el título para ver el original. Usa datos de <a href="https://dearrow.ajay.app/" target="_blank" rel="noreferrer">DeArrow</a>.</small></span>
+        <label className="setting-row"><span><b>Títulos sin clickbait</b><small>Sustituye títulos engañosos por los que vota la comunidad. Pasa el ratón por el título para ver el original. Usa datos de <a href="https://dearrow.ajay.app/" target="_blank" rel="noreferrer">DeArrow</a>.</small></span>
           <input type="checkbox" role="switch" checked={da} onChange={() => actions.toggleDeArrow()} /></label>
         <label className="setting-row"><span><b>Modo Foco</b><small>Una sola columna con lo nuevo de tus canales, sin menú, filtros, Shorts ni recomendaciones.</small></span>
           <input type="checkbox" role="switch" checked={focus} onChange={() => actions.toggleFocus()} /></label>

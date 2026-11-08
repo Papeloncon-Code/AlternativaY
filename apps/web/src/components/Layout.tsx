@@ -201,7 +201,7 @@ export default function Layout() {
         <div className="side-group">
           <NavLink to="/ajustes" className="side-item"><Icon name="settings" size={22} /><span>Ajustes</span></NavLink>
           <NavLink to="/puente" className="side-item"><Icon name="play" size={22} /><span>TodoTube Puente</span></NavLink>
-          <NavLink to="/privacidad" className="side-item"><Icon name="ban" size={22} /><span>Privacidad</span></NavLink>
+          <NavLink to="/privacidad" className="side-item"><Icon name="shield" size={22} /><span>Privacidad</span></NavLink>
         </div>
         <p className="side-foot">TodoTube · web v0.2</p>
       </aside>

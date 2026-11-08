@@ -76,7 +76,7 @@ export default function Home() {
     <section className="shelf" aria-labelledby="h-shorts">
       <h2 id="h-shorts"><Icon name="shorts" size={24} /> Shorts</h2>
       <div className="shorts-row">
-        {shorts.map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} />)}
+        {shorts.map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} views={v.views} />)}
       </div>
     </section>
   );

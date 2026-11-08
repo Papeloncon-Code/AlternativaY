@@ -77,6 +77,7 @@ export default function AccountMenu() {
           <Link role="menuitem" to="/ajustes" onClick={done}><Icon name="settings" size={20} />Ajustes</Link>
           <Link role="menuitem" to="/ajustes#datos" onClick={done}><Icon name="download" size={20} />Exportar e importar datos</Link>
           <Link role="menuitem" to="/puente" onClick={done}><Icon name="play" size={20} />TodoTube Puente</Link>
+          <Link role="menuitem" to="/privacidad" onClick={done}><Icon name="shield" size={20} />Privacidad</Link>
         </div>
       )}
       {open && view === 'theme' && (

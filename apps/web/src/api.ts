@@ -48,6 +48,16 @@ export async function removeChannel(id: string, ownerKey: string) {
 }
 
 export type VideoData = { id: string; views: number | null; likes: number | null; description: string | null };
-export const fetchVideo = (id: string) => get<VideoData>(`/api/video/${id}`);
+// Todas las descripciones de una vez (el servidor no sabe qué vídeo abres); se guardan 10 min en memoria.
+let descCache: { at: number; p: Promise<Map<string, VideoData>> } | null = null;
+export function fetchVideo(id: string): Promise<VideoData | null> {
+  if (!descCache || Date.now() - descCache.at > 600_000) {
+    const p = get<{ items: { id: string; d: string | null; v: number | null; l: number | null }[] }>('/api/descriptions')
+      .then((r) => new Map(r.items.map((x) => [x.id, { id: x.id, description: x.d, views: x.v, likes: x.l }])));
+    p.catch(() => { descCache = null; });
+    descCache = { at: Date.now(), p };
+  }
+  return descCache.p.then((m) => m.get(id) ?? null);
+}
 export const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 export const shortThumb = (id: string) => `https://i.ytimg.com/vi/${id}/oar2.jpg`;

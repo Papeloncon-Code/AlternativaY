@@ -45,7 +45,7 @@ export default function Channel() {
         ? <div className="vgrid">{vids.filter((v) => v.kind !== 'short').map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} />)}</div>
         : <Empty title="Sin vídeos recientes" />)}
       {tab === 'shorts' && (vids.some((v) => v.kind === 'short')
-        ? <div className="shorts-grid">{vids.filter((v) => v.kind === 'short').map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} />)}</div>
+        ? <div className="shorts-grid">{vids.filter((v) => v.kind === 'short').map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} views={v.views} />)}</div>
         : <Empty title="Sin Shorts recientes" />)}
     </div>
   );

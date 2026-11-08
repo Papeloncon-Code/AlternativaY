@@ -84,7 +84,7 @@ img { display: block; max-width: 100%; }
 .notif-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--new); margin-top: 16px; }
 .notif-text { font-size: 14px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .notif-text small { display: block; color: var(--text-2); margin-top: 4px; font-size: 12px; }
-.notif-item img { border-radius: 8px; aspect-ratio: 16 / 9; object-fit: cover; }
+.notif-item img:not(.avatar) { border-radius: 8px; aspect-ratio: 16 / 9; object-fit: cover; }
 .notif-empty { padding: 24px 16px; color: var(--text-2); }
 
 /* ---------- Menú lateral ---------- */
@@ -176,7 +176,7 @@ img { display: block; max-width: 100%; }
 .channel-head { display: flex; align-items: center; gap: 24px; padding: 24px 0 32px; flex-wrap: wrap; }
 .channel-head h1 { font-size: 32px; margin: 0 0 8px; }
 .search-channel { display: flex; align-items: center; gap: 24px; padding: 16px 0; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
-.search-channel span { display: flex; flex-direction: column; gap: 4px; font-size: 20px; }
+.search-channel .sc-info { display: flex; flex-direction: column; gap: 4px; font-size: 20px; }
 .search-channel small { color: var(--text-2); font-size: 14px; }
 
 /* ---------- Reproductor ---------- */
@@ -628,3 +628,11 @@ img.avatar { object-fit: cover; background: var(--chip); }
 .ptable th { color: var(--text-2); font-weight: 500; }
 .ptable a { color: var(--new); }
 @media (max-width: 792px) { .ptable thead { display: none; } .ptable tr { display: grid; padding: 8px 0; border-bottom: 1px solid var(--line); } .ptable td { border: 0; padding: 2px 0; } .ptable td:first-child { font-weight: 600; } }
+
+/* Revisión independiente del bloque 7 */
+.vmeta-row { display: flex; flex-wrap: wrap; }
+.vmeta-row > span { white-space: nowrap; }
+.vmeta-row > span + span::before { content: '·'; margin: 0 4px; }
+.note a, .panel a:not(.btn) { color: var(--new); }
+.note a:hover, .panel a:not(.btn):hover { text-decoration: underline; }
+.short .card-meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
