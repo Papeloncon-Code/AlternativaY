@@ -1,0 +1,49 @@
+# Tareas 017 · Auditoría de paridad de interfaz
+
+## A. Navegación global
+- [ ] A1 Capturar referencia y TodoTube: topbar desktop, tablet y mobile.
+- [ ] A2 Medir menú lateral expandido y rail colapsado.
+- [ ] A3 Validar bottom nav de cuatro destinos y safe areas.
+- [ ] A4 Auditar menú de cuenta, aspecto, datos y atajos.
+- [ ] A5 Eliminar rutas muertas, enlaces a Puente y labels heredados.
+- [ ] A6 Probar foco, teclado, Escape y click fuera.
+
+## B. Inicio/feed
+- [ ] B1 Comparar grids 1–6 columnas y breakpoints.
+- [ ] B2 Comparar miniaturas 16:9, radios, título, avatar y metadatos.
+- [ ] B3 Comparar acciones ⋮, hover y menú contextual.
+- [ ] B4 Comparar chips, filtros, scroll infinito y loading/empty/error.
+- [ ] B5 Comparar shelf de Shorts y navegación horizontal.
+
+## C. Shorts
+- [ ] C1 Comparar geometría vertical desktop/mobile.
+- [ ] C2 Comparar captions, avatar, metadatos y acciones.
+- [ ] C3 Probar flechas, wheel, touch y bloqueo de doble salto.
+- [ ] C4 Alinear navegación móvil con bottom nav sin solapamiento.
+- [ ] C5 Mostrar solo controles operativos para la fuente disponible.
+
+## D. Watch y minirreproductor
+- [ ] D1 Medir player frame y ancho del contenido.
+- [ ] D2 Alinear título, canal, acciones y descripción.
+- [ ] D3 Alinear recomendaciones y separación de columnas.
+- [ ] D4 Comparar modo cine y fullscreen.
+- [ ] D5 Probar miniplayer desktop/mobile: posición, tamaño, retorno y cierre.
+- [ ] D6 Diferenciar origen externo de medios propios/licenciados.
+
+## E. Búsqueda, canal y suscripciones
+- [ ] E1 Sugerencias y recientes.
+- [ ] E2 Resultados, filtros y estados.
+- [ ] E3 Cabecera/tabs de canal.
+- [ ] E4 Alta de canal, notificaciones, grupos y responsive.
+
+## F. Biblioteca y ajustes
+- [ ] F1 Historial, Ver más tarde, Me gusta y listas.
+- [ ] F2 Biblioteca de medios propios y fallos del Gateway.
+- [ ] F3 Tema, preferencias, privacidad y datos locales.
+- [ ] F4 Teclas, lectores de pantalla y contraste.
+
+## G. Cierre
+- [ ] G1 Playwright por todos los viewports.
+- [ ] G2 Build y TypeScript sin errores.
+- [ ] G3 Screenshots comparables y diferencias resueltas o justificadas.
+- [ ] G4 Producción desplegada y smoke test verificado.
