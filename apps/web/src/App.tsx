@@ -3,6 +3,7 @@ import Layout from './components/Layout';
 import Home from './pages/Home';
 import Watch from './pages/Watch';
 import Subscriptions from './pages/Subscriptions';
+import ManageSubscriptions from './pages/ManageSubscriptions';
 import Shorts from './pages/Shorts';
 import ShortsPlayer from './pages/ShortsPlayer';
 import Search from './pages/Search';
@@ -23,6 +24,7 @@ const router = createBrowserRouter([
       { path: '/', element: <Home /> },
       { path: '/ver/:id', element: <Watch /> },
       { path: '/suscripciones', element: <Subscriptions /> },
+      { path: '/suscripciones/gestionar', element: <ManageSubscriptions /> },
       { path: '/shorts', element: <Shorts /> },
       { path: '/shorts/:id', element: <ShortsPlayer /> },
       { path: '/buscar', element: <Search /> },
