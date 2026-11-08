@@ -43,6 +43,7 @@ export default function ShortsPlayer() {
   };
   const goRef = useRef(go);
   goRef.current = go;
+  useEffect(() => { setPaused(false); setMuted(false); handle.current = null; }, [id]);
   useEffect(() => { stop(); }, []); // un Short no suena a la vez que el mini reproductor
 
   useEffect(() => {
@@ -71,7 +72,7 @@ export default function ShortsPlayer() {
     let y0: number | null = null;
     const onTs = (e: TouchEvent) => { y0 = e.touches[0].clientY; };
     const onTe = (e: TouchEvent) => { if (y0 == null) return; const dy = y0 - e.changedTouches[0].clientY; if (Math.abs(dy) > 60) goRef.current(dy > 0 ? 1 : -1); y0 = null; };
-    // La capa de gestos está encima del vídeo: el iframe del reproductor se traga la rueda y los toques si no.
+    // Los gestos se escuchan en el escenario propio de Shorts, sin depender de eventos dentro de un iframe.
     const el = stage();
     window.addEventListener('keydown', onKey);
     window.addEventListener('wheel', onWheel, { passive: true });
