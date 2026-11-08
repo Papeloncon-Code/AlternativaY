@@ -145,6 +145,68 @@ export default function Layout() {
   useEffect(() => { if (channels.data) void syncAvatars(channels.data); }, [channels.data]);
   const [allSubs, setAllSubs] = useState(false);
   const showMobileFeedTabs = !mobileSearch && (location.pathname === '/' || location.pathname === '/suscripciones');
+  const [feedTabsExpanded, setFeedTabsExpanded] = useState(true);
+  const feedTabsVisible = showMobileFeedTabs && feedTabsExpanded;
+  const isYouRoute = location.pathname === '/tu'
+    || location.pathname.startsWith('/historial')
+    || location.pathname.startsWith('/ver-mas-tarde')
+    || location.pathname.startsWith('/me-gusta')
+    || location.pathname.startsWith('/lista/')
+    || location.pathname.startsWith('/medios');
+
+  useEffect(() => {
+    if (!showMobileFeedTabs) {
+      setFeedTabsExpanded(false);
+      return;
+    }
+    setFeedTabsExpanded(true);
+    // El nuevo diseño móvil oculta la fila Subs tras un periodo sin interacción.
+    // Recuperarla con un gesto reinicia el periodo; bajar por el feed la contrae.
+    let hideTimer = 0;
+    const scheduleHide = () => {
+      window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => setFeedTabsExpanded(false), 2200);
+    };
+    const collapse = () => {
+      window.clearTimeout(hideTimer);
+      setFeedTabsExpanded(false);
+    };
+    scheduleHide();
+    let lastY = window.scrollY;
+    let touchStartY: number | null = null;
+    const onScroll = () => {
+      const y = window.scrollY;
+      if (y < lastY - 2) { setFeedTabsExpanded(true); scheduleHide(); }
+      else if (y > lastY + 2) collapse();
+      lastY = y;
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY < -2) { setFeedTabsExpanded(true); scheduleHide(); }
+      else if (event.deltaY > 2) collapse();
+    };
+    const onTouchStart = (event: TouchEvent) => {
+      touchStartY = event.touches[0]?.clientY ?? null;
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      if (touchStartY == null) return;
+      const endY = event.changedTouches[0]?.clientY ?? touchStartY;
+      const delta = endY - touchStartY;
+      if (delta > 32) { setFeedTabsExpanded(true); scheduleHide(); }
+      else if (delta < -32) collapse();
+      touchStartY = null;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    return () => {
+      window.clearTimeout(hideTimer);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [showMobileFeedTabs, location.pathname]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -168,7 +230,7 @@ export default function Layout() {
   }, [createOpen]);
 
   return (
-    <div className={`app side-${mode}${drawer ? ' drawer-open' : ''}${focus ? ' focus' : ''}${showMobileFeedTabs ? ' feed-tabs-visible' : ''}`}>
+    <div className={`app side-${mode}${drawer ? ' drawer-open' : ''}${focus ? ' focus' : ''}${feedTabsVisible ? ' feed-tabs-visible' : ''}`}>
       <a className="skip" href="#main">Saltar al contenido</a>
       <header className={`topbar${mobileSearch ? ' searching' : ''}`}>
         <div className="top-left">
@@ -184,9 +246,9 @@ export default function Layout() {
       </header>
 
       {showMobileFeedTabs && (
-        <nav className="mobile-feed-tabs" aria-label="Feeds" role="tablist">
-          <NavLink to="/" end role="tab" aria-selected={location.pathname === '/'} className="mobile-feed-tab">Inicio</NavLink>
-          <NavLink to="/suscripciones" role="tab" aria-selected={location.pathname === '/suscripciones'} className="mobile-feed-tab">Subs</NavLink>
+        <nav className={`mobile-feed-tabs${feedTabsExpanded ? '' : ' is-collapsed'}`} aria-hidden={!feedTabsExpanded} aria-label="Feeds" role="tablist">
+          <NavLink to="/" end role="tab" tabIndex={feedTabsExpanded ? 0 : -1} aria-selected={location.pathname === '/'} className="mobile-feed-tab">Inicio</NavLink>
+          <NavLink to="/suscripciones" role="tab" tabIndex={feedTabsExpanded ? 0 : -1} aria-selected={location.pathname === '/suscripciones'} className="mobile-feed-tab">Subs</NavLink>
         </nav>
       )}
 
@@ -240,7 +302,7 @@ export default function Layout() {
         <button type="button" className="tab tab-create" aria-label="Crear" aria-haspopup="dialog" aria-expanded={createOpen} onClick={() => setCreateOpen(true)}>
           <Icon name="plus" size={24} /><span>Crear</span>
         </button>
-        <NavLink to="/tu" className="tab"><Icon name="user" size={22} /><span>Tú</span></NavLink>
+        <NavLink to="/tu" className={isYouRoute ? "tab active" : "tab"}><Icon name="user" size={22} /><span>Tú</span></NavLink>
       </nav>
       {createOpen && (
         <div className="modal-scrim create-scrim" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateOpen(false); }}>

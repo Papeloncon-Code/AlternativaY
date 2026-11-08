@@ -136,5 +136,14 @@ test('Visual audit · móvil 390×844 · pantallas, búsqueda y navegación infe
   await page.locator('#q').fill('news');
   await expect(page.locator('.suggest li[role=option]').first()).toBeVisible({ timeout: 10_000 });
   metrics.push(await capture(page, info, 'mobile-390x844', '07-busqueda-abierta'));
+  // Registrar la pestaña Subs visible y también su estado colapsado tras el tiempo inicial.
+  await ready(page, '/', '.vcard');
+  await page.evaluate(() => window.dispatchEvent(new WheelEvent('wheel', { deltaY: -120 })));
+  await expect(page.locator('.mobile-feed-tabs')).not.toHaveClass(/is-collapsed/);
+  metrics.push(await capture(page, info, 'mobile-390x844', '08-feed-tabs-visible'));
+  await page.evaluate(() => window.scrollTo(0, 280));
+  await page.mouse.wheel(0, 120);
+  await expect(page.locator('.mobile-feed-tabs')).toHaveClass(/is-collapsed/);
+  metrics.push(await capture(page, info, 'mobile-390x844', '09-feed-tabs-collapsed'));
   await saveMetrics(info, 'mobile-390x844', metrics);
 });

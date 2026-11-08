@@ -110,6 +110,18 @@ test('navegación móvil actual: Inicio/Subs arriba y Inicio/Shorts/Crear/Tú ab
   const feeds = page.locator('.mobile-feed-tabs');
   await expect(feeds).toBeVisible();
   await expect(feeds.locator('.mobile-feed-tab.active')).toHaveText('Inicio');
+  // El scroll hacia abajo contrae la fila; volver hacia arriba la recupera y reinicia
+  // el temporizador, sin que el timer inicial la esconda mientras el usuario interactúa.
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => window.scrollTo(0, 320));
+  await page.mouse.wheel(0, -140);
+  await expect(feeds).not.toHaveClass(/is-collapsed/);
+  await page.waitForTimeout(1100);
+  await expect(feeds).not.toHaveClass(/is-collapsed/);
+  await page.waitForTimeout(800);
+  await expect(feeds).toHaveClass(/is-collapsed/);
+  await page.mouse.wheel(0, -120);
+  await expect(feeds).not.toHaveClass(/is-collapsed/);
 
   const bottom = page.locator('.bottombar');
   await expect(bottom.locator('.tab')).toHaveCount(4);
@@ -136,6 +148,8 @@ test('navegación móvil actual: Inicio/Subs arriba y Inicio/Shorts/Crear/Tú ab
   const lists = await page.evaluate(() => (JSON.parse(localStorage.getItem('todotube:v1') || '{}').playlists ?? []) as { name: string }[]);
   expect(lists.some((list) => list.name === name)).toBe(true);
 
+  await page.goto('/historial');
+  await expect(page.locator('.bottombar .tab.active')).toContainText('Tú');
   await page.goto('/ver/dQw4w9WgXcQ');
   await expect(page.locator('.mobile-feed-tabs')).toHaveCount(0);
 });

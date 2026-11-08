@@ -25,16 +25,15 @@ Hallazgos confirmados en el código:
 - Estado autoplay retirado del almacenamiento local mientras la fuente externa no pueda disparar un fin de reproducción real.
 - Tests de miniplayer y atajos ajustados para comprobar el comportamiento real.
 
-## Iteración 2 · Suscripciones (pendiente de CI)
+## Iteración 2 · Suscripciones (verificada en producción)
 
 - La ruta `/suscripciones` muestra un feed de publicaciones de los canales seguidos.
-- Se añadieron filtros Todos, Vídeos, Shorts, grupos y canales.
-- Shorts se muestran como shelf horizontal o cuadrícula al filtrar Shorts.
-- La pantalla administrativa anterior se conserva en `/suscripciones/gestionar`: altas/bajas, campanita, PushToggle y grupos.
-- El menú de cuenta incluye acceso directo a la gestión.
-- Las capturas y pruebas responsive incluyen ambas rutas.
-
-No declarar esta iteración verificada hasta que CI, despliegue y smoke de producción pasen.
+- Los filtros Todos, Vídeos, Shorts, grupos y canales funcionan; Shorts se muestran en shelf o cuadrícula según el filtro.
+- La pantalla administrativa está separada en `/suscripciones/gestionar`: altas/bajas, campanita, PushToggle y grupos.
+- El menú de cuenta enlaza a la gestión.
+- Las dos pruebas E2E que aún apuntaban a la ruta anterior se corrigieron para usar `/suscripciones/gestionar`; no se relajaron las aserciones.
+- PR #11 fusionado en `71cd3325eb3883dfe63c2d1a10554f9c6e2a67dd`.
+- CI, TypeScript, Playwright, Gateway, WebSub, despliegue Cloudflare y smoke de producción: todos correctos en [workflow #157](https://github.com/Papeloncon-Code/AlternativaY/actions/runs/42524061539).
 
 ## Aún no verificado
 
@@ -49,8 +48,21 @@ No declarar paridad visual completa. Esta especificación sigue en construcción
 ## Iteración 3 · Navegación móvil según el rediseño vigente de YouTube (2026-11-08)
 
 - En móvil, la barra inferior ya no incluye Suscripciones: queda Inicio, Shorts, Crear y Tú.
-- Los feeds Inicio y Subs se muestran en pestañas superiores fijas bajo la barra superior en ambas rutas.
+- Los feeds Inicio y Subs se muestran en pestañas superiores bajo la barra superior; se ocultan automáticamente tras unos 2,2 s y reaparecen al arrastrar hacia abajo o desplazarse hacia arriba.
 - La pestaña Subs abre el feed de suscripciones; la pantalla de gestión continúa en `/suscripciones/gestionar`.
 - Crear abre un panel que permite crear una lista de reproducción real y enlaza a Seguir canales y Medios propios. No se presenta subida de vídeo porque esa función no existe.
-- Referencias actuales revisadas: YouTube Help (Subs feed en Home) y reportes de despliegue del rediseño móvil del 5 de noviembre de 2026.
-- La validación automática en móvil queda pendiente de CI; no declarar paridad completa antes de capturas y revisión.
+- Referencias: [YouTube Help · new Home feeds](https://support.google.com/youtube/blog/474148940/new-ways-to-explore-youtube-from-your-home-page), [9to5Google · rollout 5 Nov 2026](https://9to5google.com/2026/11/05/youtube-app-redesign-subscriptions-tab/), [Gadgets 360 · top bar auto-hidden](https://www.gadgets360.com/apps/news/youtube-removes-subscription-tab-new-home-page-major-app-redesign-android-ios-12291726).
+- `Tú` mantiene estado activo en Historial, Ver más tarde, Me gusta, listas y Medios propios.
+- Playwright valida ocultar la fila inicial y recuperarla con gesto/scroll; la auditoría visual captura estados visible y colapsado.
+- PR #23 superó TypeScript, Playwright, CodeQL, Gateway y WebSub; el despliegue de main se valida en [workflow #177](https://github.com/Papeloncon-Code/AlternativaY/actions/runs/42524551825).
+- Se capturaron los estados Home/Inicio, Shorts, watch, canal, feed de suscripciones, gestión, búsqueda, Tú, ajustes, medios, privacidad, menú de cuenta y avisos a 1440×900; Inicio/Watch/canal a 1024×768; siete pantallas más búsqueda a 390×844.
+- Esta captura es una baseline de TodoTube, no una comparación pixel a pixel. Aún faltan capturas de la referencia oficial de YouTube en la misma cuenta/experimento, viewport, zoom y estado de interacción.
+
+
+## Iteración 4 · Auto-ocultar pestañas de feed móvil
+
+- Las pestañas Inicio/Subs se muestran inicialmente bajo la topbar.
+- Se ocultan tras 2,2 segundos; el scroll hacia abajo las contrae, y el scroll hacia arriba o gesto de arrastre hacia abajo las vuelve a mostrar.
+- Al navegar entre Inicio y Subs se reinicia el estado visible y vuelve a aplicarse el tiempo de ocultación.
+- Playwright comprueba el estado inicial, auto-ocultación, reaparición, selección de Subs y acción Crear; la auditoría visual captura ambos estados.
+- Implementación en revisión en PR pendiente. No declarar esta iteración desplegada hasta completar CI y smoke de producción.
