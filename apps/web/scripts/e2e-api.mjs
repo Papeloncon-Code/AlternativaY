@@ -2,6 +2,7 @@ import http from 'node:http';
 
 const PORT = Number(process.env.E2E_API_PORT || 4174);
 const now = Math.floor(Date.now() / 1000);
+const nowMs = Date.now();
 const channelIds = [
   'UCNye-wNBqNL5ZzHSJj3l8Bg',
   'UCaaaaaaaaaaaaaaaaaaaaaa',
@@ -27,7 +28,8 @@ const videos = Array.from({ length: 400 }, (_, i) => {
     channelId: channelIds[channelIndex],
     channel: ['Canal Noticias Uno', 'Canal Tecnología Dos', 'Canal Cultura Tres', 'Canal Ciencia Cuatro'][channelIndex],
     source: i % 3 === 0 ? 'rss' : i % 3 === 1 ? 'websub' : 'baseline',
-    seenAt: now - i * 1800,
+    // La app compara seenAt con Date.now() en milisegundos; publishedAt, en cambio, son segundos Unix.
+    seenAt: nowMs - i * 1_800_000,
     kind: isLong ? 'video' : 'short',
     views: 100000 - i * 97,
     likes: 5000 - i * 3,
@@ -39,7 +41,7 @@ const channels = channelIds.map((id, i) => ({
   id,
   name: ['Canal Noticias Uno', 'Canal Tecnología Dos', 'Canal Cultura Tres', 'Canal Ciencia Cuatro'][i],
   status: 'verified',
-  verifiedAt: now,
+  verifiedAt: nowMs,
   lastError: null,
   notify: 'all',
   avatar: svg(96, 96, ['#345b78', '#47684c', '#795c8a', '#8a6546'][i]),
