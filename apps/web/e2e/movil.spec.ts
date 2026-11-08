@@ -75,7 +75,7 @@ test('ficha externa móvil: mensaje y ambos CTA quedan dentro del reproductor', 
   await page.goto('/ver/dQw4w9WgXcQ');
   await expect(page.locator('.player-message')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Abrir origen' })).toBeVisible();
-  await expect(page.locator('#main').getByRole('link', { name: 'Medios propios' })).toBeVisible();
+  await expect(page.locator('.player-message').getByRole('link', { name: 'Medios propios' })).toBeVisible();
   const [frame, message] = await Promise.all([
     page.locator('#player-slot').boundingBox(),
     page.locator('.player-message').boundingBox(),
