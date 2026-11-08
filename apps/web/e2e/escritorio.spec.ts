@@ -177,7 +177,7 @@ test('Watch · Me gusta se guarda en la biblioteca local de TodoTube, no en YouT
 
 
 test('Suscripciones: el formulario de alta se despliega cuando se solicita', async ({ page }) => {
-  await page.goto('/suscripciones');
+  await page.goto('/suscripciones/gestionar');
   await expect(page.locator('.channel-list')).toBeVisible();
   await expect(page.locator('.add-form')).toHaveCount(0);
   await page.getByRole('button', { name: 'Seguir canal' }).click();
