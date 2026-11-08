@@ -23,7 +23,7 @@ export default function OfficialPlayer({ id, meta, startAt, onEnded, onReady, lo
     if (hostRef.current) {
       const p = new EmbedPlayer(hostRef.current, id, {
         start: Math.floor(startAt), rel: 0, playsinline: 1, autoplay: 1,
-        ...(loop ? { loop: 1, playlist: id, controls: 0, disablekb: 1, iv_load_policy: 3, fs: 0 } : {}),
+        ...(loop ? { loop: 1, playlist: id, controls: 1 } : {}),
       }, {
         onReady: () => {
           cb.current.onReady?.({
