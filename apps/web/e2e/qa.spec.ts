@@ -47,12 +47,21 @@ test('#4 un Short de fuera de tus canales se puede ver', async ({ page }) => {
   await expect(page.getByText('no está entre los de tus canales')).toHaveCount(0);
 });
 
+test('Shorts sin Puente conserva los controles del reproductor oficial', async ({ page }) => {
+  await page.goto('/shorts');
+  const frame = page.locator('.short-player iframe');
+  await expect(frame).toBeAttached();
+  const src = await frame.getAttribute('src');
+  expect(new URL(src!).searchParams.get('controls')).toBe('1');
+  await expect(page.locator('.short-gesture')).toHaveCount(0);
+});
+
 test('#19 ↓ en el buscador no cambia de Short; #20 «Atrás» vuelve al Short anterior', async ({ page }) => {
   await page.goto('/shorts'); await expect(page.locator('.short-nav small')).toHaveText(/^1 \//, { timeout: 15_000 });
   const u1 = page.url();
   await page.locator('#q').click(); await page.keyboard.type('a'); await page.keyboard.press('ArrowDown');
   await expect(page.locator('.short-nav small')).toHaveText(/^1 \//);
-  await page.keyboard.press('Escape'); await page.locator('.short-gesture').focus();
+  await page.keyboard.press('Escape'); await page.locator('.short-nav button[aria-label="Short siguiente"]').focus();
   await page.keyboard.press('ArrowDown');
   await expect(page).not.toHaveURL(u1);
   await page.goBack();
