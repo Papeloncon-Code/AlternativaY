@@ -15,6 +15,7 @@ Para que el servidor entregue un vídeo de YouTube, alguien tiene que pedirle a 
 ## Decisión
 - **No se construye** la obtención ni la retransmisión de vídeos de YouTube desde el servidor, en ninguna de las dos variantes: ambas dependen de eludir los controles anti-bots de YouTube. Tampoco se construyen rotación de IP ni suplantación de clientes. ADR-005 sigue vigente sin cambios.
 - **Se mantiene** el gateway como lo que demostró ser: transporte con Range/206, CORS, streaming y cancelación **para contenido propio o con licencia** (PoC de ADR-009, 36 pruebas en verde). Sigue sin desplegarse.
+- **Modo sin Puente y límites del embed oficial:** el fallback permanece en `youtube-nocookie.com`; se conservan sus controles y atribuciones. No se deben cubrir sus controles/atribuciones con capas transparentes. La configuración del embed puede habilitar `controls=1`, pero no convierte el iframe en un flujo HTML5 independiente ni permite retirar la marca de YouTube. El minirreproductor móvil conserva un viewport mínimo de 200 × 200 px.
 - **Modos de reproducción (PB-02):**
   1. **Puente instalado** → reproductor propio, sin anuncios.
   2. **Sin Puente** → reproductor oficial (youtube-nocookie), como hoy. La propuesta de aviso o botón visible sigue pendiente de decisión del propietario.
