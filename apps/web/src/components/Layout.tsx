@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, ScrollRestoration, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router-dom';
 import Icon from './Icon';
 import Logo from './Logo';
 import Avatar from './Avatar';
@@ -127,7 +127,10 @@ export default function Layout() {
   const channels = useChannels();
   const feed = useFeed();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileSearch, setMobileSearch] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [playlistName, setPlaylistName] = useState('');
   const isWatch = location.pathname.startsWith('/ver/');
   const [drawer, setDrawer] = useState(false);
   useEffect(() => { setDrawer(false); }, [location.pathname]);
@@ -141,6 +144,7 @@ export default function Layout() {
   const subs = (channels.data ?? []).filter((c) => c.status !== 'invalid');
   useEffect(() => { if (channels.data) void syncAvatars(channels.data); }, [channels.data]);
   const [allSubs, setAllSubs] = useState(false);
+  const showMobileFeedTabs = !mobileSearch && (location.pathname === '/' || location.pathname === '/suscripciones');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -156,8 +160,15 @@ export default function Layout() {
   }, []);
 
   const mode = isWatch ? 'overlay' : sidebar;
+  useEffect(() => {
+    if (!createOpen) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setCreateOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [createOpen]);
+
   return (
-    <div className={`app side-${mode}${drawer ? ' drawer-open' : ''}${focus ? ' focus' : ''}`}>
+    <div className={`app side-${mode}${drawer ? ' drawer-open' : ''}${focus ? ' focus' : ''}${showMobileFeedTabs ? ' feed-tabs-visible' : ''}`}>
       <a className="skip" href="#main">Saltar al contenido</a>
       <header className={`topbar${mobileSearch ? ' searching' : ''}`}>
         <div className="top-left">
@@ -171,6 +182,13 @@ export default function Layout() {
           <AccountMenu />
         </div>
       </header>
+
+      {showMobileFeedTabs && (
+        <nav className="mobile-feed-tabs" aria-label="Feeds" role="tablist">
+          <NavLink to="/" end role="tab" aria-selected={location.pathname === '/'} className="mobile-feed-tab">Inicio</NavLink>
+          <NavLink to="/suscripciones" role="tab" aria-selected={location.pathname === '/suscripciones'} className="mobile-feed-tab">Subs</NavLink>
+        </nav>
+      )}
 
       <nav className="rail" aria-label="Principal">
         {[...MAIN, { to: '/tu', label: 'Tú', icon: 'user', end: false }].map((i) => (
@@ -217,10 +235,42 @@ export default function Layout() {
       <PlayerHost />
 
       <nav className="bottombar" aria-label="Principal">
-        {[...MAIN, { to: '/tu', label: 'Tú', icon: 'user', end: false }].map((i) => (
-          <NavLink key={i.to} to={i.to} end={i.end} className="tab"><Icon name={i.icon} size={22} /><span>{i.label}</span></NavLink>
-        ))}
+        <NavLink to="/" end className="tab"><Icon name="home" size={22} /><span>Inicio</span></NavLink>
+        <NavLink to="/shorts" className="tab"><Icon name="shorts" size={22} /><span>Shorts</span></NavLink>
+        <button type="button" className="tab tab-create" aria-label="Crear" aria-haspopup="dialog" aria-expanded={createOpen} onClick={() => setCreateOpen(true)}>
+          <Icon name="plus" size={24} /><span>Crear</span>
+        </button>
+        <NavLink to="/tu" className="tab"><Icon name="user" size={22} /><span>Tú</span></NavLink>
       </nav>
+      {createOpen && (
+        <div className="modal-scrim create-scrim" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateOpen(false); }}>
+          <section className="modal create-menu" role="dialog" aria-modal="true" aria-labelledby="create-title">
+            <div className="modal-head">
+              <h2 id="create-title">Crear en TodoTube</h2>
+              <button type="button" className="icon-btn" aria-label="Cerrar" onClick={() => setCreateOpen(false)}><Icon name="close" size={20} /></button>
+            </div>
+            <p className="create-intro">Organiza tus vídeos o añade contenido a tu biblioteca.</p>
+            <form className="create-playlist-form" onSubmit={(event) => {
+              event.preventDefault();
+              const name = playlistName.trim();
+              if (!name) return;
+              const id = actions.addPlaylist(name);
+              setPlaylistName('');
+              setCreateOpen(false);
+              toast(`Lista «${name}» creada`);
+              navigate(`/lista/${id}`);
+            }}>
+              <label htmlFor="create-playlist-name">Nueva lista de reproducción</label>
+              <input id="create-playlist-name" value={playlistName} onChange={(event) => setPlaylistName(event.target.value)} placeholder="Nombre de la lista" maxLength={60} required autoFocus />
+              <button type="submit" className="btn primary" disabled={!playlistName.trim()}>Crear lista</button>
+            </form>
+            <div className="create-quick-actions">
+              <Link to="/suscripciones/gestionar" onClick={() => setCreateOpen(false)}><Icon name="users" size={20} /><span><b>Seguir canales</b><small>Añadir canales a tus suscripciones</small></span><Icon name="chevron-right" size={18} /></Link>
+              <Link to="/medios" onClick={() => setCreateOpen(false)}><Icon name="library" size={20} /><span><b>Medios propios</b><small>Ver archivos autorizados en tu biblioteca</small></span><Icon name="chevron-right" size={18} /></Link>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }
