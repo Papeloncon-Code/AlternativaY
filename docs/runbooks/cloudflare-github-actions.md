@@ -64,3 +64,21 @@ El SQL usa `CREATE INDEX IF NOT EXISTS`, por lo que puede volver a ejecutarse si
 ## Qué sigue sin haberse hecho
 
 A fecha de 2026-11-08 no hay evidencia en el repositorio de que la migración 008 ya se haya aplicado en la D1 remota. Tampoco se ha desplegado una nueva versión de los Workers desde estos cambios: antes de configurar los secretos, los workflows omiten la publicación deliberadamente.
+
+## Diagnóstico del despliegue CI/CD
+
+El workflow `.github/workflows/ci-cd.yml` lee los secretos del entorno `produccion` con estos nombres exactos:
+
+- `secrets.CLOUDFLARE_API_TOKEN`
+- `secrets.CLOUDFLARE_ACCOUNT_ID`
+
+Los nombres alternativos no se reconocen automáticamente. Por ejemplo, si el mismo token está guardado como `MY_SECRET_TOKET_ALTER`, hay que crear también el secreto `CLOUDFLARE_API_TOKEN` con ese mismo valor. No hace falta generar otro token de Cloudflare por cambiar el nombre.
+
+El job de despliegue solo corre cuando el evento es un `push` a `main`. Un `workflow_dispatch` ejecuta las pruebas, pero no satisface la condición de despliegue actual. Para validar credenciales y publicación hay que producir un commit en `main`, esperar a que pasen los jobs de pruebas y revisar estos pasos del job **Despliegue en Cloudflare y humo en producción**:
+
+1. **Comprobar secretos** debe terminar correctamente.
+2. **Servidor de avisos** debe ejecutarse y publicar `alternativay-websub`.
+3. **Web** debe ejecutarse y publicar `todotube`.
+4. **Pruebas de humo contra la web publicada** debe terminar correctamente.
+
+Un job global en verde no demuestra por sí solo que hubo despliegue: comprueba que los pasos 2–4 no figuren como `skipped`. Este workflow no aplica migraciones D1; la migración 008 permanece como operación manual e independiente.
