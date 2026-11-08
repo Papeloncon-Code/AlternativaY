@@ -218,6 +218,29 @@ test('a failed primary origin is bypassed automatically when the replica has the
   assert.equal(await r.text(), 'replica-data');
 });
 
+test('mid-stream failover rejects a replica with different visibility or licence metadata', async () => {
+  const e = env();
+  const primaryObject = e.MEDIA_BUCKET.objects.get('media/demo_123');
+  primaryObject.customMetadata.mediaVersion = 'same-media-version';
+  e.MEDIA_BUCKET.failBodyAfterBytes = 4;
+  const replica = new MemoryR2();
+  const replicaObject = makeObject(new TextEncoder().encode('0123456789'), {
+    customMetadata: {
+      title: 'Fixture',
+      creator: 'Owner',
+      license: 'licensed',
+      licenseReference: 'different-grant',
+      visibility: 'private',
+      mediaVersion: 'same-media-version',
+    },
+  });
+  replica.objects.set('media/demo_123', replicaObject);
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  await assert.rejects(() => r.text(), /MEDIA_STREAM_ORIGINS_EXHAUSTED/);
+});
+
 test('mid-stream failover refuses a same-size replica with a different media version', async () => {
   const e = env();
   const primaryObject = e.MEDIA_BUCKET.objects.get('media/demo_123');
