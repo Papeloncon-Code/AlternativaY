@@ -1,62 +1,74 @@
-# ADR-010 · Modos de reproducción, fallback y propuesta «Gateway-first»
+# ADR-010 · Reproductor propio obligatorio y límites de transporte
 
-- **Estado:** Aceptado en parte (2026-11-08); actualizado el mismo día con la decisión del propietario de §«Objetivo del propietario». La parte «el servidor obtiene y retransmite los vídeos de YouTube» sigue **bloqueada**: no se construye.
-- **Relacionado con:** ADR-005 (la extracción se hace en el dispositivo), ADR-009 (PoC del gateway con vídeos propios), revisión del PR #2 (2026-11-08), triage `docs/research/11` (PB-02).
+- **Estado:** Aceptado (2026-11-08; actualización por decisión expresa del propietario).
+- **Sustituye:** el fallback automático al reproductor oficial descrito en la versión anterior de este ADR.
+- **Relacionado con:** ADR-005, ADR-009, Spike T-100, `apps/web/src/player/TodoTubePlayer.ts`, `apps/web/src/player/ShakaPlayerAdapter.ts`, Issue #3.
 
-## Contexto
-El propietario pide que el gateway multimedia sea la ruta principal de la web y que TodoTube Puente quede como segunda opción. La revisión del PR #2 enumera bien los bloqueos del código: `PlayerHost` solo usa el reproductor propio con Puente, `innertube.ts`/`bridgeFetch.ts` y `BotguardService.ts` dependen del Puente, y Shaka necesita las semánticas SABR/UMP. También pide: «Si no es viable, reportarlo; no ocultar la contradicción».
+## Objetivo del producto
 
-## Qué haría falta para «Gateway-first» con vídeos de YouTube
-Para que el servidor entregue un vídeo de YouTube, alguien tiene que pedirle a YouTube el vídeo y sus segmentos:
+La interfaz de reproducción debe pertenecer a TodoTube. No se debe insertar el reproductor oficial de YouTube como sustituto automático cuando falte TodoTube Puente o falle el reproductor propio.
 
-1. **Si lo pide el servidor** (InnerTube + BotGuard/PoToken + segmentos de googlevideo desde Cloudflare): YouTube responde a las IP de centros de datos con controles anti-bots («confirma que no eres un bot»). Pasarlos exige **generar o falsificar en el servidor la prueba anti-bots (BotGuard/PoToken)**, es decir, eludir una medida técnica de control de acceso de YouTube.
-2. **Si lo pide el navegador y el servidor solo retransmite**: el navegador no puede hablar con youtube.com sin el Puente (CORS), y las direcciones de los segmentos van **ligadas a la IP que las pidió**. Usar la prueba anti-bots generada en el navegador del usuario para que las peticiones del servidor parezcan legítimas es la misma elusión, por otro camino.
+Esto es un requisito de producto, no una afirmación de que el transporte esté resuelto.
 
-## Decisión
-- **No se construye** la obtención ni la retransmisión de vídeos de YouTube desde el servidor, en ninguna de las dos variantes: ambas dependen de eludir los controles anti-bots de YouTube. Tampoco se construyen rotación de IP ni suplantación de clientes. ADR-005 sigue vigente sin cambios.
-- **Se mantiene** el gateway como lo que demostró ser: transporte con Range/206, CORS, streaming y cancelación **para contenido propio o con licencia** (PoC de ADR-009, 36 pruebas en verde). Sigue sin desplegarse.
-- **Modo sin Puente y límites del embed oficial:** el fallback permanece en `youtube-nocookie.com`; se conservan sus controles y atribuciones. No se deben cubrir sus controles/atribuciones con capas transparentes. La configuración del embed puede habilitar `controls=1`, pero no convierte el iframe en un flujo HTML5 independiente ni permite retirar la marca de YouTube. El minirreproductor móvil conserva un viewport mínimo de 200 × 200 px. Como el iframe es cross-origin, sus gestos táctiles internos no llegan al documento de TodoTube; en Shorts sin Puente se muestran botones de navegación fuera del iframe, mientras que el swipe queda disponible en el reproductor propio.
-- **Modos de reproducción (PB-02):**
-  1. **Puente instalado** → reproductor propio, sin anuncios.
-  2. **Sin Puente** → reproductor oficial (youtube-nocookie), como hoy. La propuesta de aviso o botón visible sigue pendiente de decisión del propietario.
-- **Lo que de verdad acerca «sin instalar nada a mano»**: que instalar el Puente cueste un clic.
-  - Firefox: `.xpi` firmado por Mozilla, a la espera de que el propietario active su verificación en dos pasos.
-  - Chrome: ficha en la Chrome Web Store, que necesita la cuenta de desarrollador del propietario.
+## Decisión de interfaz
 
-## Lo que sí se hace de la revisión
-- CI: el trabajo `gateway` no usa `hashFiles()` en `jobs.<id>.if`; se ejecuta siempre y cada paso comprueba si existe el paquete. `desplegar` depende también de `gateway`.
-- PR #2 conserva la PoC aislada; sus pruebas verifican streaming de fixtures propios, no reproducción de YouTube.
-- La suite web Playwright usa fixtures locales deterministas en CI; el smoke de producción está separado de la suite de interacción.
-- D1: `migrations-008-indices.sql` existe y sus índices son idempotentes, pero **no hay prueba de que se hayan aplicado en la D1 remota**. Se añadió `.github/workflows/d1-indexes.yml`, una acción manual con confirmación explícita; no corre durante el despliegue normal. La ejecución remota sigue pendiente y requiere credenciales Cloudflare.
+1. `PlayerHost` monta siempre `OwnPlayer`.
+2. `ShortsPlayer` monta siempre `OwnPlayer`.
+3. Si el navegador no tiene TodoTube Puente, el área de vídeo muestra una pantalla propia con una instrucción para activar el Puente. No carga un iframe de YouTube.
+4. Si el reproductor propio falla, muestra un error propio y una acción de reintento. No cambia silenciosamente a un reproductor de terceros.
+5. Se retiran del código activo `OfficialPlayer.tsx` y `player/embed.ts`, que implementaban el iframe `youtube-nocookie`.
+6. Las pruebas de regresión deben comprobar que vídeos, minirreproductor y Shorts no insertan iframes de YouTube.
+
+## Estado técnico de reproducción
+
+El reproductor propio ya existe como conjunto de componentes:
+
+- Shaka Player proporciona el elemento de reproducción y los controles de TodoTube.
+- `youtubei.js` obtiene la respuesta de reproducción mediante InnerTube.
+- `googlevideo` y `SabrStreamingAdapter` implementan el transporte SABR/UMP.
+- `bgutils-js` ejecuta BotGuard en el navegador y genera el token de integridad.
+- `ShakaPlayerAdapter` conecta Shaka con las respuestas multimedia.
+
+Pero la implementación web actual sigue usando TodoTube Puente para las solicitudes que el navegador no puede realizar directamente por CORS. Quitar la condición `useBridge()` de `PlayerHost` no elimina esa dependencia; solo impide que la interfaz caiga en el iframe oficial. Por eso, sin Puente, la interfaz propia muestra una pantalla de activación y no reproduce el vídeo.
+
+## Gateway: qué está y qué no está decidido
+
+La PoC del PR #2 demuestra transporte HTTP con fixtures propios: GET/HEAD, Range, 206/416, CORS, streaming y cancelación. No solicita URLs de `googlevideo`, no ejecuta InnerTube, no genera BotGuard/PoToken y no demuestra reproducción real de YouTube. No está desplegada.
+
+El propietario ha solicitado Gateway-first y Puente como respaldo. La revisión técnica identificó que un Worker que solicite el contenido desde su propia infraestructura necesita resolver los controles anti-bot y las restricciones de origen/IP de YouTube. No es correcto presentar la PoC de fixtures como solución a ese problema.
+
+Se mantienen estas restricciones:
+
+- No generar ni falsificar BotGuard/PoToken en el servidor.
+- No trasladar al Worker tokens de integridad del navegador para hacer que las solicitudes del servidor parezcan solicitudes legítimas del usuario.
+- No rotar IP para sortear bloqueos.
+- No suplantar clientes ni automatizar evasiones de controles técnicos.
+- No crear un proxy abierto de URLs de vídeo.
+
+Estas restricciones no autorizan a volver a mostrar el iframe oficial. Son un límite sobre cómo puede obtenerse el contenido, no sobre qué interfaz debe mostrar TodoTube.
+
+## Modos de funcionamiento resultantes
+
+| Condición | Interfaz | Resultado |
+|---|---|---|
+| Puente instalado y flujo de extracción operativo | Reproductor propio de TodoTube | Reproducción mediante Shaka/SABR en el navegador |
+| Puente ausente | Pantalla propia de TodoTube con CTA para activarlo | No hay reproducción de YouTube hasta disponer de un transporte compatible |
+| Error de InnerTube, BotGuard o SABR | Mensaje de error propio y reintento | No se cambia al iframe oficial |
+| Gateway disponible para contenido propio/licenciado | Reproductor propio de TodoTube | Transporte de esos recursos; no implica compatibilidad con YouTube |
+
+## Trabajo pendiente para cerrar la función principal
+
+- Verificar en navegador real la reproducción de vídeos completos con Puente: VOD largo, Shorts, seek, calidades, audio, subtítulos, cancelación y expiración/renovación de respuesta.
+- Reducir fricción de instalación del Puente. La publicación/firma en tiendas sigue pendiente.
+- Investigar alternativas del lado cliente, como userscript con gestor compatible, sin asumir que eliminan la necesidad de un componente con permisos de red.
+- Separar transporte de extracción mediante una interfaz de proveedor para que se pueda añadir una vía autorizada sin reescribir Shaka.
+- No declarar «sin Puente» completado hasta que una sesión limpia reproduzca un vídeo real usando el reproductor propio.
+- No declarar Gateway-first completado con pruebas de fixtures propios.
 
 ## Consecuencias
-- Sin Puente no hay reproductor propio. La web sigue funcionando con el reproductor oficial, y con datos públicos leídos del feed RSS/WebSub y el respaldo cuando D1 falla.
-- Si en el futuro YouTube ofrece un acceso autorizado a sus vídeos, o el contenido es propio o con licencia, el gateway ya probado será la base. Se revisaría en un ADR nuevo.
 
-## Objetivo del propietario (2026-11-08, segunda decisión)
-El propietario fija como objetivo:
-- que el gateway sea la ruta principal de reproducción y el reproductor propio con Puente la segunda;
-- quitarle funciones al Puente y, más adelante, eliminarlo, «como las otras alternativas a YouTube que no usan este puente».
-
-**Hecho hacia ese objetivo (sin eludir nada):** el Puente ya no hace falta para nada salvo reproducir con el reproductor propio.
-
-| Función | Antes | Ahora |
-|---|---|---|
-| Búsqueda en todo | 🔌 Puente | ✅ Servidor, página pública de resultados (ADR-006 enm. 6) |
-| Cualquier canal (también los no seguidos) | 🔌 Puente | ✅ Servidor, páginas públicas de canal (enm. 6) |
-| Fotos, banner, @usuario, suscriptores | 🔌 Puente | ✅ Servidor, una vez al día (enm. 3 y 4) |
-| ~30 vídeos por canal y su duración | 🔌 Puente | ✅ Servidor, una vez al día (enm. 5) |
-| Visitas, me gusta, descripción | 🔌 Puente | ✅ RSS público (enm. 3) |
-| **Reproducir con el reproductor propio, sin anuncios** | 🔌 Puente | 🔌 Puente (sin cambios) |
-
-**Lo que sigue bloqueado:** la reproducción. Las alternativas que funcionan sin extensión (Invidious, Piped) obtienen los vídeos desde sus servidores. Para ello generan en el servidor la prueba anti-robots de YouTube (PoToken/BotGuard) y van cambiando de IP cuando las bloquean. Es la elusión descrita arriba, y en este proyecto no se construye. Mientras YouTube no ofrezca un acceso autorizado:
-- sin Puente se reproduce con el reproductor oficial (youtube-nocookie);
-- con Puente, con el reproductor propio;
-- el gateway queda listo para contenido propio o con licencia.
-
-**Para eliminar el Puente de verdad** haría falta una de estas tres cosas:
-1. un acceso autorizado de YouTube a sus vídeos;
-2. que el catálogo sea propio o con licencia;
-3. aceptar el reproductor oficial como único reproductor web.
-
-Cualquiera de las tres se decidirá en un ADR nuevo.
+- La interfaz de TodoTube ya no debe mostrar el iframe ni la marca del reproductor oficial como fallback automático.
+- La experiencia sin Puente es visualmente propia, pero la reproducción de YouTube requiere activar Puente.
+- ADR-005 sigue vigente: extracción en el dispositivo, no en nuestros servidores.
+- La PoC de Gateway sigue siendo útil para contenido propio o con licencia; no es una implementación del Gateway de YouTube.
+- Issue #3 permanece abierto hasta demostrar el objetivo de reproducción sin instalación manual o una alternativa autorizada y funcional.
