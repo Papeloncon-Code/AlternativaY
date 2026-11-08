@@ -68,3 +68,20 @@ test('minirreproductor móvil: conserva la ficha externa y no crea iframe', asyn
   await expect(page.locator('.mini-cover')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+
+test('ficha externa móvil: mensaje y ambos CTA quedan dentro del reproductor', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/ver/dQw4w9WgXcQ');
+  await expect(page.locator('.player-message')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Abrir origen' })).toBeVisible();
+  await expect(page.locator('#main').getByRole('link', { name: 'Medios propios' })).toBeVisible();
+  const [frame, message] = await Promise.all([
+    page.locator('#player-slot').boundingBox(),
+    page.locator('.player-message').boundingBox(),
+  ]);
+  expect(frame).not.toBeNull();
+  expect(message).not.toBeNull();
+  expect(message!.y).toBeGreaterThanOrEqual(frame!.y - 1);
+  expect(message!.y + message!.height).toBeLessThanOrEqual(frame!.y + frame!.height + 1);
+});
