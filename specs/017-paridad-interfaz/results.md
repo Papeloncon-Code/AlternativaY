@@ -66,3 +66,12 @@ No declarar paridad visual completa. Esta especificación sigue en construcción
 - Al navegar entre Inicio y Subs se reinicia el estado visible y vuelve a aplicarse el tiempo de ocultación.
 - Playwright comprueba el estado inicial, auto-ocultación, reaparición, selección de Subs y acción Crear; la auditoría visual captura ambos estados.
 - Implementación en revisión en PR pendiente. No declarar esta iteración desplegada hasta completar CI y smoke de producción.
+
+
+## Iteración 4 · Auditoría del panel Crear
+
+- Se añade una captura baseline del panel Crear en móvil (390×844).
+- Las métricas incluyen geometría del diálogo, formulario y acciones rápidas.
+- Playwright comprueba cierre por Escape y clic fuera, así como que cerrar el panel sin enviar no cree listas.
+- La acción de creación de lista ya está cubierta en la prueba de navegación móvil y verifica persistencia en localStorage.
+- Pendiente: revisar visualmente la captura y ajustar proporciones/espaciado con referencia equivalente de YouTube.
