@@ -7,7 +7,7 @@ TodoTube es una aplicación web para descubrir novedades públicas de canales se
 ## Estado real
 
 - Inicio con feed, filtros, tarjetas y carga progresiva.
-- Búsqueda, páginas de canal, Suscripciones, fichas externas de Shorts, historial, Ver más tarde, Me gusta y listas.
+- Búsqueda, páginas de canal, feed de Suscripciones, gestión independiente de canales (`/suscripciones/gestionar`), fichas externas de Shorts, historial, Ver más tarde, Me gusta y listas.
 - Avisos WebSub/RSS, campanita por canal y Web Push.
 - Preferencias locales: tema, Modo Foco, DeArrow y filtros por palabras.
 - Biblioteca local del navegador; no hay cuentas ni sincronización multidispositivo.

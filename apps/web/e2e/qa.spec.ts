@@ -123,3 +123,19 @@ test('#6 sin clave, la campanita lo explica en vez de fallar', async ({ page }) 
   await page.locator('.bell-btn').click();
   await expect(page.locator('.bell-lock')).toContainText('clave de propietario');
 });
+
+
+test('Suscripciones muestra un feed y conserva la gestión de canales en una ruta aparte', async ({ page }) => {
+  await page.goto('/suscripciones');
+  await expect(page.locator('.subscription-feed')).toBeVisible();
+  await expect(page.locator('.subscription-feed .vcard').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Vídeos recientes' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Gestionar suscripciones/ }).first()).toHaveAttribute('href', '/suscripciones/gestionar');
+  await page.locator('.chips-scroll .chip', { hasText: /^Shorts$/ }).click();
+  await expect(page.locator('.subscription-feed .short').first()).toBeVisible();
+  await expect(page.locator('.subscription-feed .vcard')).toHaveCount(0);
+  await page.goto('/suscripciones/gestionar');
+  await expect(page.getByRole('heading', { name: 'Gestionar suscripciones', exact: true })).toBeVisible();
+  await expect(page.locator('.channel-list')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Seguir canal' })).toBeVisible();
+});

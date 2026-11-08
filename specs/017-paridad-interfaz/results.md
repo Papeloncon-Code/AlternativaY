@@ -25,6 +25,17 @@ Hallazgos confirmados en el código:
 - Estado autoplay retirado del almacenamiento local mientras la fuente externa no pueda disparar un fin de reproducción real.
 - Tests de miniplayer y atajos ajustados para comprobar el comportamiento real.
 
+## Iteración 2 · Suscripciones (pendiente de CI)
+
+- La ruta `/suscripciones` muestra un feed de publicaciones de los canales seguidos.
+- Se añadieron filtros Todos, Vídeos, Shorts, grupos y canales.
+- Shorts se muestran como shelf horizontal o cuadrícula al filtrar Shorts.
+- La pantalla administrativa anterior se conserva en `/suscripciones/gestionar`: altas/bajas, campanita, PushToggle y grupos.
+- El menú de cuenta incluye acceso directo a la gestión.
+- Las capturas y pruebas responsive incluyen ambas rutas.
+
+No declarar esta iteración verificada hasta que CI, despliegue y smoke de producción pasen.
+
 ## Aún no verificado
 
 - Comparación pixel a pixel con capturas de referencia de YouTube en cada viewport.

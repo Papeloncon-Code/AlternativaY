@@ -3,7 +3,7 @@ import { noPrompts, trackErrors } from './helpers';
 
 test.beforeEach(async ({ page }) => { await noPrompts(page); });
 
-for (const path of ['/', '/suscripciones', '/tu', '/ajustes', '/buscar?q=news', '/medios', '/canal/UCNye-wNBqNL5ZzHSJj3l8Bg', '/canal/UCNye-wNBqNL5ZzHSJj3l8Bg/videos']) {
+for (const path of ['/', '/suscripciones', '/suscripciones/gestionar', '/tu', '/ajustes', '/buscar?q=news', '/medios', '/canal/UCNye-wNBqNL5ZzHSJj3l8Bg', '/canal/UCNye-wNBqNL5ZzHSJj3l8Bg/videos']) {
   test(`sin desplazamiento horizontal en ${path}`, async ({ page }) => {
     const ok = trackErrors(page);
     await page.goto(path); await page.waitForLoadState('networkidle');
@@ -84,4 +84,20 @@ test('ficha externa móvil: mensaje y ambos CTA quedan dentro del reproductor', 
   expect(message).not.toBeNull();
   expect(message!.y).toBeGreaterThanOrEqual(frame!.y - 1);
   expect(message!.y + message!.height).toBeLessThanOrEqual(frame!.y + frame!.height + 1);
+});
+
+
+test('Suscripciones muestra un feed y conserva la gestión de canales en una ruta aparte', async ({ page }) => {
+  await page.goto('/suscripciones');
+  await expect(page.locator('.subscription-feed')).toBeVisible();
+  await expect(page.locator('.subscription-feed .vcard').first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Vídeos recientes' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Gestionar suscripciones/ }).first()).toHaveAttribute('href', '/suscripciones/gestionar');
+  await page.locator('.chips-scroll .chip', { hasText: /^Shorts$/ }).click();
+  await expect(page.locator('.subscription-feed .short').first()).toBeVisible();
+  await expect(page.locator('.subscription-feed .vcard')).toHaveCount(0);
+  await page.goto('/suscripciones/gestionar');
+  await expect(page.getByRole('heading', { name: 'Gestionar suscripciones', exact: true })).toBeVisible();
+  await expect(page.locator('.channel-list')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Seguir canal' })).toBeVisible();
 });

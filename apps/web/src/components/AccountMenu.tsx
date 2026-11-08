@@ -60,6 +60,7 @@ export default function AccountMenu() {
           <Link role="menuitem" to="/tu" onClick={done}><Icon name="user" size={20} />Tu biblioteca</Link>
           <Link role="menuitem" to="/historial" onClick={done}><Icon name="hist" size={20} />Historial</Link>
           <Link role="menuitem" to="/medios" onClick={done}><Icon name="library" size={20} />Medios propios</Link>
+          <Link role="menuitem" to="/suscripciones/gestionar" onClick={done}><Icon name="subs" size={20} />Gestionar suscripciones</Link>
           <hr />
           <button type="button" role="menuitem" aria-haspopup="menu" onClick={() => setView('theme')}>
             <Icon name="moon" size={20} />Aspecto: {THEMES.find((t) => t.value === theme)?.label}<Icon name="next" size={16} />
