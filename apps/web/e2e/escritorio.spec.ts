@@ -8,12 +8,12 @@ test('H1 · cada filtro visible cambia los resultados (si no, no se muestra)', a
   const ok = trackErrors(page);
   await page.goto('/'); await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });
   const total = Number(await page.locator('.page').getAttribute('data-total'));
-  const chips = page.locator('.chips-scroll .chip');
-  const n = await chips.count();
-  for (let i = 1; i < n; i++) {
-    const label = await chips.nth(i).textContent();
-    await chips.nth(i).click();
-    await expect(chips.nth(i)).toHaveAttribute('aria-pressed', 'true');
+  // Por nombre, no por posición: la lista puede crecer mientras se cargan más vídeos (un canal nuevo desplaza a los demás).
+  const labels = (await page.locator('.chips-scroll .chip').allTextContents()).slice(1);
+  for (const label of labels) {
+    const chip = page.locator('.chips-scroll .chip', { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }).first();
+    await chip.click();
+    await expect(chip).toHaveAttribute('aria-pressed', 'true');
     // Se confirma visiblemente el filtro y su número de resultados (la primera pantalla puede coincidir).
     await expect(page.locator('.filter-count')).toContainText(label!);
     const count = Number((await page.locator('.filter-count').textContent())!.match(/\d+/)![0]);
@@ -99,12 +99,14 @@ test('S1–S2 · Shorts: abre el reproductor vertical y pasa con teclas y rueda'
   await expect(page).not.toHaveURL(u2);
 });
 
-test('C2 · canal: pestañas Vídeos y Shorts', async ({ page }) => {
+test('C2 · canal: pestañas Inicio, Vídeos y Shorts (con su dirección)', async ({ page }) => {
   await page.goto('/'); const href = await page.locator('.vchan').first().getAttribute('href');
   await page.goto(href!);
-  const tabs = page.locator('.tab-btn');
-  await expect(tabs).toHaveCount(2);
+  const tabs = page.locator('.ch-tab');
+  await expect(tabs).toHaveText(['Inicio', 'Vídeos', 'Shorts']);
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
   await tabs.nth(1).click();
+  await expect(page).toHaveURL(/\/videos$/);
   await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
 });
 

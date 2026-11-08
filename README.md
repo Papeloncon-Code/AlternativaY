@@ -37,6 +37,8 @@ Riesgos aceptados y límites (nunca DRM, nunca extracción en servidores): [ADR-
 | 18 | Riesgos y mitigación | [plan.md](specs/001-plataforma/plan.md) §4 · [05-legal](docs/research/05-legal-y-viabilidad.md) §6 |
 | 19 | Tareas por prioridad | [specs/002-mvp/tasks.md](specs/002-mvp/tasks.md) |
 | — | Constitución (principios) | [specs/000-constitucion/constitucion.md](specs/000-constitucion/constitucion.md) |
+| — | Informe externo de arquitectura y marca: triage SDD | [docs/research/11-informe-externo-triage.md](docs/research/11-informe-externo-triage.md) |
+| — | Gateway multimedia sin Puente (ADR-009, spec 008, PoC) | [PR #2](https://github.com/Papeloncon-Code/AlternativaY/pull/2) |
 | — | Instalar el Puente con un clic (investigación) | [docs/research/09-instalar-el-puente-con-un-clic.md](docs/research/09-instalar-el-puente-con-un-clic.md) |
 | — | Metodología, registro y limitaciones | [docs/00-metodologia-y-registro.md](docs/00-metodologia-y-registro.md) |
 
@@ -57,4 +59,5 @@ Riesgos aceptados y límites (nunca DRM, nunca extracción en servidores): [ADR-
 | [ADR-005](docs/adr/ADR-005-cliente-youtube-completo.md) | Cliente de YouTube completo, extracción solo en el dispositivo, builds `full` y `play` | **Aceptado** |
 | [ADR-006](docs/adr/ADR-006-notificaciones-tiempo-real.md) | Avisos en tiempo real: WebSub → FCM / UnifiedPush / Web Push, con respaldo RSS | Propuesto |
 | [ADR-008](docs/adr/ADR-008-nombre-y-equipo.md) | Nombre **TodoTube**; equipo de una persona (escenario E1) | **Aceptado** |
+| ADR-009 | Gateway multimedia sin extensión: solo PoC con contenido propio; YouTube por gateway requiere cambiar ADR-005 y revisión legal (en la rama de la PR #2) | Propuesto |
 | [ADR-007](docs/adr/ADR-007-importacion-automatica-suscripciones.md) | Importación automática de suscripciones sin iniciar sesión: lector automático (Android `full`), “Permitir” de Google (`play`), extensión (web) | **Aceptado** |

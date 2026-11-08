@@ -39,6 +39,7 @@ const paths: Record<string, string> = {
   eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   bellOff: 'M6 16V11c0-1 .3-2 .8-2.9M9 5.6A6 6 0 0 1 18 11v5l2 2H6M10 20a2 2 0 0 0 4 0M3 3l18 18',
   chevron: 'M7 10l5 5 5-5',
+  link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
   unfollow: 'M16 11h6M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21v-1a6 6 0 0 1 12 0v1',
 };
 export default function Icon({ name, size = 22, filled = false }: { name: keyof typeof paths | string; size?: number; filled?: boolean }) {

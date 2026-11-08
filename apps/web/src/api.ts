@@ -1,5 +1,7 @@
 export type Video = {
   views?: number | null;
+  /** Segundos (pestaña pública «Vídeos» del canal); null si aún no se conoce. */
+  duration?: number | null;
   likes?: number | null;
   id: string;
   title: string | null;
@@ -19,6 +21,13 @@ export type Channel = {
   notify: 'all' | 'noshorts' | 'none';
   avatar?: string | null;
   videos: number;
+  header?: ChannelHeader | null;
+};
+// Cabecera pública del canal (la que ve cualquiera sin cuenta), leída una vez al día por el servidor.
+export type ChannelHeader = {
+  title?: string | null; verified?: boolean; handle?: string | null; subs?: string | null; videos?: string | null; about?: string | null;
+  link?: { text: string; url: string; more: string | null } | null; banner?: string | null;
+  featured?: { id: string; title: string | null; about: string | null; views: string | null; ago: string | null } | null;
 };
 
 async function get<T>(path: string): Promise<T> {

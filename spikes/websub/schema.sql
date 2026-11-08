@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS channels (
   rss_failures   INTEGER NOT NULL DEFAULT 0,
   notify         TEXT NOT NULL DEFAULT 'all',  -- campanita: all | noshorts | none
   avatar         TEXT,                         -- foto del canal (CDN pública): vista previa diaria o un dispositivo con Puente
-  avatar_at      INTEGER                       -- última lectura de la vista previa (una vez al día como mucho)
+  avatar_at      INTEGER,                      -- última lectura de la vista previa (una vez al día como mucho)
+  header         TEXT                          -- cabecera pública del canal (JSON: banner, handle, subs, videos, verified, about, link)
 );
 CREATE TABLE IF NOT EXISTS videos (
   video_id      TEXT PRIMARY KEY,
@@ -25,7 +26,9 @@ CREATE TABLE IF NOT EXISTS videos (
   views         INTEGER,          -- del RSS público (media:statistics)
   likes         INTEGER,          -- del RSS público (media:starRating count)
   description   TEXT,             -- del RSS público (media:description)
-  stats_at      INTEGER
+  stats_at      INTEGER,
+  duration      INTEGER,          -- segundos (pestaña pública «Vídeos» del canal)
+  approx        INTEGER           -- 1 = fecha aproximada (vídeo anterior al RSS, «hace 3 semanas»)
 );
 CREATE TABLE IF NOT EXISTS events (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,3 +56,9 @@ CREATE TABLE IF NOT EXISTS push_subs (
   last_ok_at INTEGER,
   failures   INTEGER NOT NULL DEFAULT 0
 );
+CREATE INDEX IF NOT EXISTS idx_events_received ON events(received_at);
+CREATE INDEX IF NOT EXISTS idx_events_video ON events(video_id, source);
+CREATE INDEX IF NOT EXISTS idx_runs_at ON runs(at);
+CREATE INDEX IF NOT EXISTS idx_videos_channel ON videos(channel_id);
+CREATE INDEX IF NOT EXISTS idx_videos_published ON videos(published_at);
+CREATE INDEX IF NOT EXISTS idx_videos_kind ON videos(kind, published_at);

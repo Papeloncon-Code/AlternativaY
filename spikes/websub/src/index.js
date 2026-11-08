@@ -178,45 +178,192 @@ const after = (buf, key) => {
   const i = buf.indexOf(key); if (i < 0) return null;
   const j = buf.indexOf('"', i + key.length); return j < 0 ? null : buf.slice(i + key.length, j);
 };
-export async function readChannelPreview(fetchFn, channelId) {
-  const r = await fetchFn(`https://www.youtube.com/channel/${channelId}`, { headers: { 'accept-language': 'es' }, redirect: 'follow' });
+// Cabecera pública del canal (la que ve cualquiera sin cuenta): banner, @usuario, suscriptores, vídeos, verificado,
+// descripción y primer enlace. Va como JSON dentro de la misma página, casi al final (~2,2 MB de 2,3 MB).
+const HEADER_KEY = '"header":{"pageHeaderRenderer":';
+const HEADER_MAX = 60_000;
+// Corta el objeto JSON que empieza en s[0] respetando cadenas y escapes. null si no termina dentro de s.
+export function sliceJsonObject(s) {
+  let depth = 0; let str = false; let esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (str) { if (esc) esc = false; else if (c === 92) esc = true; else if (c === 34) str = false; continue; }
+    if (c === 34) str = true;
+    else if (c === 123) depth++;
+    else if (c === 125 && --depth === 0) return s.slice(0, i + 1);
+  }
+  return null;
+}
+const findKey = (o, key, depth = 0) => {
+  if (!o || typeof o !== 'object' || depth > 30) return undefined;
+  if (Object.hasOwn(o, key)) return o[key];
+  for (const v of Object.values(o)) { const r = findKey(v, key, depth + 1); if (r !== undefined) return r; }
+  return undefined;
+};
+const clip = (t, n) => (typeof t === 'string' ? t.replace(/\s+$/, '').slice(0, n) : null);
+export function parseChannelHeader(json) {
+  let root; try { root = JSON.parse(json); } catch { return null; }
+  const vm = findKey(root, 'pageHeaderViewModel');
+  if (!vm) return null;
+  const out = {};
+  out.title = clip(findKey(vm.title, 'content') ?? root?.pageHeaderRenderer?.pageTitle, 100);
+  const titleJson = JSON.stringify(vm.title ?? {});
+  out.verified = /CHECK_CIRCLE_FILLED|BADGE_STYLE_TYPE_VERIFIED/.test(titleJson);
+  const rows = findKey(vm.metadata, 'metadataRows') ?? [];
+  const parts = rows.flatMap((r) => (r.metadataParts ?? []).map((p) => p?.text?.content).filter((t) => typeof t === 'string'));
+  out.handle = clip(parts.find((t) => /^@[\w.\-·]{1,100}$/u.test(t)), 100);
+  out.subs = clip(parts.find((t) => /suscriptor|subscriber/i.test(t)), 60);
+  out.videos = clip(parts.find((t) => /v[ií]deo/i.test(t)), 60);
+  out.about = clip(findKey(vm.description, 'content'), 1500);
+  // Primer enlace: el texto visible y el destino real (YouTube lo envuelve en /redirect?q=…). Solo http(s).
+  const attr = findKey(vm, 'attributionViewModel');
+  if (attr?.text?.content) {
+    const text = attr.text.content.trim();
+    const runs = attr.text.commandRuns ?? [];
+    const first = runs[0];
+    let url = null;
+    const raw = findKey(first?.onTap, 'url');
+    try {
+      const u = new URL(raw, 'https://www.youtube.com');
+      const q = u.hostname.endsWith('youtube.com') && u.pathname === '/redirect' ? u.searchParams.get('q') : u.href;
+      const d = new URL(q);
+      if (d.protocol === 'https:' || d.protocol === 'http:') url = d.href;
+    } catch { /* sin enlace */ }
+    const len = first?.length ?? text.length;
+    // «y 3 enlaces más» va aparte (suffix); el resto de enlaces solo llega con otra llamada a la API interna: no se pide.
+    const more = clip(attr.suffix?.content?.trim(), 40) || clip(text.slice(len).trim(), 40) || null;
+    out.link = url ? { text: text.slice(0, len).trim().slice(0, 80), url: url.slice(0, 300), more } : null;
+  }
+  // Banner: la fuente más ancha que no pase de 2560 px, solo de la CDN pública de imágenes de canal.
+  const sources = findKey(vm.banner, 'sources') ?? [];
+  const pickB = sources.filter((x) => x?.url && (x.width ?? 0) <= 2560).sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0];
+  try { const u = new URL(pickB?.url || ''); out.banner = u.protocol === 'https:' && AVATAR_HOST.test(u.hostname) ? u.href : null; } catch { out.banner = null; }
+  return out;
+}
+
+const FEATURED_KEY = '"channelVideoPlayerRenderer":';
+const runsText = (t) => (t?.simpleText ?? (t?.runs ?? []).map((r) => r?.text ?? '').join('')) || null;
+// Vídeo destacado de la pestaña Inicio (el que el canal elige mostrar a quien no está suscrito).
+export function parseFeatured(json) {
+  let o; try { o = JSON.parse(json); } catch { return null; }
+  if (typeof o?.videoId !== 'string' || !/^[\w-]{11}$/.test(o.videoId)) return null;
+  return {
+    id: o.videoId, title: clip(runsText(o.title), 200), about: clip(runsText(o.description), 1500),
+    views: clip(runsText(o.viewCountText), 60), ago: clip(runsText(o.publishedTimeText), 40),
+  };
+}
+
+// Vídeos de la pestaña pública «Vídeos» del canal (los ~30 más recientes): id, título, duración, visualizaciones y antigüedad.
+const LOCKUP_KEY = '"lockupViewModel":';
+const UNITS = { segundo: 1e3, minuto: 6e4, hora: 3.6e6, día: 8.64e7, dia: 8.64e7, semana: 6.048e8, mes: 2.592e9, año: 3.1536e10, ano: 3.1536e10 };
+export function parseAgo(label) {
+  const m = /hace\s+(\d+)\s+(segundo|minuto|hora|d[ií]a|semana|mes|año|ano)/i.exec(label || '');
+  return m ? Number(m[1]) * UNITS[m[2].toLowerCase()] : null;
+}
+export function parseViewsLabel(label) {
+  const m = /^([\d.,]+)\s*(mil millones|millones|millón|mil)?\s+(?:de\s+)?visualizaci/i.exec((label || '').trim());
+  if (!m) return null;
+  const mult = { 'mil millones': 1e9, millones: 1e6, 'millón': 1e6, mil: 1e3 }[(m[2] || '').toLowerCase()] ?? 1;
+  const n = mult === 1 ? Number(m[1].replace(/[.,]/g, '')) : Number(m[1].replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(n) ? Math.round(n * mult) : null;
+}
+export function parseDuration(t) {
+  if (typeof t !== 'string' || !/^\d{1,2}(:\d{2}){1,2}$/.test(t.trim())) return null;
+  return t.trim().split(':').reduce((acc, x) => acc * 60 + Number(x), 0);
+}
+export function parseLockup(json) {
+  let o; try { o = JSON.parse(json); } catch { return null; }
+  if (o?.contentType !== 'LOCKUP_CONTENT_TYPE_VIDEO' || !/^[\w-]{11}$/.test(o.contentId ?? '')) return null;
+  const md = o.metadata?.lockupMetadataViewModel;
+  const parts = (findKey(md?.metadata, 'metadataRows') ?? []).flatMap((r) => r.metadataParts ?? []);
+  const badge = findKey(o.contentImage, 'thumbnailBadgeViewModel');
+  const viewsPart = parts.find((p) => /visualizaci/i.test(p?.accessibilityLabel ?? ''));
+  const agoPart = parts.find((p) => /^hace /i.test(p?.accessibilityLabel ?? p?.text?.content ?? ''));
+  return {
+    id: o.contentId, title: clip(md?.title?.content, 200), dur: parseDuration(badge?.text),
+    views: parseViewsLabel(viewsPart?.accessibilityLabel), age: parseAgo(agoPart?.accessibilityLabel ?? agoPart?.text?.content),
+  };
+}
+
+// Lee una página pública del canal por partes y captura, en orden, los objetos JSON que interesan.
+async function readChannelPage(fetchFn, url, { featured: wantFeatured = false, lockups: wantLockups = false } = {}) {
+  const r = await fetchFn(url, { headers: { 'accept-language': 'es' }, redirect: 'follow' });
   if (!r.ok || !r.body) return { status: r.status };
   const reader = r.body.getReader();
   const dec = new TextDecoder();
-  let buf = ''; let read = 0; let image = null; let title = null;
+  let buf = ''; let read = 0; let image = null; let title = null; let header = null; let featured = null;
+  const lockups = [];
+  let cap = null; // objeto JSON que se está capturando: { name, text, max }
   try {
-    while (read < 1_500_000 && !(image && title)) {
+    reading: while (read < 4_000_000) {
       const { value, done } = await reader.read();
       if (done) break;
       read += value.byteLength;
-      buf = buf.slice(-600) + dec.decode(value, { stream: true }); // ventana deslizante: las etiquetas pueden partirse entre trozos
-      // Búsqueda de texto nativa (más barata que una expresión regular en cada trozo).
-      image ??= after(buf, '<meta property="og:image" content="');
-      title ??= after(buf, '<meta property="og:title" content="');
+      let text = dec.decode(value, { stream: true });
+      while (text) {
+        if (cap) {
+          cap.text += text; text = '';
+          const obj = sliceJsonObject(cap.text);
+          if (!obj && cap.text.length <= cap.max) continue;
+          if (cap.name === 'header') { header = obj ? parseChannelHeader(obj) : null; break reading; }
+          if (cap.name === 'featured') featured = obj ? parseFeatured(obj) : null;
+          else if (obj && lockups.length < 60) { const l = parseLockup(obj); if (l) lockups.push(l); }
+          text = obj ? cap.text.slice(obj.length) : ''; cap = null; buf = '';
+          continue;
+        }
+        buf = buf.slice(-600) + text; text = ''; // ventana deslizante: las etiquetas pueden partirse entre trozos
+        // Búsqueda de texto nativa (más barata que una expresión regular en cada trozo).
+        image ??= after(buf, '<meta property="og:image" content="');
+        title ??= after(buf, '<meta property="og:title" content="');
+        const found = [[HEADER_KEY, 'header', 9, HEADER_MAX], [wantFeatured && !featured ? FEATURED_KEY : null, 'featured', FEATURED_KEY.length, 30_000], [wantLockups ? LOCKUP_KEY : null, 'lockup', LOCKUP_KEY.length, 40_000]]
+          .filter(([k]) => k).map(([k, name, skip, max]) => ({ i: buf.indexOf(k), name, skip, max })).filter((x) => x.i >= 0).sort((x, y) => x.i - y.i)[0];
+        if (found) { cap = { name: found.name, text: '', max: found.max }; text = buf.slice(found.i + found.skip); buf = ''; }
+      }
     }
   } finally {
     await reader.cancel().catch(() => {});
   }
+  if (header && featured) header.featured = featured;
   let avatar = null;
   try {
     const u = new URL(image || '');
     if (u.protocol === 'https:' && AVATAR_HOST.test(u.hostname)) avatar = u.href.replace(/=s\d+(-|$)/, '=s176$1');
   } catch { /* sin foto */ }
   const name = title ? title.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim().slice(0, 80) : null;
-  return { status: r.status, avatar, name, read };
+  return { status: r.status, avatar, name, header, lockups, read };
+}
+export const readChannelPreview = (fetchFn, channelId) => readChannelPage(fetchFn, `https://www.youtube.com/channel/${channelId}?hl=es`, { featured: true });
+export const readChannelVideos = (fetchFn, channelId) => readChannelPage(fetchFn, `https://www.youtube.com/channel/${channelId}/videos?hl=es`, { lockups: true });
+
+// Guarda los vídeos de la pestaña «Vídeos»: duración (y visualizaciones si faltan) de los conocidos; los que no
+// conocíamos se añaden SOLO si tienen al menos 2 días (así un vídeo recién subido nunca se marca como «ya visto»
+// antes de que llegue su aviso por WebSub). Su fecha es aproximada («hace 3 semanas»), como la que muestra la página.
+export async function storeChannelVideos(env, channelId, lockups, now) {
+  const stmts = [];
+  for (const l of lockups) {
+    stmts.push(env.DB.prepare('UPDATE videos SET duration = COALESCE(?, duration), views = COALESCE(views, ?) WHERE video_id = ?').bind(l.dur, l.views, l.id));
+    if (l.age != null && l.age >= 2 * 8.64e7 && l.title) {
+      stmts.push(env.DB.prepare("INSERT OR IGNORE INTO videos (video_id, channel_id, title, published_at, first_source, first_seen_at, kind, views, duration, approx) VALUES (?,?,?,?,'baseline',?,'video',?,?,1)")
+        .bind(l.id, channelId, l.title, now - l.age, now, l.views, l.dur));
+    }
+  }
+  if (stmts.length) await env.DB.batch(stmts);
+  return stmts.length;
 }
 
 async function refreshChannelPreview(env, now) {
-  // Hasta 5 canales por ejecución (relleno inicial en ~30 min); cada canal, como mucho una vez al día.
+  // Hasta 2 canales por ejecución (relleno inicial en ~70 min); cada canal, como mucho una vez al día y dos páginas:
+  // Inicio (foto, cabecera, destacado) y Vídeos (los ~30 más recientes con su duración). ADR-006, enmiendas 3 a 5.
   const { results } = await env.DB.prepare(
-    "SELECT channel_id FROM channels WHERE status IN ('requested','verified','pending') AND (avatar_at IS NULL OR avatar_at < ?) ORDER BY COALESCE(avatar_at, 0) ASC LIMIT 5"
+    "SELECT channel_id FROM channels WHERE status IN ('requested','verified','pending') AND (avatar_at IS NULL OR avatar_at < ?) ORDER BY COALESCE(avatar_at, 0) ASC LIMIT 2"
   ).bind(now - 24 * 3600 * 1000).all();
   for (const ch of results) {
     let res = {};
     try { res = await readChannelPreview(fetch, ch.channel_id); } catch { /* red */ }
+    try { const v = await readChannelVideos(fetch, ch.channel_id); if (v.lockups?.length) await storeChannelVideos(env, ch.channel_id, v.lockups, now); } catch { /* red */ }
     // Se anota la fecha aunque falle: como mucho un intento al día por canal (si YouTube lo bloquea, quedan iniciales).
-    await env.DB.prepare('UPDATE channels SET avatar = COALESCE(?, avatar), avatar_at = ?, label = COALESCE(label, ?) WHERE channel_id = ?')
-      .bind(res.avatar ?? null, now, res.name ?? null, ch.channel_id).run();
+    await env.DB.prepare('UPDATE channels SET avatar = COALESCE(?, avatar), avatar_at = ?, label = COALESCE(label, ?), header = COALESCE(?, header) WHERE channel_id = ?')
+      .bind(res.avatar ?? null, now, res.name ?? null, res.header ? JSON.stringify(res.header) : null, ch.channel_id).run();
   }
 }
 
@@ -274,7 +421,9 @@ async function cron(env) {
       if (st === 202) stats.renewed++;
     }
     // 2c. Privacidad y orden: los registros técnicos (vídeos públicos recibidos, ejecuciones) se borran a los 7 días.
-    await env.DB.batch([
+    // Una vez al día (a las 03:00 UTC): cada 5 minutos recorría la tabla entera y agotó el límite de lecturas de D1.
+    const d = new Date(now);
+    if (d.getUTCHours() === 3 && d.getUTCMinutes() < 5) await env.DB.batch([
       env.DB.prepare('DELETE FROM events WHERE received_at < ?').bind(now - 7 * 86_400_000),
       env.DB.prepare('DELETE FROM runs WHERE at < ?').bind(now - 7 * 86_400_000),
     ]);

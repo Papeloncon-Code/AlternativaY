@@ -1,15 +1,29 @@
 const rtf = new Intl.RelativeTimeFormat('es', { numeric: 'always' });
 export function ago(ms: number | null | undefined): string {
   if (!ms) return '';
+  // Se trunca como en la referencia: 1 día y 20 horas es «hace 1 día», no «hace 2 días».
   const s = Math.round((ms - Date.now()) / 1000);
   const abs = Math.abs(s);
+  const t = (n: number) => Math.trunc(s / n);
   if (abs < 60) return 'ahora';
-  if (abs < 3600) return rtf.format(Math.round(s / 60), 'minute');
-  if (abs < 86400) return rtf.format(Math.round(s / 3600), 'hour');
-  if (abs < 604800) return rtf.format(Math.round(s / 86400), 'day');
-  if (abs < 2592000) return rtf.format(Math.round(s / 604800), 'week');
-  if (abs < 31536000) return rtf.format(Math.round(s / 2592000), 'month');
-  return rtf.format(Math.round(s / 31536000), 'year');
+  if (abs < 3600) return rtf.format(t(60), 'minute');
+  if (abs < 86400) return rtf.format(t(3600), 'hour');
+  if (abs < 604800) return rtf.format(t(86400), 'day');
+  if (abs < 2592000) return rtf.format(t(604800), 'week');
+  if (abs < 31536000) return rtf.format(t(2592000), 'month');
+  return rtf.format(t(31536000), 'year');
+}
+/** Forma corta de los estantes: «hace 5 min», «hace 3 h», «hace 1 d», «hace 2 sem.», «hace 3 meses», «hace 7 a». */
+export function agoShort(ms: number | null | undefined): string {
+  if (!ms) return '';
+  const abs = Math.max(0, Math.round((Date.now() - ms) / 1000));
+  if (abs < 60) return 'ahora';
+  if (abs < 3600) return `hace ${Math.trunc(abs / 60)} min`;
+  if (abs < 86400) return `hace ${Math.trunc(abs / 3600)} h`;
+  if (abs < 14 * 86400) return `hace ${Math.trunc(abs / 86400)} d`;
+  if (abs < 2592000) return `hace ${Math.trunc(abs / 604800)} sem.`;
+  if (abs < 31536000) { const m = Math.trunc(abs / 2592000); return `hace ${m} ${m === 1 ? 'mes' : 'meses'}`; }
+  return `hace ${Math.trunc(abs / 31536000)} a`;
 }
 export function clock(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
