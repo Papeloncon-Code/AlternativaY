@@ -1,7 +1,9 @@
 # ADR-005 · Cliente de YouTube completo (opción A)
 
-- **Estado:** Aceptado por el propietario del producto (2026-11-06)
+- **Estado:** SUPERSEDIDO el 2026-11-08 por ADR-011. Se conserva como registro histórico; no es una instrucción vigente.
 - **Sustituye:** constitución v1.0, §I.1 y §I.3; doc 05 §3 (conclusión “sin extracción”)
+
+> **Nota de vigencia:** las decisiones de extracción de streams, build full y reproducción sin anuncios descritas aquí ya no rigen el producto. No deben reactivarse sin una nueva ADR, una fuente autorizada y revisión legal.
 
 ## Contexto
 - La versión 1.0 de la especificación excluía la extracción de YouTube. Lo hacía por la frase de la sección 10 del encargo: “No propongas mecanismos para evadir controles de acceso, DRM, autenticación o restricciones técnicas”.

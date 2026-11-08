@@ -2,23 +2,21 @@
 
 Principios **no negociables**. Toda especificación, plan, tarea o PR que los contradiga se rechaza. Para cambiarlos hace falta un ADR (Architecture Decision Record) aprobado por el propietario del producto.
 
-Versión 2.0 · 2026-11-06 · Basada en `docs/research/01–05` y en **ADR-005** (cliente de YouTube completo).
+Versión 3.0 · 2026-11-08 · Actualizada por ADR-011 (Media Gateway autorizado y retirada de Puente).
 
-> Cambio respecto a la v1.0: el propietario decidió (ADR-005) que el producto sea un cliente de YouTube completo, que compita con NewPipe, PipePipe y Flow. La v1.0 excluía la extracción de YouTube; la v2.0 la permite, con los límites siguientes.
+> Cambio respecto a la v2.0: la decisión de extraer streams de YouTube queda supersedida por ADR-011. TodoTube elimina Puente y sirve en su reproductor propio únicamente medios propios o autorizados.
 
 ## I. Límites legales y de sostenibilidad
-1. **Nunca se elude DRM** (Widevine u otros) ni se accede a contenido de pago sin pagarlo: películas, series de alquiler o contenido exclusivo de miembros o de Premium.
-2. **La extracción de YouTube solo se ejecuta en el dispositivo del usuario.** Nuestros servidores solo usan mecanismos oficiales: WebSub y RSS público. Ningún servidor nuestro descarga ni reproduce streams de YouTube.
-   - **Enmienda (2026-11-07, aprobada por el propietario):** el servidor puede leer además los **metadatos públicos de vista previa** de la página de cada canal seguido (`og:image` y `og:title`, los mismos que usan las apps de mensajería al compartir un enlace), **como máximo una vez al día por canal**, dejando de leer en cuanto los encuentra. Nada sobre vídeos ni sobre usuarios. Detalle: ADR-006, enmienda 3.
-   - **Enmienda (2026-11-08):** en esa misma lectura diaria se toma también la **cabecera pública del canal** (banner, @usuario, suscriptores, número de vídeos, verificado, descripción y primer enlace), cortando al cerrarla. Sin peticiones nuevas y sin la API interna. Detalle: ADR-006, enmienda 4.
-   - **Enmienda (2026-11-08, «sí a todo» del propietario):** también una vez al día la **pestaña pública «Vídeos»** del canal: los ~30 vídeos más recientes con su duración. Sin API interna. Detalle: ADR-006, enmienda 5.
-   - **Enmienda (2026-11-08):** búsqueda en todo y cualquier canal **bajo demanda** con las páginas públicas de resultados y de canal. Sin API interna. Si YouTube pide comprobar que no somos un robot, se para: nunca se elude. La consulta solo pasa por el servidor, que la guarda unos minutos en memoria y sin registros. Detalle: ADR-006, enmienda 6.
-3. **El módulo de YouTube está aislado** (`:connector:youtube`). Debe poder eliminarse con una opción de build sin romper nada más. La variante `play` no lo incluye.
-4. **No se tocan las credenciales del usuario en el servidor.** Si existe login de YouTube, se guarda solo en el dispositivo (Keystore).
-5. **No se redistribuye contenido.** Las descargas son para uso privado del usuario.
-6. **Las marcas ajenas no forman parte de nuestro nombre ni de nuestro logotipo.**
-7. **Asesoría legal obligatoria antes de monetizar** o de constituir la empresa (ADR-005).
-8. Las demás fuentes (podcasts, PeerTube, Jellyfin, locales) se integran por canales autorizados y documentan su base legal (`RL-xx`).
+1. **Nunca se elude DRM** (Widevine u otros) ni se accede a contenido de pago sin autorización.
+2. **El Media Gateway no obtiene ni retransmite streams de YouTube.** No llama InnerTube para resolver medios, no procesa URLs googlevideo, no ejecuta BotGuard/PoToken en servidores ni falsifica clientes o IP.
+3. **YouTube en la web:** TodoTube conserva metadatos públicos obtenidos por WebSub/RSS y otras lecturas públicas limitadas documentadas en ADR-006. Los elementos enlazan al origen; no hay reproducción interna ni extracción de segmentos.
+4. **El Gateway solo sirve medios propios o licenciados para distribución.** Cada objeto declara owned o licensed; los objetos licenciados requieren una referencia interna de autorización.
+5. **No existe proxy abierto.** El Gateway acepta IDs opacos del bucket R2 propio, nunca URLs arbitrarias, destinos enviados por el usuario o hosts externos.
+6. **No se redistribuye contenido de terceros sin autorización.** El marcado de licencia no sustituye la comprobación efectiva de los derechos.
+7. **No se almacenan credenciales de Google/YouTube en el servidor.**
+8. **Las marcas ajenas no forman parte del nombre ni del logotipo de TodoTube.**
+9. **Asesoría legal obligatoria antes de monetizar** o constituir la empresa.
+10. Las demás fuentes (podcasts, PeerTube, Jellyfin, archivos locales) se integran solo por canales autorizados y documentan su base legal (RL-xx).
 
 ## II. El usuario es dueño de sus datos
 6. **Local-first.** La app es completamente usable sin cuenta y sin servidor. El servidor solo sincroniza y hace copias de seguridad.
