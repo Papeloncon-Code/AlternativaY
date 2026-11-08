@@ -21,7 +21,6 @@ type State = {
   watched: Record<string, number>;
   ownerKey: string;
   theme: 'dark' | 'light' | 'system';
-  sponsorblock: boolean;
   promptDismissed: { push?: number };
   visitAt: number;
   blockWords: string[];
@@ -32,12 +31,15 @@ type State = {
 };
 
 const KEY = 'todotube:v1';
-const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system', sponsorblock: true, dearrow: false, promptDismissed: {}, visitAt: 0, visitPrev: 0, blockWords: [], groups: [], playlists: [] };
+const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system', dearrow: false, promptDismissed: {}, visitAt: 0, visitPrev: 0, blockWords: [], groups: [], playlists: [] };
 
 function load(): State {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? { ...empty, ...JSON.parse(raw) } : empty;
+    if (!raw) return empty;
+    const saved = JSON.parse(raw) as Partial<State> & { sponsorblock?: boolean };
+    delete saved.sponsorblock;
+    return { ...empty, ...saved };
   } catch {
     return empty;
   }
@@ -129,7 +131,6 @@ export const actions = {
   togglePlaylistItem(id: string, m: Meta) { set((s) => ({ ...s, playlists: s.playlists.map((p) => p.id !== id ? p : { ...p, items: p.items.some((i) => i.id === m.id) ? p.items.filter((i) => i.id !== m.id) : [...p.items, { ...m, at: Date.now() }] }) })); },
   movePlaylistItem(id: string, from: number, to: number) { set((s) => ({ ...s, playlists: s.playlists.map((p) => { if (p.id !== id) return p; const items = [...p.items]; const [x] = items.splice(from, 1); items.splice(to, 0, x); return { ...p, items }; }) })); },
   dismissPrompt(k: 'push') { set((s) => ({ ...s, promptDismissed: { ...s.promptDismissed, [k]: Date.now() } })); },
-  toggleSponsorBlock() { set((s) => ({ ...s, sponsorblock: !s.sponsorblock })); },
   toggleDeArrow() { set((s) => ({ ...s, dearrow: !s.dearrow })); },
   toggleFocus() { set((s) => ({ ...s, focus: !s.focus })); },
   hideVideo(id: string) { set((s) => ({ ...s, hidden: { ...s.hidden, [id]: Date.now() } })); },

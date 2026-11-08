@@ -18,15 +18,15 @@ import { setChannelBell } from '../push';
 import type { Video } from '../api';
 
 const MAIN = [
-  { to: '/', label: 'Inicio', icon: 'home', end: true },
+  { to: '/', label: 'Principal', icon: 'home', end: true },
   { to: '/shorts', label: 'Shorts', icon: 'shorts' },
   { to: '/suscripciones', label: 'Suscripciones', icon: 'subs' },
+  { to: '/medios', label: 'Medios propios', icon: 'library' },
 ];
 const YOU = [
   { to: '/historial', label: 'Historial', icon: 'hist' },
   { to: '/ver-mas-tarde', label: 'Ver más tarde', icon: 'clock' },
   { to: '/me-gusta', label: 'Vídeos que me gustan', icon: 'like' },
-  { to: '/medios', label: 'Medios propios', icon: 'library' },
 ];
 const DAY = 86_400_000;
 
@@ -160,6 +160,8 @@ export default function Layout() {
         <SearchBox mobile={mobileSearch} onClose={() => setMobileSearch(false)} />
         <div className="top-right">
           <button type="button" className="icon-btn only-mobile" aria-label="Buscar" onClick={() => { setMobileSearch(true); setTimeout(() => (document.getElementById('q') as HTMLInputElement | null)?.focus(), 0); }}><Icon name="search2" size={22} /></button>
+          <button type="button" className={`icon-btn focus-btn${focus ? ' on' : ''}`} aria-pressed={focus} aria-label="Modo Foco" title="Modo Foco"
+            onClick={() => { actions.toggleFocus(); toast(focus ? 'Modo Foco desactivado' : 'Modo Foco: solo lo nuevo de tus canales'); }}><Icon name="focusmode" size={22} /></button>
           <Notifications />
           <AccountMenu />
         </div>
@@ -199,6 +201,7 @@ export default function Layout() {
           <NavLink to="/ajustes" className="side-item"><Icon name="settings" size={22} /><span>Ajustes</span></NavLink>
           <NavLink to="/privacidad" className="side-item"><Icon name="shield" size={22} /><span>Privacidad</span></NavLink>
         </div>
+        <p className="side-foot">TodoTube · web v0.2</p>
       </aside>
       {drawer && <button type="button" className="scrim" aria-label="Cerrar menú" onClick={() => setDrawer(false)} />}
 
