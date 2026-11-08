@@ -44,3 +44,13 @@ No declarar esta iteración verificada hasta que CI, despliegue y smoke de produ
 - Despliegue y smoke test en producción.
 
 No declarar paridad visual completa. Esta especificación sigue en construcción y el trabajo continúa desde la sección A.
+
+
+## Iteración 3 · Navegación móvil según el rediseño vigente de YouTube (2026-11-08)
+
+- En móvil, la barra inferior ya no incluye Suscripciones: queda Inicio, Shorts, Crear y Tú.
+- Los feeds Inicio y Subs se muestran en pestañas superiores fijas bajo la barra superior en ambas rutas.
+- La pestaña Subs abre el feed de suscripciones; la pantalla de gestión continúa en `/suscripciones/gestionar`.
+- Crear abre un panel que permite crear una lista de reproducción real y enlaza a Seguir canales y Medios propios. No se presenta subida de vídeo porque esa función no existe.
+- Referencias actuales revisadas: YouTube Help (Subs feed en Home) y reportes de despliegue del rediseño móvil del 5 de noviembre de 2026.
+- La validación automática en móvil queda pendiente de CI; no declarar paridad completa antes de capturas y revisión.

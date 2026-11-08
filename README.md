@@ -6,7 +6,9 @@ TodoTube es una aplicación web para descubrir novedades públicas de canales se
 
 ## Estado real
 
-- Inicio con feed, filtros, tarjetas y carga progresiva.
+La navegación móvil sigue la organización actual de YouTube: las publicaciones de canales seguidos están en Subs, junto a Inicio, mientras el acceso de gestión vive en `/suscripciones/gestionar`. El panel Crear solo ofrece acciones que existen hoy (crear una lista, seguir canales y abrir Medios propios).
+
+- Inicio con feed, filtros, tarjetas y carga progresiva. En móvil, pestañas Inicio/Subs arriba y barra inferior Inicio/Shorts/Crear/Tú.
 - Búsqueda, páginas de canal, feed de Suscripciones, gestión independiente de canales (`/suscripciones/gestionar`), fichas externas de Shorts, historial, Ver más tarde, Me gusta y listas.
 - Avisos WebSub/RSS, campanita por canal y Web Push.
 - Preferencias locales: tema, Modo Foco, DeArrow y filtros por palabras.
