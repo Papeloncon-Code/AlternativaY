@@ -26,7 +26,7 @@ Se encontró el espejo público de FUTO:
 
 La configuración consultada en el commit `78a84af62be98e21d35e9d3f2cf75c72aa51f2c1` declara versión **367**, autor FUTO y enlaza el proyecto principal de GitLab. GitHub identifica el script `YoutubeScript.js` como un archivo de aproximadamente **4,08 MB** y no permite renderizarlo en el visor web. El conector de repositorio devuelve el hash del blob, pero no entrega el contenido del script.
 
-**Límite de esta auditoría:** se inspeccionaron la configuración oficial, la licencia y la interfaz pública de tipos, pero no se consiguió leer el cuerpo íntegro del script oficial. No se debe presentar esto como una auditoría línea por línea del extractor.
+**Límite de esta auditoría:** se inspeccionaron la configuración oficial, la licencia y la interfaz pública de tipos, pero no se consiguió leer el cuerpo íntegro del script oficial. GitHub identifica el blob oficial con SHA `26654660b246fd5b501448e37df44f98d9d84973`, pero el visor no muestra el archivo y el conector no entregó su contenido. También se leyó un fork público de terceros; su blob tiene SHA `b2c1a9db77ead051fdd0f1fdd6ffe065a3743b6f`, por lo que **no es idéntico** al oficial y no se utiliza como sustituto de la fuente oficial. No se debe presentar esto como una auditoría línea por línea del extractor.
 
 ### Qué revela la configuración
 
@@ -62,7 +62,7 @@ La biblioteca original:
 - https://github.com/kkdai/youtube
 - Licencia MIT.
 - El repositorio consultado declara Go 1.26 en su módulo.
-- La publicación v2.10.7 aparece fechada el 4 de noviembre de 2026 en el espejo de distribución consultado.
+- La publicación oficial v2.10.7 aparece fechada el 4 de noviembre de 2026. Sus notas de versión incluyen cambios para informar bloqueos/verificaciones y límites de solicitudes, y corregir errores HTTP 403 de entrega; eso confirma que esta familia también está expuesta a cambios y restricciones del propio origen.
 
 **Decisión:** si se compara la familia Lux, la unidad de evaluación es `kkdai/youtube`; Lux no cuenta como un proveedor adicional. Es una biblioteca no oficial que sigue dependiendo de YouTube y no constituye una fuente independiente del servicio.
 
