@@ -10,12 +10,14 @@ class MemoryR2 {
   failBodyAfterBytes = null;
   slowPutMs = 0;
   failList = false;
+  getCount = 0;
   async head(key) {
     if (this.neverResolveHead) return new Promise(() => {});
     if (this.failHead) throw new Error('simulated origin outage');
     return this.objects.get(key) || null;
   }
   async get(key, opts = {}) {
+    this.getCount += 1;
     if (this.failGet) throw new Error('simulated read outage');
     const item = this.objects.get(key); if (!item) return null;
     const bytes = item.bytes;
@@ -73,6 +75,37 @@ test('health endpoint reports configured origin count without claiming a replica
   const data = await r.json();
   assert.equal(data.service, 'todotube-media-gateway');
   assert.equal(data.originsConfigured, 1);
+  assert.equal(data.originsAvailable, 1);
+  assert.equal(data.degraded, false);
+});
+
+test('health reports degraded origins and fails readiness when none are available', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  e.MEDIA_BUCKET.failList = true;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const degraded = await worker.fetch(req('/health'), e);
+  assert.equal(degraded.status, 200);
+  assert.deepEqual(await degraded.json(), {
+    ok: true,
+    service: 'todotube-media-gateway',
+    originsConfigured: 2,
+    originsAvailable: 1,
+    degraded: true,
+  });
+  replica.failList = true;
+  const unavailable = await worker.fetch(req('/health'), e);
+  assert.equal(unavailable.status, 503);
+  assert.equal((await unavailable.json()).ok, false);
+});
+
+test('If-None-Match supports weak and comma-separated validators without reading the body', async () => {
+  const e = env();
+  const r = await worker.fetch(req('/v1/media/demo_123', {
+    headers: { 'If-None-Match': '"another", W/"fixture-etag"' },
+  }), e);
+  assert.equal(r.status, 304);
+  assert.equal(e.MEDIA_BUCKET.getCount, 0);
 });
 
 test('GET supports byte ranges and preserves streaming status headers', async () => {
@@ -169,6 +202,21 @@ test('a failed primary origin is bypassed automatically when the replica has the
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('X-Media-Origin'), 'replica-1');
   assert.equal(await r.text(), 'replica-data');
+});
+
+test('mid-stream failover refuses a same-size replica with a different media version', async () => {
+  const e = env();
+  const primaryObject = e.MEDIA_BUCKET.objects.get('media/demo_123');
+  primaryObject.customMetadata.mediaVersion = 'version-primary';
+  e.MEDIA_BUCKET.failBodyAfterBytes = 4;
+  const replica = new MemoryR2();
+  const replicaObject = makeObject(new TextEncoder().encode('abcdefghij'));
+  replicaObject.customMetadata.mediaVersion = 'version-replica';
+  replica.objects.set('media/demo_123', replicaObject);
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  await assert.rejects(() => r.text(), /MEDIA_STREAM_ORIGINS_EXHAUSTED/);
 });
 
 test('a stream that fails mid-transfer resumes from the next byte on the replica', async () => {
