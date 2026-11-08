@@ -115,7 +115,8 @@ test('C2 · canal: pestañas Inicio, Vídeos y Shorts (con su dirección)', asyn
 
 test('A5 · modo Foco: una columna, sin filtros, se recuerda', async ({ page }) => {
   await page.goto('/'); await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });
-  await page.getByRole('button', { name: 'Modo Foco' }).click();
+  await page.getByRole('button', { name: 'Menú de cuenta' }).click();
+  await page.getByRole('menuitemcheckbox', { name: 'Modo Foco' }).click();
   await expect(page.locator('.chips-bar')).toHaveCount(0);
   const cols = await page.locator('.vgrid').first().evaluate((e) => getComputedStyle(e).gridTemplateColumns.split(' ').length);
   expect(cols).toBe(1);

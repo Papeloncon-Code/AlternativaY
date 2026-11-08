@@ -1,59 +1,59 @@
 import { Link } from 'react-router-dom';
 import { useTitle } from '../title';
 
-// Qué datos hay y dónde. Revisado tras la revisión independiente del bloque 7 (2026-11-08): lista completa de servicios.
-// Mantener al día con cada cambio: spikes/websub/schema.sql, apps/web/worker.js, src/community.ts y el reproductor.
+// La información de esta página se contrasta con el código de los Workers y del cliente.
+// Actualizarla cada vez que cambien D1, WebSub, Web Push, DeArrow o el Media Gateway.
 export default function Privacy() {
   useTitle('Privacidad');
   return (
     <div className="page narrow privacy">
       <header className="page-head"><h1>Privacidad</h1></header>
-      <p className="lead">TodoTube no recoge datos sobre ti: no hay cuentas, ni analítica, ni cookies, ni registros de visitas. Aquí está, sin letra pequeña, todo lo que se guarda y con quién habla cada parte.</p>
+      <p className="lead">TodoTube no tiene inicio de sesión ni perfiles de usuario. Eso no significa que no procese datos: guarda las suscripciones a canales y sus metadatos públicos en su servidor, mientras que tu historial y preferencias se guardan en este navegador. Aquí explicamos qué sale de cada lugar y con qué servicios se comunica.</p>
 
       <section className="panel">
-        <h2>Lo que guarda nuestro servidor</h2>
+        <h2>Lo que guarda el servidor de TodoTube</h2>
         <table className="ptable">
-          <thead><tr><th>Dato</th><th>Para qué</th><th>Hasta cuándo</th></tr></thead>
+          <thead><tr><th>Dato</th><th>Para qué</th><th>Retención</th></tr></thead>
           <tbody>
-            <tr><td>Los canales que sigues (su ID, nombre y foto pública)</td><td>Saber de quién avisarte</td><td>Hasta que dejas de seguirlo</td></tr>
-            <tr><td>Los vídeos públicos de esos canales (título, fecha, visitas, me gusta, descripción)</td><td>Mostrar las novedades</td><td>Mientras sigas el canal</td></tr>
-            <tr><td>La dirección de avisos de tu navegador, <b>solo si activas los avisos</b></td><td>Enviarte el aviso de un vídeo nuevo</td><td>Hasta que los desactivas o tu navegador la anula</td></tr>
-            <tr><td>Registro técnico de avisos recibidos de YouTube (vídeos públicos, sin datos de personas)</td><td>Detectar fallos del servicio</td><td>7 días</td></tr>
+            <tr><td>Identificadores de canales que sigues, nombre elegido, estado y preferencia de avisos</td><td>Mantener la lista de suscripciones y procesar novedades</td><td>Mientras el canal siga activo; al dejar de seguirlo, el servicio lo marca para retirar en su siguiente ciclo</td></tr>
+            <tr><td>Metadatos públicos de vídeos: ID, título, canal, fecha, tipo, visitas, me gusta, descripción y duración cuando están disponibles</td><td>Construir el feed, los resultados y las fichas</td><td>Se conservan en D1 mientras el canal permanezca activo; el código actual no fija una caducidad individual para cada vídeo</td></tr>
+            <tr><td>Foto, banner y otros metadatos públicos del canal</td><td>Mostrar cabeceras y avatares</td><td>Mientras el canal permanezca en la base; los valores se actualizan cuando el servicio vuelve a leer el canal</td></tr>
+            <tr><td>Suscripciones Web Push: endpoint del proveedor, claves p256dh/auth, fecha y contador de fallos</td><td>Enviar avisos al navegador que los activó</td><td>Hasta que se desactiva la suscripción o el proveedor informa que el endpoint ya no existe o expiró</td></tr>
+            <tr><td>Eventos de WebSub/RSS y ejecuciones del servicio de avisos</td><td>Detectar novedades y diagnosticar fallos operativos</td><td>El proceso elimina eventos y ejecuciones con más de 7 días</td></tr>
           </tbody>
         </table>
         <ul className="plain">
-          <li><b>Lo que ve de paso, sin guardarlo:</b> lo que buscas y los canales que abres y no sigues. El servidor se los pide a YouTube en tu lugar (así YouTube ve la dirección del servidor, no la tuya) y guarda la respuesta unos minutos en memoria para no repetir la petición. No queda en ningún registro ni base de datos, y no va unido a ninguna cuenta.</li>
-          <li><b>Lo que no recibe:</b> qué vídeo abres. Las descripciones se descargan todas juntas. Tu navegador solo le dice el nombre de la web, nunca la página en la que estás.</li>
-          <li><b>Alojamiento:</b> el servidor funciona en Cloudflare, que, como cualquier alojamiento, ve tu dirección IP al conectarte. Los registros de peticiones están desactivados.</li>
-          <li><b>Lo que el servidor pide por su cuenta</b> (nunca con datos tuyos): a YouTube, el feed público y las páginas públicas de Inicio y Vídeos de cada canal seguido (una vez al día); a Google (pubsubhubbub.appspot.com), los avisos de vídeos nuevos. Así Google sabe qué canales sigue TodoTube, no quién.</li>
+          <li><b>Clave de propietario:</b> no es una cuenta ni una contraseña de inicio de sesión. Se guarda en el almacenamiento local de tu navegador y se envía en la cabecera `X-Owner-Key` cuando realizas operaciones protegidas, como seguir un canal o administrar avisos. No se incluye al exportar tus datos. Quien tenga esa clave puede realizar esas operaciones.</li>
+          <li><b>Búsquedas y canales públicos:</b> cuando buscas en todo el catálogo o abres un canal que no sigues, el Worker de TodoTube consulta páginas públicas de YouTube. La consulta se mantiene en caché en memoria durante un tiempo limitado; el código no la inserta en D1 como historial de búsquedas.</li>
+          <li><b>Proveedor de alojamiento:</b> el sitio y sus Workers funcionan en Cloudflare. Como proveedor de red y alojamiento, Cloudflare procesa la dirección IP y los datos técnicos necesarios para atender las solicitudes. La retención y disponibilidad de registros de plataforma dependen de la configuración de la cuenta y de las condiciones del servicio; no afirmamos que todos los registros de Cloudflare estén desactivados.</li>
         </ul>
       </section>
 
       <section className="panel">
-        <h2>Lo que se queda solo en tu navegador</h2>
-        <p className="note">Historial, Me gusta, Ver más tarde, listas, grupos, palabras ocultas, búsquedas recientes y ajustes. Nunca salen de tu navegador. Puedes llevártelos con <Link to="/ajustes#datos">Exportar copia</Link> o borrarlos borrando los datos del sitio.</p>
+        <h2>Lo que se queda en este navegador</h2>
+        <p className="note">Historial, progreso, Me gusta, Ver más tarde, listas, grupos, vídeos ocultos, filtros por palabras, búsquedas recientes, tema, preferencias de interfaz y la clave de propietario se guardan localmente en el navegador. No hay sincronización entre dispositivos ni un perfil de usuario en la nube. Puedes exportar una copia de parte de estos datos desde <Link to="/ajustes#datos">Ajustes → Tus datos</Link>; por seguridad, la clave de propietario no se incluye en esa copia. Borrar los datos del sitio elimina la copia local de ese navegador.</p>
       </section>
 
       <section className="panel">
-        <h2>Los servicios con los que habla tu navegador</h2>
-        <p className="note">Para ver vídeos, tu navegador habla directamente con estos servicios. TodoTube no les envía nada sobre ti y no se guardan cookies de YouTube mientras navegas.</p>
+        <h2>Servicios externos que consulta la aplicación</h2>
         <table className="ptable">
-          <thead><tr><th>Servicio</th><th>Cuándo y para qué</th><th>Qué sabe</th></tr></thead>
+          <thead><tr><th>Servicio</th><th>Cuándo y para qué</th><th>Información que puede recibir</th></tr></thead>
           <tbody>
-            <tr><td>i.ytimg.com, yt3.googleusercontent.com, yt3.ggpht.com (YouTube)</td><td>Siempre: miniaturas y fotos de canal</td><td>Qué imágenes se cargan</td></tr>
-            <tr><td>www.youtube-nocookie.com y lo que el reproductor carga (googlevideo.com, gstatic.com, google.com)</td><td>Solo al abrir un vídeo, con el reproductor de reserva (modo de privacidad mejorada de YouTube)</td><td>Qué vídeo ves; YouTube puede guardar cookies cuando lo reproduces</td></tr>
-            <tr><td>www.youtube.com/oembed</td><td>Solo al abrir por enlace un vídeo que no es de tus canales: su título</td><td>Qué vídeo abres (sin cookies)</td></tr>
-            <tr><td>Con TodoTube Puente: youtubei.googleapis.com, googlevideo.com, jnn-pa.googleapis.com</td><td>Solo el reproductor propio (la búsqueda y los canales ya los hace el servidor)</td><td>Qué ves (sin cookies ni cuentas)</td></tr>
-            <tr><td>sponsor.ajay.app (SponsorBlock)</td><td>Al abrir un vídeo: tramos de patrocinio. Se puede apagar en <Link to="/ajustes">Ajustes</Link></td><td>Solo 4 caracteres de una huella del vídeo, no cuál es</td></tr>
-            <tr><td>sponsor.ajay.app (DeArrow)</td><td>Solo si lo activas: títulos sin clickbait</td><td>Igual: 4 caracteres de una huella</td></tr>
-            <tr><td>El servicio de avisos de tu navegador (Google para Chrome y Edge, Mozilla para Firefox)</td><td>Solo si activas los avisos: los entrega</td><td>Que tienes avisos de TodoTube</td></tr>
+            <tr><td>YouTube RSS y páginas públicas</td><td>El Worker consulta feeds RSS, páginas públicas de canales y páginas públicas de resultados de búsqueda para construir el catálogo y las fichas</td><td>YouTube recibe las solicitudes desde la infraestructura de Cloudflare, no desde una petición de reproducción enviada por tu navegador</td></tr>
+            <tr><td>i.ytimg.com, yt3.ggpht.com y yt3.googleusercontent.com</td><td>Tu navegador carga directamente miniaturas y fotos públicas de canales</td><td>El proveedor de imágenes puede recibir tu IP y la URL de la imagen solicitada</td></tr>
+            <tr><td>www.youtube.com/oembed</td><td>Tu navegador solicita título y autor cuando abres mediante un enlace un vídeo que no estaba en tus canales</td><td>YouTube puede conocer la IP y el ID del vídeo consultado</td></tr>
+            <tr><td>Google PubSubHubbub</td><td>El servicio registra suscripciones a feeds públicos para recibir avisos de nuevos vídeos</td><td>Recibe la dirección del feed/canal que el servicio de TodoTube solicita vigilar</td></tr>
+            <tr><td>DeArrow — sponsor.ajay.app</td><td>Solo cuando activas “Títulos alternativos” y se necesita consultar un título comunitario</td><td>La aplicación calcula un hash del ID del vídeo y envía un prefijo de 4 caracteres hexadecimales. Ese prefijo reduce la identificación directa, pero no debe considerarse anónimo: el servicio puede compararlo con IDs candidatos</td></tr>
+            <tr><td>Proveedor de notificaciones push del navegador</td><td>Solo si activas Web Push</td><td>Recibe el endpoint y entrega los avisos al navegador. El proveedor depende del navegador que uses</td></tr>
+            <tr><td>Cloudflare R2 y Media Gateway</td><td>Cuando consultas la biblioteca o reproduces un archivo publicado en Medios propios</td><td>Cloudflare recibe la solicitud del catálogo o del archivo. El Gateway está diseñado para archivos propios o licenciados; no obtiene ni retransmite segmentos de YouTube</td></tr>
           </tbody>
         </table>
+        <p className="note">TodoTube muestra vídeos de YouTube como metadatos, miniaturas y enlaces al origen. No inserta el reproductor oficial, no carga `youtube-nocookie.com` y no retransmite segmentos de `googlevideo.com`. Al pulsar “Abrir origen”, pasas a YouTube y se aplican sus propias cookies, políticas y controles de privacidad.</p>
       </section>
 
       <section className="panel">
-        <h2>TodoTube Puente</h2>
-        <p className="note">La extensión no recoge ni envía datos: solo hace, desde tu navegador, las peticiones que pide la web a los servidores de vídeo, sin tus cookies. Su código está publicado.</p>
+        <h2>Contenido en Medios propios</h2>
+        <p className="note">El Media Gateway está reservado para archivos que el titular puede distribuir, ya sean propios o licenciados expresamente. Los archivos se guardan en R2 y no en la base D1 del feed. El hecho de que un archivo se marque como “licenciado” no sustituye la obligación de comprobar que la licencia realmente permite su distribución. La biblioteca no está disponible hasta que se complete el despliegue operativo del bucket y del Worker.</p>
       </section>
     </div>
   );

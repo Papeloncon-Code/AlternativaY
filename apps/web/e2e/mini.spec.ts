@@ -29,7 +29,7 @@ test('W8 · el reproductor ocupa su hueco; la ficha externa pasa a mini y vuelve
   await expect(page.locator('.player-dock .own-player-error')).toBeVisible();
   // Cerrar desde el mini reproductor
   await page.locator('.logo-link').click();
-  await page.getByRole('button', { name: 'Cerrar el mini reproductor' }).click();
+  await page.getByRole('button', { name: 'Cerrar el minirreproductor' }).click();
   await expect(host).toHaveCount(0);
   ok();
 });
