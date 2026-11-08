@@ -5,7 +5,7 @@ const MAX_ORIGIN_TIMEOUT_MS = 5000;
 const DEFAULT_WRITE_TIMEOUT_MS = 45000;
 const MAX_WRITE_TIMEOUT_MS = 120000;
 const DEFAULT_STREAM_IDLE_TIMEOUT_MS = 2000;
-const MAX_STREAM_IDLE_TIMEOUT_MS = 30000;
+const MAX_STREAM_IDLE_TIMEOUT_MS = 3000;
 const ALLOWED_TYPES = new Set([
   'video/mp4', 'video/webm', 'video/ogg',
   'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/webm',
