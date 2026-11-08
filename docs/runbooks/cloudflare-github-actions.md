@@ -7,7 +7,7 @@ Este proyecto usa dos Workers existentes y una D1 compartida:
 - Base D1: `alternativay-websub`
 - D1 ID: `676928c8-1061-40cc-9d67-9f7395c9c958`
 
-Los workflows que realizan despliegues o cambios remotos declaran el entorno GitHub `produccion`. Por eso, configura los valores en **Settings → Environments → produccion → Environment secrets**. No los escribas en archivos del repositorio, commits, Issues, PRs ni chats.
+Los workflows que realizan despliegues o cambios remotos declaran el entorno GitHub `produccion`. Si todavía no existe, créalo con ese nombre en **Settings → Environments**. Después configura los valores en **Settings → Environments → produccion → Environment secrets**. No los escribas en archivos del repositorio, commits, Issues, PRs ni chats.
 
 ## Secretos necesarios
 
