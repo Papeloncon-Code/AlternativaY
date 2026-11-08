@@ -1,33 +1,34 @@
-# Plan 008 · Media Gateway R2 y reproductor propio
+# Plan 008 · Media Gateway R2 y player HTML5
 
 ## Arquitectura
 
-- Worker independiente: todotube-media-gateway.
-- Almacenamiento: bucket R2 todotube-media.
-- Binding: MEDIA_BUCKET.
-- Key: media/<id>.
-- Cliente web: /medios y /medios/:id, reproductor Shaka.
-- Seguridad: IDs validados, CORS allowlist, acceso público explícito y administración Bearer-token.
-- Fuente de medios: únicamente R2 propio; no se hace fetch a terceros.
+- Worker: `todotube-media-gateway`.
+- Bucket R2: `todotube-media`; binding `MEDIA_BUCKET`.
+- Key: `media/<id>`.
+- Cliente: `/medios` y `/medios/:id`, HTML5 `video` con controles TodoTube.
+- Formatos: MP4, WebM y Ogg progresivos.
+- CORS allowlist; catálogo público explícito; administración Bearer token.
+- Fuente: únicamente R2 propio; no se consulta a terceros.
+- Límite actual por carga: 90 MiB.
 
-## Provisionamiento operativo pendiente
+## Provisionamiento pendiente
 
-1. Crear bucket R2 todotube-media en la cuenta Cloudflare.
-2. Revisar que el API Token de GitHub pueda desplegar el Worker nuevo. Si está limitado a Workers existentes, crear el Worker en Dashboard o ampliar alcance a este Worker.
-3. Ejecutar manualmente el workflow Deploy · Media Gateway.
-4. Crear el secret de Worker MEDIA_UPLOAD_TOKEN en Cloudflare Dashboard → Worker → Settings → Variables and Secrets.
-5. Cargar un archivo de prueba propio y hacerlo público con metadatos de titularidad.
+1. Crear bucket R2 `todotube-media`.
+2. Revisar que el API Token de GitHub pueda desplegar el Worker. Si se limita a Workers existentes, crear el Worker en Dashboard y añadirlo al alcance.
+3. Ejecutar manualmente **Deploy · Media Gateway**.
+4. Crear secret `MEDIA_UPLOAD_TOKEN` en Cloudflare → Worker → Settings → Variables and Secrets.
+5. Cargar un archivo de prueba propio/licenciado y verificar el catálogo.
 
 ## Contrato de carga
 
-- PUT /v1/admin/media/:id
-- Authorization: Bearer <MEDIA_UPLOAD_TOKEN>
-- Content-Type
-- Content-Length (máximo 2 GiB)
-- X-Media-Title
-- X-Media-Creator
-- X-Media-License: owned|licensed
-- X-Media-License-Reference obligatorio para licensed
-- X-Media-Visibility: public|private
+- `PUT /v1/admin/media/:id`
+- `Authorization: Bearer <MEDIA_UPLOAD_TOKEN>`
+- `Content-Type`
+- `Content-Length` (máximo 90 MiB)
+- `X-Media-Title`
+- `X-Media-Creator`
+- `X-Media-License: owned|licensed`
+- `X-Media-License-Reference` obligatorio para licensed
+- `X-Media-Visibility: public|private`
 
-El secreto nunca se incluye en el bundle web ni en GitHub Actions como variable pública.
+El secreto no se incluye en el bundle web ni en variables públicas.

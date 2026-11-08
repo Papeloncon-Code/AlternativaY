@@ -13,8 +13,8 @@ Proceso basado en Spec-Driven Development. El código, las pruebas y las decisio
 | 004-web-v0/ | Historial de la primera web desplegada; la reproducción fue sustituida por ADR-011 |
 | 005-diseno/ | Sistema de diseño y decisión visual |
 | 006-spike-reproductor-propio/ | Investigación histórica de la ruta con Puente; supersedida en transporte |
-| 007-paridad-funcional/ | Catálogo de requisitos de interfaz; backlog y referencia visual |
-| 008-gateway-multimedia/ | Gateway R2 para archivos propios/licenciados; especificación activa |
+| 007-paridad-funcional/ | Auditoría activa de paridad funcional/visual por pantalla; issue #9 |
+| 008-gateway-multimedia/ | Gateway R2 y player HTML5 para archivos propios/licenciados; especificación activa |
 | 010…016/ | Backlog futuro de YouTube, avisos, importación, biblioteca, sync, fuentes y PWA |
 | _plantillas/ | Plantillas de nuevas funcionalidades |
 

@@ -1,57 +1,53 @@
 # TodoTube
 
-> Estado del repositorio: 8 de noviembre de 2026. La aplicación web y el servicio de avisos están desplegados. La nueva biblioteca de medios y el Worker Gateway están implementados en el código; el despliegue del Gateway requiere provisionar R2.
+> Estado de código: 8 de noviembre de 2026. La presencia de código en main no implica que la última versión esté publicada ni que el Gateway esté operativo.
 
-TodoTube es una aplicación web para descubrir novedades públicas de canales seguidos y organizar medios. El repositorio se llama AlternativaY.
+TodoTube es una aplicación web para descubrir novedades públicas de canales seguidos, organizar una biblioteca personal y reproducir archivos multimedia propios o licenciados.
 
-## Estado real del producto
+## Estado real
 
-### Web en producción
-
-- Feed de novedades de canales seguidos, filtros y carga continua.
-- Páginas de canal, vídeos y Shorts basados en metadatos públicos.
-- Búsqueda pública del servicio propio y búsqueda local en los canales seguidos.
-- Favoritos, historial, progreso, Ver más tarde, listas y grupos en el navegador.
+- Inicio con feed, filtros, tarjetas y carga progresiva.
+- Búsqueda, páginas de canal, Suscripciones, fichas externas de Shorts, historial, Ver más tarde, Me gusta y listas.
 - Avisos WebSub/RSS, campanita por canal y Web Push.
-- React, Vite, TypeScript y Cloudflare Workers.
+- Preferencias locales: tema, Modo Foco, DeArrow y filtros por palabras.
+- Biblioteca local del navegador; no hay cuentas ni sincronización multidispositivo.
 
-### Reproducción
+### YouTube
 
-La interfaz de reproducción pertenece a TodoTube y no usa el iframe oficial de YouTube como fallback.
+TodoTube conserva metadatos públicos y enlaces al origen. No obtiene ni retransmite segmentos de YouTube. Las fichas usan una superficie propia con enlace «Abrir origen». No hay reproducción interna de YouTube, iframe oficial ni extensión Puente. No se anuncian controles de reproducción externa ni avance automático.
 
-- YouTube: TodoTube conserva metadatos públicos y enlaces al origen. No obtiene ni retransmite sus segmentos; al pulsar un vídeo de YouTube se muestra el enlace para abrirlo en YouTube.
-- Medios propios/licenciados: Shaka Player reproduce recursos del Media Gateway R2 en /medios y /medios/:id.
-- TodoTube Puente: retirado del código de la web, del build, del menú y de los flujos de permiso.
+### Medios propios/licenciados
 
-### Media Gateway
+`/medios` muestra el catálogo R2 y `/medios/:id` usa el elemento nativo HTML5 `video` con controles propios: play/pause, seek, volumen, velocidad y pantalla completa. Los formatos de esta iteración son MP4, WebM y Ogg progresivos; no incluye DASH/HLS ni ABR.
 
-El Worker todotube-media-gateway está implementado en apps/media-gateway con un binding R2 llamado MEDIA_BUCKET y bucket todotube-media.
+### Media Gateway R2
 
-- GET /health y GET /v1/catalog.
-- GET y HEAD de /v1/media/:id.
-- Streaming desde R2 con Range, 206 y 416.
-- Carga y borrado autenticados; metadatos owned o licensed.
-- No admite URLs arbitrarias ni retransmite medios de YouTube.
+Worker `todotube-media-gateway` en `apps/media-gateway`:
+- GET `/health` y `/v1/catalog`.
+- GET/HEAD de `/v1/media/:id`.
+- Streaming R2, Range, 206 y 416.
+- Carga/borrado autenticados; metadatos `owned` o `licensed`.
+- Límite de carga actual: 90 MiB por objeto.
+- No acepta URLs arbitrarias ni retransmite YouTube.
 
-**Estado operativo:** el código está en main, pero el bucket R2, el secret Worker MEDIA_UPLOAD_TOKEN, el despliegue del Worker y la prueba manual con archivo real aún requieren provisionamiento en Cloudflare. No se presenta como Gateway de producción hasta completar esos pasos.
+**Pendiente de operación:** bucket R2 `todotube-media`, Worker desplegado, `MEDIA_UPLOAD_TOKEN`, archivo autorizado y prueba real de seek en Chrome/Firefox. Hasta entonces, el Gateway no se declara operativo.
 
-## Arquitectura actualmente desplegada
+## Arquitectura
 
-| Componente | Responsabilidad | Estado |
-|---|---|---|
-| todotube | Web y API | Desplegado |
-| alternativay-websub | WebSub/RSS y avisos | Desplegado |
-| D1 alternativay-websub | Canales, vídeos y eventos | Compartida por ambos Workers |
-| todotube-media-gateway | Streaming de R2 para medios propios/licenciados | Código integrado; despliegue pendiente |
-| R2 todotube-media | Archivos multimedia | Bucket por crear |
+| Componente | Estado |
+|---|---|
+| `todotube` | Worker existente; hay que validar qué commit está publicado |
+| `alternativay-websub` | Worker existente |
+| D1 `alternativay-websub` | Datos de canales, vídeos y eventos |
+| `todotube-media-gateway` | Código integrado; provisionamiento pendiente |
+| R2 `todotube-media` | Bucket pendiente |
 
-## Límites del producto
+## Límites explícitos
 
-- No existe cliente Android nativo en main.
-- No existen cuentas ni sincronización de biblioteca entre dispositivos.
-- Los metadatos de YouTube no equivalen a acceso a sus streams.
-- El Gateway no es un proxy de YouTube ni un proxy URL genérico.
-- El marcado owned/licensed no sustituye la comprobación de los derechos de distribución.
+- No se extraen, descargan ni retransmiten streams YouTube.
+- No hay proxy genérico, falsificación de BotGuard/PoToken, rotación de IP ni suplantación de cliente.
+- Marcar un objeto `owned`/`licensed` no sustituye comprobar sus derechos.
+- No existe cliente Android nativo, cuentas ni sincronización.
 
 ## Desarrollo y pruebas
 
@@ -74,16 +70,13 @@ Avisos:
     npm test
 
 CI/CD:
-- .github/workflows/ci-cd.yml: pruebas y despliegue automático de los dos Workers existentes en push a main.
-- .github/workflows/deploy-media-gateway.yml: despliegue manual del Worker R2 tras crear el bucket.
+- `.github/workflows/ci-cd.yml`: pruebas y despliegue de Workers existentes cuando pasan todas las dependencias.
+- `.github/workflows/deploy-media-gateway.yml`: despliegue manual del Gateway tras provisionarlo.
 
-## Decisiones vigentes
+## Documentación vigente
 
-- ADR-006: WebSub/RSS y avisos.
-- ADR-007: importación de suscripciones como backlog de futuras plataformas.
-- ADR-008: nombre TodoTube y equipo inicial.
-- ADR-009: registro histórico de la PoC de transporte.
-- ADR-010: interfaz de reproducción propia.
-- ADR-011: decisión vigente de Gateway autorizado y retirada de Puente.
+- Constitución: `specs/000-constitucion/constitucion.md`.
+- Paridad pantalla por pantalla: [issue #9](https://github.com/Papeloncon-Code/AlternativaY/issues/9) y `specs/007-paridad-funcional/spec.md`.
+- Gateway R2: [issue #3](https://github.com/Papeloncon-Code/AlternativaY/issues/3), ADR-011 y `specs/008-gateway-multimedia/`.
 
-La Constitución vigente está en specs/000-constitucion/constitucion.md; la especificación de producto del Gateway está en specs/008-gateway-multimedia/.
+No declares terminada una función solo porque exista una pantalla o pase un test unitario: la aceptación exige interacción real, revisión visual y verificación de producción cuando aplique.
