@@ -178,9 +178,6 @@ function failoverBody(initialBody, initialIndex, origins, env, key, head, range,
         // Never resume a private/public or licensed/owned metadata mismatch.
         const expectedMeta = head.customMetadata || {};
         const candidateMeta = candidateHead.customMetadata || {};
-        for (const field of ['visibility', 'license', 'licenseReference']) {
-          if ((expectedMeta[field] || null) !== (candidateMeta[field] || null)) continue;
-        }
         if ((expectedMeta.visibility || null) !== (candidateMeta.visibility || null)) continue;
         if ((expectedMeta.license || null) !== (candidateMeta.license || null)) continue;
         if ((expectedMeta.licenseReference || null) !== (candidateMeta.licenseReference || null)) continue;
