@@ -142,6 +142,8 @@ test('navegación móvil actual: Inicio/Subs arriba y Inicio/Shorts/Crear/Tú ab
   const lists = await page.evaluate(() => (JSON.parse(localStorage.getItem('todotube:v1') || '{}').playlists ?? []) as { name: string }[]);
   expect(lists.some((list) => list.name === name)).toBe(true);
 
+  await page.goto('/historial');
+  await expect(page.locator('.bottombar .tab.active')).toContainText('Tú');
   await page.goto('/ver/dQw4w9WgXcQ');
   await expect(page.locator('.mobile-feed-tabs')).toHaveCount(0);
 });
