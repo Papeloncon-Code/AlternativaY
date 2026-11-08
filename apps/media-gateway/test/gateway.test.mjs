@@ -8,6 +8,7 @@ class MemoryR2 {
   neverResolveHead = false;
   failGet = false;
   failBodyAfterBytes = null;
+  stallBodyAfterBytes = null;
   slowPutMs = 0;
   failList = false;
   getCount = 0;
@@ -36,6 +37,19 @@ class MemoryR2 {
             return;
           }
           controller.error(new Error('simulated mid-stream failure'));
+        },
+      });
+    } else if (this.stallBodyAfterBytes != null) {
+      const stallAt = Math.min(this.stallBodyAfterBytes, body.length);
+      let state = 0;
+      stream = new ReadableStream({
+        pull(controller) {
+          if (state === 0) {
+            state = 1;
+            if (stallAt > 0) controller.enqueue(body.subarray(0, stallAt));
+            return;
+          }
+          return new Promise(() => {});
         },
       });
     }
@@ -217,6 +231,19 @@ test('mid-stream failover refuses a same-size replica with a different media ver
   const r = await worker.fetch(req('/v1/media/demo_123'), e);
   assert.equal(r.status, 200);
   await assert.rejects(() => r.text(), /MEDIA_STREAM_ORIGINS_EXHAUSTED/);
+});
+
+test('a stalled primary body resumes from the replica after the idle timeout', async () => {
+  const e = env();
+  const primaryObject = e.MEDIA_BUCKET.objects.get('media/demo_123');
+  e.MEDIA_BUCKET.stallBodyAfterBytes = 4;
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(primaryObject.bytes));
+  e.MEDIA_BUCKET_REPLICA = replica;
+  e.MEDIA_STREAM_IDLE_TIMEOUT_MS = '50';
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  assert.equal(await r.text(), '0123456789');
 });
 
 test('a stream that fails mid-transfer resumes from the next byte on the replica', async () => {
