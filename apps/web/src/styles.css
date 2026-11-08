@@ -317,7 +317,9 @@ code { background: var(--chip); padding: 1px 8px; border-radius: 8px; font-size:
   .mobile-feed-tabs { position:fixed; inset:var(--top) 0 auto 0; z-index:29; display:flex; align-items:stretch; gap:24px; height:44px; padding:0 16px; overflow-x:auto; scrollbar-width:none; background:var(--bg); border-bottom:1px solid var(--line); }
   .mobile-feed-tabs::-webkit-scrollbar { display:none; }
   .mobile-feed-tab { position:relative; flex:none; min-width:64px; display:flex; align-items:center; justify-content:center; padding:0 8px; color:var(--text-2); font-size:14px; font-weight:500; white-space:nowrap; }
-  .mobile-feed-tab.active { color:var(--text); }
+  .mobile-feed-tabs { transition:transform 180ms ease, opacity 180ms ease; }
+.mobile-feed-tabs.is-collapsed { transform:translateY(-110%); opacity:0; pointer-events:none; }
+.mobile-feed-tab.active { color:var(--text); }
   .mobile-feed-tab.active::after { content:''; position:absolute; inset:auto 8px 0; height:2px; border-radius:2px 2px 0 0; background:var(--text); }
   .app.feed-tabs-visible .chips-bar { top:calc(var(--top) + 44px); }
   .scrim { display: none; }

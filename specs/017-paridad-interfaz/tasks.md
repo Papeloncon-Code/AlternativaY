@@ -5,6 +5,7 @@
 - [ ] A2 Medir menú lateral expandido y rail colapsado.
 - [x] A3 Barra inferior móvil: Inicio, Shorts, Crear y Tú; safe area comprobada por Playwright.
 - [x] A7 Pestañas móviles Inicio/Subs bajo la topbar en los feeds Home y Suscripciones.
+- [ ] A8 Auto-ocultar la fila superior tras el estado inicial y recuperarla con gesto de arrastre/scroll, según la UX móvil vigente.
 - [ ] A4 Auditar menú de cuenta, aspecto, datos y atajos.
 - [ ] A5 Eliminar rutas muertas, enlaces a Puente y labels heredados.
 - [ ] A6 Probar foco, teclado, Escape y click fuera.
