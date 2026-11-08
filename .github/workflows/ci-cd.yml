@@ -1,13 +1,11 @@
 # CI/CD de TodoTube.
-# CI: en cada push y PR → compilación, tipos, pruebas del servidor de avisos, de la web (Playwright) y, si existe, del gateway.
-# CD: solo en push a main (rama de producción desde 2026-11-08) y solo si todo lo anterior pasa → despliegue en Cloudflare y
-#     pruebas de humo contra la web publicada. Secretos necesarios (Settings → Secrets and variables → Actions):
-#     CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID. Sin ellos, el despliegue se salta con un aviso.
+# CI: compilación, tipos y pruebas de la web con API local determinista, más pruebas del servidor de avisos y gateway si existe.
+# CD: solo en push a main y después de que todos los jobs pasen; humo ligero contra producción.
 name: CI/CD
 
 on:
   push:
-    branches: [sdd/investigacion-y-especificacion, main, 'feat/**']
+    branches: [sdd/investigacion-y-especificacion, main, 'feat/**', 'fix/**']
   pull_request:
   workflow_dispatch:
 
@@ -46,8 +44,28 @@ jobs:
       - run: npm run build
       - run: npx tsc -b
       - run: npx playwright install --with-deps chromium
-      # La vista previa sirve la versión compilada y reenvía /api a la web publicada (datos reales).
-      - run: npx playwright test --trace off
+      - name: Iniciar API local determinista para Playwright
+        env: { E2E_API_PORT: '4174' }
+        run: |
+          node scripts/e2e-api.mjs > /tmp/todotube-e2e-api.log 2>&1 &
+          echo $! > /tmp/todotube-e2e-api.pid
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4174/health >/dev/null; then
+              echo "API de pruebas lista."
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/todotube-e2e-api.log
+          exit 1
+      # Playwright usa la API de prueba local. No lee D1 ni depende de datos/cupos reales.
+      - name: Pruebas de aceptación Playwright
+        env: { E2E_API_TARGET: 'http://127.0.0.1:4174' }
+        run: npx playwright test --trace off
+      - if: always()
+        name: Detener API local
+        run: |
+          if [ -f /tmp/todotube-e2e-api.pid ]; then kill "$(cat /tmp/todotube-e2e-api.pid)" 2>/dev/null || true; fi
       - if: failure()
         uses: actions/upload-artifact@v4
         with: { name: playwright-informe, path: apps/web/test-results, retention-days: 7 }
@@ -55,7 +73,7 @@ jobs:
   gateway:
     name: Gateway multimedia (PoC) · pruebas
     runs-on: ubuntu-latest
-    # hashFiles() no está disponible en jobs.<id>.if: el trabajo se ejecuta siempre y cada paso comprueba si existe el paquete.
+    # El trabajo se ejecuta siempre y cada paso comprueba si existe el paquete.
     defaults: { run: { working-directory: . } }
     steps:
       - uses: actions/checkout@v4
@@ -71,8 +89,6 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - if: steps.hay.outputs.si == 'true'
         working-directory: apps/media-gateway
-        # La prueba de navegador usa «playwright» (en este entorno viene preinstalado): en CI se instala sin guardarlo,
-        # en la misma versión que @playwright/test de la web.
         run: |
           npm ci && (cd ../web && npm ci)
           npm i --no-save "playwright@$(node -p "require('../web/node_modules/@playwright/test/package.json').version")"
@@ -107,8 +123,9 @@ jobs:
         if: steps.secretos.outputs.ok == 'true'
         working-directory: apps/web
         run: npm ci && npm run build && npx wrangler deploy
+      # Solo comprobación de disponibilidad básica en producción; la suite completa usa fixtures reproducibles en CI.
       - name: Pruebas de humo contra la web publicada
         if: steps.secretos.outputs.ok == 'true'
         working-directory: apps/web
         env: { BASE_URL: '${{ env.PROD_URL }}' }
-        run: npx playwright install --with-deps chromium && npx playwright test --trace off
+        run: node scripts/smoke.mjs
