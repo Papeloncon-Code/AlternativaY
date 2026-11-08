@@ -160,20 +160,29 @@ export default function Layout() {
       return;
     }
     setFeedTabsExpanded(true);
-    // El nuevo diseño móvil de YouTube oculta la fila Subs tras unos segundos.
-    // Un gesto de arrastre hacia abajo o un scroll hacia arriba vuelve a mostrarla.
-    const hideTimer = window.setTimeout(() => setFeedTabsExpanded(false), 2200);
+    // El nuevo diseño móvil oculta la fila Subs tras un periodo sin interacción.
+    // Recuperarla con un gesto reinicia el periodo; bajar por el feed la contrae.
+    let hideTimer = 0;
+    const scheduleHide = () => {
+      window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => setFeedTabsExpanded(false), 2200);
+    };
+    const collapse = () => {
+      window.clearTimeout(hideTimer);
+      setFeedTabsExpanded(false);
+    };
+    scheduleHide();
     let lastY = window.scrollY;
     let touchStartY: number | null = null;
     const onScroll = () => {
       const y = window.scrollY;
-      if (y < lastY - 2) setFeedTabsExpanded(true);
-      else if (y > lastY + 2) setFeedTabsExpanded(false);
+      if (y < lastY - 2) { setFeedTabsExpanded(true); scheduleHide(); }
+      else if (y > lastY + 2) collapse();
       lastY = y;
     };
     const onWheel = (event: WheelEvent) => {
-      if (event.deltaY < -2) setFeedTabsExpanded(true);
-      else if (event.deltaY > 2) setFeedTabsExpanded(false);
+      if (event.deltaY < -2) { setFeedTabsExpanded(true); scheduleHide(); }
+      else if (event.deltaY > 2) collapse();
     };
     const onTouchStart = (event: TouchEvent) => {
       touchStartY = event.touches[0]?.clientY ?? null;
@@ -182,8 +191,8 @@ export default function Layout() {
       if (touchStartY == null) return;
       const endY = event.changedTouches[0]?.clientY ?? touchStartY;
       const delta = endY - touchStartY;
-      if (delta > 32) setFeedTabsExpanded(true);
-      else if (delta < -32) setFeedTabsExpanded(false);
+      if (delta > 32) { setFeedTabsExpanded(true); scheduleHide(); }
+      else if (delta < -32) collapse();
       touchStartY = null;
     };
     window.addEventListener('scroll', onScroll, { passive: true });
