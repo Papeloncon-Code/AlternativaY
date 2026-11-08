@@ -104,6 +104,8 @@ async function firstReadableOrigin(origins, env, resolver) {
   const attempts = origins.map(async (bucket, index) => {
     try {
       const value = await withTimeout(resolver(bucket), originTimeout(env));
+      // "Not found" is a failed attempt, not a successful empty response:
+      // keep waiting for other origins before returning a global 404.
       if (value == null) throw notFoundError();
       return { bucket, index, value };
     } catch (error) {
