@@ -7,7 +7,6 @@ import { useFeed, useChannels, refreshAll } from '../data';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import { Empty, SkeletonGrid } from '../components/States';
-import { useBridge } from '../bridge';
 import { addChannel, searchServer } from '../api';
 import { useTitle } from '../title';
 import { getState } from '../store';
@@ -17,13 +16,12 @@ import type { RemoteChannel, RemoteVideo } from '../remote';
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-// Búsqueda en todo (spec 007 S1): el servidor lee la página pública de resultados; sin Puente. Respaldo: Puente o tus canales.
+// Búsqueda pública a través del servicio propio; no hay extracción en navegador ni extensión.
 export default function Search() {
   const [params] = useSearchParams();
   const q = params.get('q') ?? '';
   const feed = useFeed();
   const channels = useChannels();
-  const bridge = useBridge();
   const [remote, setRemote] = useState<{ q: string; videos: RemoteVideo[]; channels: RemoteChannel[] } | null>(null);
   const [error, setError] = useState('');
   const terms = norm(q).split(/\s+/).filter(Boolean);
@@ -33,13 +31,12 @@ export default function Search() {
   const followed = new Set((channels.data ?? []).map((c) => c.id));
   useTitle(q ? `${q} - Buscar` : 'Buscar');
 
-  // 1.º el servidor (páginas públicas, sin Puente); 2.º el Puente si está instalado; si ambos fallan, tus canales.
+  // La búsqueda remota depende del servicio propio. Si no responde, se muestran los canales locales.
   useEffect(() => {
     if (!q.trim()) return;
     let alive = true;
     setError('');
     searchServer(q)
-      .catch((e) => (bridge ? import('../remote').then((m) => m.searchAll(q)) : Promise.reject(e)))
       .then((r) => {
         if (!alive) return;
         r.channels.forEach((c) => c.avatar && setAvatar(c.id, c.avatar));
@@ -47,7 +44,7 @@ export default function Search() {
       })
       .catch((e) => { if (alive) setError(e instanceof Error ? e.message : String(e)); });
     return () => { alive = false; };
-  }, [q, bridge]);
+  }, [q]);
 
   async function follow(c: RemoteChannel) {
     const key = getState().ownerKey;

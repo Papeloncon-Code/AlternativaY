@@ -12,7 +12,8 @@ import { Navigate } from 'react-router-dom';
 import Playlist from './pages/Playlist';
 import Privacy from './pages/Privacy';
 import Settings from './pages/Settings';
-import Bridge from './pages/Bridge';
+import MediaLibrary from './pages/MediaLibrary';
+import MediaWatch from './pages/MediaWatch';
 import { Empty } from './components/States';
 
 const router = createBrowserRouter([
@@ -34,7 +35,8 @@ const router = createBrowserRouter([
       { path: '/lista/:id', element: <Playlist /> },
       { path: '/biblioteca', element: <Navigate to="/tu" replace /> },
       { path: '/ajustes', element: <Settings /> },
-      { path: '/puente', element: <Bridge /> },
+      { path: '/medios', element: <MediaLibrary /> },
+      { path: '/medios/:id', element: <MediaWatch /> },
       { path: '/privacidad', element: <Privacy /> },
       { path: '*', element: <div className="page"><Empty title="Esta página no existe"><p>Puede que el enlace esté mal escrito o que la página ya no esté.</p><Link className="btn primary" to="/">Ir a Principal</Link></Empty></div> },
     ],

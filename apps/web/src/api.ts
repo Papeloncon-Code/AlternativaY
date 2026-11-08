@@ -72,6 +72,18 @@ export const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg
 export const shortThumb = (id: string) => `https://i.ytimg.com/vi/${id}/oar2.jpg`;
 
 // Búsqueda en todo y cualquier canal, sin Puente: el servidor lee las páginas públicas (ADR-006, enmienda 6).
-import type { RemoteChannel, RemoteVideo } from './remote';
+
+export type RemoteVideo = { id: string; title: string; channel: string; channelId: string; channelAvatar?: string; duration?: string; views?: string; published?: string; live: boolean; short: boolean; verified?: boolean; snippet?: string };
+export type RemoteChannel = { id: string; name: string; avatar?: string; subs?: string; videos?: string; handle?: string; about?: string; verified?: boolean };
+export type GatewayMedia = { id: string; title: string; creator: string; license: 'owned' | 'licensed'; contentType: string; size: number; updatedAt: string | null };
+const MEDIA_GATEWAY_BASE = (import.meta.env.VITE_MEDIA_GATEWAY_URL || 'https://todotube-media-gateway.papelon.workers.dev').replace(/\/$/, '');
+export const gatewayMediaUrl = (id: string) => MEDIA_GATEWAY_BASE + '/v1/media/' + encodeURIComponent(id);
+export async function fetchGatewayCatalog(): Promise<GatewayMedia[]> {
+  const r = await fetch(MEDIA_GATEWAY_BASE + '/v1/catalog');
+  if (!r.ok) throw new Error(r.status === 404 || r.status === 522 ? 'El Gateway multimedia todavía no está desplegado o no responde.' : 'Gateway ' + r.status);
+  const data = await r.json() as { items?: GatewayMedia[] };
+  return Array.isArray(data.items) ? data.items : [];
+}
+
 export const searchServer = (q: string) => get<{ videos: RemoteVideo[]; channels: RemoteChannel[] }>(`/api/search?q=${encodeURIComponent(q)}`);
 export const fetchPublicChannel = (id: string) => get<{ channel: { id: string; name: string; avatar: string | null; header: ChannelHeader | null }; videos: Video[] }>(`/api/canal/${id}`);
