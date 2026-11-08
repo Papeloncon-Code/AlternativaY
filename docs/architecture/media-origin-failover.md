@@ -8,6 +8,7 @@ El Gateway admite un R2 primario y una réplica R2 opcional. Cuando ambos bindin
 - Réplica: binding opcional MEDIA_BUCKET_REPLICA, bucket todotube-media-replica.
 - Timeout de lectura por origen: MEDIA_ORIGIN_TIMEOUT_MS, default 1800 ms, máximo 5000 ms.
 - Timeout de escritura: MEDIA_WRITE_TIMEOUT_MS, default 45000 ms, máximo 120000 ms.
+- Timeout de inactividad del body: MEDIA_STREAM_IDLE_TIMEOUT_MS, default 8000 ms, máximo 30000 ms; un origen que deja de entregar bytes también activa failover.
 - Las cargas nuevas guardan mediaVersion común en todas las réplicas para validar que una copia alternativa corresponde a la misma versión.
 - X-Media-Origin identifica el origen que respondió, solo para diagnóstico.
 - 404 significa que todos los orígenes consultados confirman que no hay un objeto público disponible.
@@ -25,7 +26,7 @@ Crear primero el bucket todotube-media-replica en Cloudflare R2. Después añadi
 
 ## Continuidad durante el stream
 
-Si el body del origen seleccionado se trunca o falla después de empezar a enviarse, el Gateway intenta abrir otra copia desde el byte siguiente al último entregado. Comprueba tamaño y versión mediaVersion; en archivos antiguos sin esa marca exige ETag coincidente. Mantiene el mismo Content-Length y Range. Si no encuentra una copia que coincida, termina con error en lugar de mezclar versiones.
+Si el body del origen seleccionado se trunca, falla o permanece inactivo más allá del timeout después de empezar a enviarse, el Gateway intenta abrir otra copia desde el byte siguiente al último entregado. Comprueba tamaño y versión mediaVersion; en archivos antiguos sin esa marca exige ETag coincidente. Mantiene el mismo Content-Length y Range. Si no encuentra una copia que coincida, termina con error en lugar de mezclar versiones.
 
 ## Límites de esta iteración
 
