@@ -49,8 +49,8 @@ test('Privacidad: página enlazada desde el menú y Ajustes', async ({ page }) =
   await page.locator('.side-item', { hasText: 'Privacidad' }).click();
   await expect(page).toHaveURL(/\/privacidad$/);
   await expect(page.locator('h1')).toHaveText('Privacidad');
-  await expect(page.locator('.ptable').first()).toContainText('solo si activas los avisos');
-  await expect(page.locator('.privacy')).toContainText('youtube-nocookie');
+  await expect(page.locator('.ptable').nth(1)).toContainText('Solo si activas Web Push');
+  await expect(page.locator('.privacy')).toContainText('no carga youtube-nocookie.com');
   await page.goto('/ajustes');
   await expect(page.locator('.panel').getByRole('link', { name: /Privacidad/ })).toHaveAttribute('href', '/privacidad');
 });

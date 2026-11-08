@@ -161,5 +161,5 @@ test('YouTube se abre en su origen; TodoTube no intenta extraer ni insertar ifra
   await expect(page.locator('.short-player .own-player')).toBeVisible({ timeout: 15_000 });
   await expect(page.locator('.short-player iframe')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Abrir origen' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Medios propios' })).toBeVisible();
+  await expect(page.locator('#main').getByRole('link', { name: 'Medios propios' })).toBeVisible();
 });
