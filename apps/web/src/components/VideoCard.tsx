@@ -39,6 +39,15 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
   }, [daOn, seen]);
   const brand = useBranding(id, daOn && seen);
   const [thumbFailed, setThumbFailed] = useState(false);
+  const [thumbHidden, setThumbHidden] = useState(false);
+  const imageSrc = brand.thumb && !thumbFailed ? brand.thumb : thumb(id);
+  const onThumbLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    if (e.currentTarget.naturalWidth < 200 || e.currentTarget.naturalHeight < 90) setThumbHidden(true);
+  };
+  const onThumbError = () => {
+    if (brand.thumb && !thumbFailed) { setThumbFailed(true); setThumbHidden(false); }
+    else setThumbHidden(true);
+  };
   const shownTitle = brand.title ?? title;
   const meta = { id, title, channel, channelId };
   const href = short ? `/shorts/${id}` : `/ver/${id}${list ? `?lista=${list}` : ''}`;
@@ -64,7 +73,7 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
   return (
     <article ref={card} className={`vcard${compact ? ' compact' : ''}${noChannel ? ' nochan' : ''}`}>
       <Link to={href} className="vthumb" aria-label={shownTitle}>
-        <img src={brand.thumb && !thumbFailed ? brand.thumb : thumb(id)} alt="" loading="lazy" width={480} height={270} onError={() => setThumbFailed(true)} />
+        {!thumbHidden && <img src={imageSrc} alt="" loading="lazy" width={480} height={270} onLoad={onThumbLoad} onError={onThumbError} />}
         {duration ? <span className="vdur" aria-label={`Duración ${clock(duration)}`}>{clock(duration)}</span> : null}
         {pct != null && <span className="vprog"><span style={{ width: `${Math.min(100, pct * 100)}%` }} /></span>}
       </Link>
