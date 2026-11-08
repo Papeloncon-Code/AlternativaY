@@ -21,12 +21,12 @@ test('buscador móvil: abrir, sugerir y cerrar con Esc', async ({ page }) => {
   await expect(page.locator('.topbar.searching')).toHaveCount(0);
 });
 
-test('Shorts móvil: el fallback navega con botones externos sin cubrir el iframe', async ({ page }) => {
+test('Shorts móvil: usa el reproductor TodoTube y navega sin iframe externo', async ({ page }) => {
   await page.goto('/shorts');
   await expect(page).toHaveURL(/\/shorts\/[\w-]{11}/);
   const u1 = page.url();
-  await expect(page.locator('.shorts-stage.official')).toHaveCount(1);
-  await expect(page.locator('.short-gesture')).toHaveCount(0);
+  await expect(page.locator('.short-player .own-player')).toBeVisible();
+  await expect(page.locator('.short-player iframe')).toHaveCount(0);
   await expect(page.locator('.short-nav')).toBeVisible();
   await page.locator('.short-nav button[aria-label="Short siguiente"]').click();
   await expect(page).not.toHaveURL(u1);
@@ -59,12 +59,10 @@ test('minirreproductor móvil: iframe oficial no baja de 200 × 200 px ni tapa c
   await page.goto('/');
   await expect(page.locator('.vcard .vthumb').first()).toBeVisible({ timeout: 15_000 });
   await page.locator('.vcard .vthumb').first().click();
-  await expect(page.locator('.player-dock iframe')).toBeAttached();
+  await expect(page.locator('.player-dock .own-player')).toBeVisible();
+  await expect(page.locator('.player-dock iframe')).toHaveCount(0);
   await page.locator('.logo-link').click();
   await expect(page.locator('.player-dock')).toHaveClass(/mini/);
   await expect(page.locator('.mini-cover')).toHaveCount(0);
-  const frame = await page.locator('.player-dock iframe').boundingBox();
-  expect(frame!.width).toBeGreaterThanOrEqual(200);
-  expect(frame!.height).toBeGreaterThanOrEqual(200);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
