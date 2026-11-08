@@ -69,10 +69,10 @@ test('#19 ↓ en el buscador no cambia de Short; #20 «Atrás» vuelve al Short 
 
 test('#18 el siguiente Short navega sin cargar el iframe oficial', async ({ page }) => {
   await page.goto('/shorts');
-  await expect(page.locator('.short-nav small')).toHaveText(/^1 \/, { timeout: 15_000 });
+  await expect(page.locator('.short-nav small')).toContainText('1 /', { timeout: 15_000 });
   await expect(page.locator('.short-player iframe')).toHaveCount(0);
   await page.locator('.short-nav button[aria-label="Short siguiente"]').click();
-  await expect(page.locator('.short-nav small')).toHaveText(/^2 \/);
+  await expect(page.locator('.short-nav small')).toContainText('2 /');
 });
 
 test('#8 la búsqueda no mezcla Shorts con vídeos', async ({ page }) => {
