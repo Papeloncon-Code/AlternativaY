@@ -99,12 +99,14 @@ test('S1–S2 · Shorts: abre el reproductor vertical y pasa con teclas y rueda'
   await expect(page).not.toHaveURL(u2);
 });
 
-test('C2 · canal: pestañas Vídeos y Shorts', async ({ page }) => {
+test('C2 · canal: pestañas Inicio, Vídeos y Shorts (con su dirección)', async ({ page }) => {
   await page.goto('/'); const href = await page.locator('.vchan').first().getAttribute('href');
   await page.goto(href!);
-  const tabs = page.locator('.tab-btn');
-  await expect(tabs).toHaveCount(2);
+  const tabs = page.locator('.ch-tab');
+  await expect(tabs).toHaveText(['Inicio', 'Vídeos', 'Shorts']);
+  await expect(tabs.nth(0)).toHaveAttribute('aria-selected', 'true');
   await tabs.nth(1).click();
+  await expect(page).toHaveURL(/\/videos$/);
   await expect(tabs.nth(1)).toHaveAttribute('aria-selected', 'true');
 });
 

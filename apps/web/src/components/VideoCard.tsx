@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { thumb } from '../api';
-import { ago, fmtViews } from '../format';
+import { ago, agoShort, fmtViews, shortNumber } from '../format';
 import { actions, useStore } from '../store';
 import Icon from './Icon';
 import Avatar from './Avatar';
@@ -13,10 +13,14 @@ import { openSave } from './SaveDialog';
 type Props = {
   id: string; title: string; channel: string; channelId: string;
   publishedAt?: number | null; isNew?: boolean; progress?: number; short?: boolean; compact?: boolean; list?: string; views?: number | null;
+  /** En la página del canal no se repiten la foto ni el nombre del canal (como en la referencia). */
+  noChannel?: boolean;
+  /** Estante: datos en forma corta («▷ 4 M  hace 1 d»), como en la referencia. */
+  dense?: boolean;
 };
 
 // Tarjeta de vídeo con la estructura que la gente ya conoce: miniatura, avatar del canal, título en 2 líneas, canal y fecha, menú ⋮.
-export default function VideoCard({ id, title, channel, channelId, publishedAt, isNew, progress, short, compact, list, views }: Props) {
+export default function VideoCard({ id, title, channel, channelId, publishedAt, isNew, progress, short, compact, list, views, noChannel, dense }: Props) {
   const fav = useStore((s) => Boolean(s.favorites[id]));
   const later = useStore((s) => Boolean(s.watchLater[id]));
   const watched = useStore((s) => Boolean(s.watched[id]));
@@ -59,17 +63,19 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
   }, [menu]);
 
   return (
-    <article ref={card} className={`vcard${compact ? ' compact' : ''}`}>
+    <article ref={card} className={`vcard${compact ? ' compact' : ''}${noChannel ? ' nochan' : ''}`}>
       <Link to={href} className="vthumb" aria-label={shownTitle} onMouseEnter={() => prefetchVideo(id)} onFocus={() => prefetchVideo(id)} onTouchStart={() => prefetchVideo(id)}>
         <img src={brand.thumb && !thumbFailed ? brand.thumb : thumb(id)} alt="" loading="lazy" width={480} height={270} onError={() => setThumbFailed(true)} />
         {pct != null && <span className="vprog"><span style={{ width: `${Math.min(100, pct * 100)}%` }} /></span>}
       </Link>
       <div className="vinfo">
-        {!compact && <Link to={`/canal/${channelId}`} className="vavatar" aria-label={`Canal ${channel}`}><Avatar name={channel} id={channelId} size={36} /></Link>}
+        {!compact && !noChannel && <Link to={`/canal/${channelId}`} className="vavatar" aria-label={`Canal ${channel}`}><Avatar name={channel} id={channelId} size={36} /></Link>}
         <div className="vtext">
           <Link to={href} className="vtitle" title={brand.title ? `Título original: ${title}` : title}>{shownTitle}</Link>
-          <Link to={`/canal/${channelId}`} className="vmeta vchan">{channel}</Link>
-          <span className="vmeta vmeta-row">{[fmtViews(views), publishedAt ? ago(publishedAt) : '', watched ? 'visto' : ''].filter(Boolean).map((t, i) => <span key={i}>{t}</span>)}</span>
+          {!noChannel && <Link to={`/canal/${channelId}`} className="vmeta vchan">{channel}</Link>}
+          {dense
+            ? <span className="vmeta vmeta-dense">{views ? <span><Icon name="play" size={12} />{shortNumber(views)}</span> : null}{publishedAt ? <span>{agoShort(publishedAt)}</span> : null}</span>
+            : <span className="vmeta vmeta-row">{[fmtViews(views), publishedAt ? ago(publishedAt) : '', watched ? 'visto' : ''].filter(Boolean).map((t, i) => <span key={i}>{t}</span>)}</span>}
           {isNew && !watched && <span className="badge-nuevo">Nuevo</span>}
         </div>
         <div className="vmenu" ref={ref}>

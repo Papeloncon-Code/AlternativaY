@@ -41,7 +41,7 @@ test('L3 · fotos reales de canal en el menú sin Puente (cuando el servidor ya 
   await expect.poll(() => img.evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   // También en la cabecera del canal
   await page.goto(`/canal/${withPhoto.id}`);
-  await expect(page.locator('.channel-head img.avatar')).toBeVisible();
+  await expect(page.locator('.ch-head img.avatar')).toBeVisible();
 });
 
 test('Privacidad: página enlazada desde el menú y Ajustes', async ({ page }) => {

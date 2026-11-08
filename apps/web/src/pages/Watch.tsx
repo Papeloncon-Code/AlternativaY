@@ -1,4 +1,5 @@
 import { useOEmbed } from '../oembed';
+import Linkify from '../components/Linkify';
 import { useTitle } from '../title';
 import { openSave } from '../components/SaveDialog';
 import { isBlocked } from '../filters';
@@ -165,7 +166,7 @@ export default function Watch() {
             {[fmtViews(views), video?.publishedAt ? ago(video.publishedAt) : '', details?.lengthSeconds ? clock(details.lengthSeconds) : '', startAt >= 5 ? `continúa en ${clock(startAt)}` : ''].filter(Boolean).join(' · ')}
           </p>
           {description
-            ? <p className="desc-text">{description}</p>
+            ? <p className="desc-text"><Linkify text={description} /></p>
             : <p className="desc-text muted">{hasBridge() ? 'Cargando la descripción…' : video || pub ? 'La descripción de este vídeo aún no está disponible.' : <>La descripción de los vídeos de fuera de tus canales se muestra con <Link to="/puente">TodoTube Puente</Link>.</>}</p>}
           {description && <button type="button" className="desc-toggle" onClick={(e) => { e.stopPropagation(); setDescOpen((o) => !o); }}>{descOpen ? 'Mostrar menos' : '…más'}</button>}
         </div>

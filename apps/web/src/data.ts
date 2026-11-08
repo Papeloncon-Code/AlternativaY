@@ -47,3 +47,12 @@ export function useChannels() {
   useEffect(() => { const l = () => tick((n) => n + 1); listeners.add(l); load(chCache, fetchChannels); return () => { listeners.delete(l); }; }, []);
   return { data: chCache.data, error: chCache.error, loading: !chCache.data && !chCache.error, reload: () => load(chCache, fetchChannels, true) };
 }
+
+// Todos los vídeos guardados (página de canal). Se piden todos a la vez, igual para cualquier canal:
+// el servidor no sabe qué canal estás mirando.
+const allCache: Cache<Video[]> = { at: 0 };
+export function useAllVideos() {
+  const [, tick] = useState(0);
+  useEffect(() => { const l = () => tick((n) => n + 1); listeners.add(l); load(allCache, () => fetchFeed(1000)); return () => { listeners.delete(l); }; }, []);
+  return { data: allCache.data, error: allCache.error, loading: !allCache.data && !allCache.error };
+}

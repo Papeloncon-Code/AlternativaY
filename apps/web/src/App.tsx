@@ -26,6 +26,7 @@ const router = createBrowserRouter([
       { path: '/shorts/:id', element: <ShortsPlayer /> },
       { path: '/buscar', element: <Search /> },
       { path: '/canal/:id', element: <Channel /> },
+      { path: '/canal/:id/:tab', element: <Channel /> },
       { path: '/tu', element: <You /> },
       { path: '/historial', element: <YouList kind="historial" /> },
       { path: '/ver-mas-tarde', element: <YouList kind="ver-mas-tarde" /> },

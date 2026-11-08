@@ -120,3 +120,15 @@ sequenceDiagram
 1. El servidor guarda visitas, me gusta y descripción del RSS y los refresca en cada lectura. El enlace `/shorts/` del RSS sirve para clasificar Shorts sin otra petición.
 2. El servidor lee **solo `og:image` y `og:title`** de la página de cada canal seguido, **una vez al día** (el propietario pidió diario en vez de semanal), leyendo por partes y cortando en cuanto los encuentra. Si YouTube lo bloquea, se muestran iniciales.
 3. Nada de vídeos ni de usuarios. Ninguna API con normas incompatibles.
+
+## Enmienda 4 (2026-11-08): cabecera pública del canal
+**Problema:** el propietario pidió la página de canal igual que la de YouTube («función por función, pantalla por pantalla»), con su captura de referencia: banner, foto grande, nombre con verificado, `@usuario · suscriptores · vídeos`, descripción con «…más», enlace y «Suscribirse». Sin Puente solo había foto y nombre.
+
+**Hallazgo (2026-11-08, páginas reales de Al Jazeera English y John Acquaviva):** la misma página pública que ya se lee una vez al día lleva, al final (~2,2 MB de ~2,3 MB), la cabecera que ve cualquiera sin cuenta: banner (`yt3.googleusercontent.com`), @usuario, suscriptores, número de vídeos, insignia de verificado, descripción, primer enlace y «y N enlaces más». La lista completa de enlaces, la fecha de alta y las visitas totales del panel «Acerca de» **no** están en la página: llegan con otra llamada a la API interna (`/youtubei/v1/browse`), que el servidor **no** hace.
+
+**Decisión** (aplica la orden del propietario de 2026-11-08: «si no podemos hacer la función exacta, hacemos un workaround»):
+1. En **la misma petición diaria** de la enmienda 3 se sigue leyendo la página hasta su cabecera pública y se corta al cerrarla (máximo 4 MB). No se añaden peticiones.
+2. Se guarda solo: banner (solo de la CDN pública de imágenes de canal), @usuario, texto de suscriptores y de vídeos, verificado, descripción (≤ 1 500 caracteres) y primer enlace (solo `http`/`https`, sin el redireccionador de YouTube). Todo es información pública del canal, ninguna de usuarios.
+3. Los enlaces se abren directamente en su web (sin pasar por `youtube.com/redirect`), con `rel="noopener noreferrer nofollow"`.
+4. Coste medido: ~30–40 ms de proceso en Node con la página real; en Cloudflare se comprueba con la analítica. Para no pasarse, 3 canales por ejecución (antes 5).
+5. Lo demás del panel «Acerca de» (todos los enlaces, fecha de alta, visitas totales) queda 🔌 solo con Puente.

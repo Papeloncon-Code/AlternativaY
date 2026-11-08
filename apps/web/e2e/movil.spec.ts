@@ -3,7 +3,7 @@ import { noPrompts, trackErrors } from './helpers';
 
 test.beforeEach(async ({ page }) => { await noPrompts(page); });
 
-for (const path of ['/', '/suscripciones', '/tu', '/ajustes', '/buscar?q=news', '/puente']) {
+for (const path of ['/', '/suscripciones', '/tu', '/ajustes', '/buscar?q=news', '/puente', '/canal/UCNye-wNBqNL5ZzHSJj3l8Bg', '/canal/UCNye-wNBqNL5ZzHSJj3l8Bg/videos']) {
   test(`sin desplazamiento horizontal en ${path}`, async ({ page }) => {
     const ok = trackErrors(page);
     await page.goto(path); await page.waitForLoadState('networkidle');

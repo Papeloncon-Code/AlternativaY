@@ -15,7 +15,8 @@ function safeEqual(a, b) {
 
 async function api(request, env, url) {
   if (url.pathname === '/api/feed' && request.method === 'GET') {
-    const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 60, 1), 200);
+    // Hasta 1000: la página de canal pide todos los vídeos guardados de una vez (el servidor no sabe qué canal miras).
+    const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 60, 1), 1000);
     const { results } = await env.DB.prepare(
       `SELECT v.video_id AS id, v.title, v.published_at AS publishedAt, v.channel_id AS channelId,
               COALESCE(c.label, v.channel_id) AS channel, v.first_source AS source, v.first_seen_at AS seenAt, v.kind AS kind,
@@ -40,9 +41,11 @@ async function api(request, env, url) {
   if (url.pathname === '/api/channels' && request.method === 'GET') {
     const { results } = await env.DB.prepare(
       `SELECT c.channel_id AS id, COALESCE(c.label, c.channel_id) AS name, c.status, c.verified_at AS verifiedAt,
-              c.last_error AS lastError, c.notify AS notify, c.avatar AS avatar, (SELECT COUNT(*) FROM videos v WHERE v.channel_id = c.channel_id) AS videos
+              c.last_error AS lastError, c.notify AS notify, c.avatar AS avatar, c.header AS header, (SELECT COUNT(*) FROM videos v WHERE v.channel_id = c.channel_id) AS videos
        FROM channels c WHERE c.status <> 'removing' ORDER BY name COLLATE NOCASE`
     ).all();
+    // Cabecera pública del canal (ADR-006, enmienda 4), guardada como JSON por el servicio de avisos.
+    for (const r of results) { try { r.header = r.header ? JSON.parse(r.header) : null; } catch { r.header = null; } }
     return json({ items: results }, 200, { 'cache-control': 'no-store' });
   }
   if (url.pathname === '/api/channels' && request.method === 'POST') {

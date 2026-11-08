@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS channels (
   rss_failures   INTEGER NOT NULL DEFAULT 0,
   notify         TEXT NOT NULL DEFAULT 'all',  -- campanita: all | noshorts | none
   avatar         TEXT,                         -- foto del canal (CDN pública): vista previa diaria o un dispositivo con Puente
-  avatar_at      INTEGER                       -- última lectura de la vista previa (una vez al día como mucho)
+  avatar_at      INTEGER,                      -- última lectura de la vista previa (una vez al día como mucho)
+  header         TEXT                          -- cabecera pública del canal (JSON: banner, handle, subs, videos, verified, about, link)
 );
 CREATE TABLE IF NOT EXISTS videos (
   video_id      TEXT PRIMARY KEY,
