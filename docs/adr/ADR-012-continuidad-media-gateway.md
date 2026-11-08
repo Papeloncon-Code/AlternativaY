@@ -23,7 +23,7 @@ El Gateway inicial dependía de un único binding R2. Una indisponibilidad del b
 
 - Timeout de lectura inicial: 1.8 s, configurable por MEDIA_ORIGIN_TIMEOUT_MS, con máximo de 5 s.
 - Timeout de escritura: default 45 s, configurable por MEDIA_WRITE_TIMEOUT_MS, con máximo de 120 s.
-- Timeout de inactividad durante el stream: default 8 s, configurable por MEDIA_STREAM_IDLE_TIMEOUT_MS, con máximo de 30 s.
+- Timeout de inactividad durante el stream: default 2 s, configurable por MEDIA_STREAM_IDLE_TIMEOUT_MS, con máximo de 3 s.
 - Cada carga genera mediaVersion, compartida por todas las réplicas.
 - GET/HEAD y Range se resuelven en el origen ganador.
 - 404 solo cuando todos los orígenes consultados confirman que el objeto no existe.
