@@ -12,7 +12,7 @@ type Metric = {
 async function measure(page: Page, screen: string): Promise<Metric> {
   return page.evaluate((screenName) => {
     const selectors = [
-      '.topbar', '.side', '.rail', '.bottombar', '.main', '.page',
+      '.topbar', '.mobile-feed-tabs', '.side', '.rail', '.bottombar', '.main', '.page',
       '.vgrid', '.vcard', '.vthumb', '.shorts-stage', '.short-player',
       '.short-nav', '.watch-layout', '#player-slot', '.watch-main',
       '.watch-side', '.notif-panel', '.account-menu'
