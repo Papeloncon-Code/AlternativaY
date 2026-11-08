@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { actions, type Meta } from '../store';
-import { hasBridge } from '../bridge';
+import { hasBridge, whenBridge } from '../bridge';
 import type { PlayerHandle, VideoDetails } from '../player/handle';
 
 // Reproductor propio (Shaka + SABR) a través de TodoTube Puente. Se carga bajo demanda: no pesa a quien no tiene el puente.
@@ -49,7 +49,7 @@ export default function OwnPlayer({ id, meta, startAt, onFail, onEnded, onReady,
       try {
         setError('');
         setStatus('cargando');
-        if (!hasBridge()) throw new Error('Para reproducir con el reproductor propio de TodoTube, activa TodoTube Puente en este navegador y recarga la página.');
+        if (!await whenBridge(1500)) throw new Error('Para reproducir con el reproductor propio de TodoTube, activa TodoTube Puente en este navegador y recarga la página.');
         const { TodoTubePlayer } = await import('../player/TodoTubePlayer');
         if (destroyed) return;
         const p = new TodoTubePlayer();
