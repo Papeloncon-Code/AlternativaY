@@ -7,6 +7,7 @@ class MemoryR2 {
   failHead = false;
   neverResolveHead = false;
   failGet = false;
+  failBodyAfterBytes = null;
   failList = false;
   async head(key) {
     if (this.neverResolveHead) return new Promise(() => {});
@@ -20,7 +21,22 @@ class MemoryR2 {
     const offset = opts.range?.offset ?? 0;
     const length = opts.range?.length ?? bytes.length;
     const body = new Uint8Array(bytes.slice(offset, offset + length));
-    return { ...item, body: new Response(body).body, writeHttpMetadata: item.writeHttpMetadata };
+    let stream = new Response(body).body;
+    if (this.failBodyAfterBytes != null && offset === 0) {
+      const failAt = Math.min(this.failBodyAfterBytes, body.length);
+      let state = 0;
+      stream = new ReadableStream({
+        pull(controller) {
+          if (state === 0) {
+            state = 1;
+            if (failAt > 0) controller.enqueue(body.subarray(0, failAt));
+            return;
+          }
+          controller.error(new Error('simulated mid-stream failure'));
+        },
+      });
+    }
+    return { ...item, body: stream, writeHttpMetadata: item.writeHttpMetadata };
   }
   async put(key, body, opts) {
     const bytes = new Uint8Array(await new Response(body).arrayBuffer());
@@ -151,6 +167,19 @@ test('a failed primary origin is bypassed automatically when the replica has the
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('X-Media-Origin'), 'replica-1');
   assert.equal(await r.text(), 'replica-data');
+});
+
+test('a stream that fails mid-transfer resumes from the next byte on the replica', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  const bytes = new TextEncoder().encode('0123456789');
+  replica.objects.set('media/demo_123', makeObject(bytes));
+  e.MEDIA_BUCKET.failBodyAfterBytes = 4;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123', { headers: { Range: 'bytes=2-8' } }), e);
+  assert.equal(r.status, 206);
+  assert.equal(r.headers.get('Content-Range'), 'bytes 2-8/10');
+  assert.equal(await r.text(), '2345678');
 });
 
 test('a primary read failure after HEAD is retried through the replica', async () => {
