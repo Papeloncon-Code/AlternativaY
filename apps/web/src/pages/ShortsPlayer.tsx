@@ -10,7 +10,7 @@ import OwnPlayer from '../components/OwnPlayer';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import { shareVideo, toast } from '../toast';
-import { ago, fmtCount } from '../format';
+import { ago } from '../format';
 import { Empty } from '../components/States';
 
 
@@ -93,8 +93,8 @@ export default function ShortsPlayer() {
           </div>
         </div>
         <div className="short-actions">
-          <button type="button" className={`round${fav ? ' on' : ''}`} aria-pressed={fav} aria-label="Me gusta" onClick={() => { actions.toggleFavorite(meta); toast(fav ? 'Quitado de Me gusta' : 'Añadido a Me gusta'); }}><Icon name="like" size={24} /></button>
-          <span>{cur?.likes ? fmtCount(cur.likes + (fav ? 1 : 0)) : 'Me gusta'}</span>
+          <button type="button" className={`round${fav ? ' on' : ''}`} aria-pressed={fav} aria-label={fav ? 'Quitar de Mis Me gusta' : 'Guardar en Mis Me gusta'} title="Guarda este Short en la biblioteca local de TodoTube" onClick={() => { actions.toggleFavorite(meta); toast(fav ? 'Quitado de Mis Me gusta' : 'Guardado en Mis Me gusta'); }}><Icon name="like" size={24} /></button>
+          <span>{fav ? 'Guardado' : 'Me gusta'}</span>
           <button type="button" className="round" aria-label="Compartir" onClick={() => shareVideo(id, meta.title)}><Icon name="share" size={24} /></button>
           <span>Compartir</span>
           {meta.channelId ? <Link to={`/canal/${meta.channelId}`} className="round avatar-link" aria-label={`Canal ${meta.channel}`}><Avatar name={meta.channel || 'Canal'} id={meta.channelId} size={40} /></Link> : <span className="round avatar-link" aria-label="Canal externo"><Avatar name="Canal" id={id} size={40} /></span>}

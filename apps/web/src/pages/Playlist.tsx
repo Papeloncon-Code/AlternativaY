@@ -21,8 +21,9 @@ export default function Playlist() {
         <div>
           <h1>{p.name}</h1>
           <p className="sub">{p.items.length === 1 ? '1 vídeo' : `${p.items.length} vídeos`} · Lista privada (en este navegador)</p>
+          <p className="note">Los vídeos de YouTube se abren en su origen. El resto de elementos de la lista aparecen en «A continuación» para que puedas elegir el siguiente.</p>
           <div className="row-btns">
-            {first && <Link className="btn primary" to={`/ver/${first.id}?lista=${p.id}`}><Icon name="play" size={18} /> Reproducir todo</Link>}
+            {first && <Link className="btn primary" to={`/ver/${first.id}?lista=${p.id}`}><Icon name="play" size={18} /> Abrir primer vídeo</Link>}
             <button type="button" className="btn" onClick={() => { const n = prompt('Nuevo nombre de la lista', p.name); if (n) actions.renamePlaylist(p.id, n); }}>Cambiar nombre</button>
             <button type="button" className="btn" onClick={() => { if (confirm(`¿Borrar la lista «${p.name}»?`)) { actions.removePlaylist(p.id); toast('Lista borrada'); navigate('/tu'); } }}>Borrar lista</button>
           </div>

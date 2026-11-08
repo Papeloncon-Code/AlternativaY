@@ -50,7 +50,7 @@ test('L7 · guardar en una lista nueva y reproducirla en orden', async ({ page }
   }
   await page.locator('.side-item', { hasText: 'Para el finde' }).click();
   await expect(page.locator('.pl-item')).toHaveCount(2);
-  await page.getByRole('link', { name: 'Reproducir todo' }).click();
+  await page.getByRole('link', { name: 'Abrir primer vídeo' }).click();
   await expect(page).toHaveURL(new RegExp(`/ver/${ids[0]}\\?lista=`));
   await expect(page.locator('.watch-side .side-head b')).toHaveText('Para el finde · 1/2');
   await expect(page.locator('.watch-side .vcard')).toHaveCount(1);

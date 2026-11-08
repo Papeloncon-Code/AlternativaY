@@ -163,3 +163,14 @@ test('YouTube se abre en su origen; TodoTube no intenta extraer ni insertar ifra
   await expect(page.getByRole('link', { name: 'Abrir origen' })).toBeVisible();
   await expect(page.locator('#main').getByRole('link', { name: 'Medios propios' })).toBeVisible();
 });
+
+
+test('Watch · Me gusta se guarda en la biblioteca local de TodoTube, no en YouTube', async ({ page }) => {
+  await page.goto('/ver/dQw4w9WgXcQ');
+  const add = page.getByRole('button', { name: 'Guardar en Mis Me gusta' });
+  await expect(add).toBeVisible();
+  await add.click();
+  await expect(page.getByRole('button', { name: 'Quitar de Mis Me gusta' })).toHaveAttribute('aria-pressed', 'true');
+  await page.goto('/me-gusta');
+  await expect(page.locator('.vcard').first()).toBeVisible();
+});

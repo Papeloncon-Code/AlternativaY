@@ -90,8 +90,8 @@ export default function VideoCard({ id, title, channel, channelId, publishedAt, 
               <button type="button" role="menuitem" onClick={() => { openSave(meta); setMenu(false); }}>
                 <Icon name="library" size={20} />Guardar en una lista
               </button>
-              <button type="button" role="menuitem" onClick={() => { actions.toggleFavorite(meta); setMenu(false); toast(fav ? 'Quitado de Me gusta' : 'Añadido a Me gusta'); }}>
-                <Icon name="like" size={20} />{fav ? 'Quitar de Me gusta' : 'Me gusta'}
+              <button type="button" role="menuitem" onClick={() => { actions.toggleFavorite(meta); setMenu(false); toast(fav ? 'Quitado de Mis Me gusta' : 'Guardado en Mis Me gusta'); }}>
+                <Icon name="like" size={20} />{fav ? 'Quitar de Mis Me gusta' : 'Guardar en Mis Me gusta'}
               </button>
               <button type="button" role="menuitem" onClick={() => { actions.toggleWatched(id); setMenu(false); }}>
                 <Icon name="eye" size={20} />{watched ? 'Marcar como no visto' : 'Marcar como visto'}

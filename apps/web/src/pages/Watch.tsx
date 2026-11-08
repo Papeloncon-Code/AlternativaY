@@ -113,8 +113,8 @@ export default function Watch() {
               onUnfollow={() => bell(() => removeChannel(channel.id, ownerKey), `Has dejado de seguir ${channel.name}`)} />}
           </div>
           <div className="watch-actions">
-            <button type="button" className={`btn${fav ? ' on' : ''}`} aria-pressed={fav} aria-label={fav ? 'Quitar de Me gusta' : 'Me gusta'} onClick={() => { actions.toggleFavorite(meta); toast(fav ? 'Quitado de Me gusta' : 'Añadido a Me gusta'); }}>
-              <Icon name="like" size={18} /> {pub?.likes != null ? fmtCount(pub.likes + (fav ? 1 : 0)) : fav ? 'Te gusta' : 'Me gusta'}
+            <button type="button" className={`btn${fav ? ' on' : ''}`} aria-pressed={fav} aria-label={fav ? 'Quitar de Mis Me gusta' : 'Guardar en Mis Me gusta'} title="Guarda este vídeo en la biblioteca local de TodoTube" onClick={() => { actions.toggleFavorite(meta); toast(fav ? 'Quitado de Mis Me gusta' : 'Guardado en Mis Me gusta'); }}>
+              <Icon name="like" size={18} /> {fav ? 'En Mis Me gusta' : 'Me gusta'}
             </button>
             <button type="button" className="btn" onClick={() => shareVideo(id, meta.title)}><Icon name="share" size={18} /> Compartir</button>
             <button type="button" className={`btn${later ? ' on' : ''}`} aria-pressed={later} onClick={() => openSave(meta)}>
