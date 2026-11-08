@@ -25,6 +25,7 @@ export default function Subscriptions() {
   const [label, setLabel] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   async function unfollow(c: Channel) {
     if (!ownerKey) { setMsg({ ok: false, text: 'Pon tu clave de propietario en Ajustes para dejar de seguir canales.' }); return; }
@@ -45,7 +46,7 @@ export default function Subscriptions() {
     try {
       const r = await addChannel(input, label, ownerKey);
       setMsg({ ok: true, text: r.created ? 'Canal añadido. Sus avisos se activan en unos minutos.' : 'Ya seguías este canal.' });
-      setInput(''); setLabel(''); list.reload();
+      setInput(''); setLabel(''); list.reload(); setAddOpen(false);
     } catch (err) {
       setMsg({ ok: false, text: err instanceof Error ? err.message : String(err) });
     } finally { setBusy(false); }
@@ -58,30 +59,41 @@ export default function Subscriptions() {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <h1>Suscripciones</h1>
-        {items.length > 0 && <p className="sub">{items.length} canales · {active} con avisos al momento</p>}
+      <header className="page-head page-head-row subscriptions-head">
+        <div>
+          <h1>Suscripciones</h1>
+          {items.length > 0 && <p className="sub">{items.length} canales · {active} con avisos al momento</p>}
+        </div>
+        <button type="button" className="btn primary" aria-expanded={addOpen} aria-controls="add-channel-panel"
+          onClick={() => { setAddOpen((open) => !open); setMsg(null); }}>
+          <Icon name={addOpen ? 'close' : 'plus'} size={18} /> {addOpen ? 'Cerrar' : 'Seguir canal'}
+        </button>
       </header>
 
       <PushToggle compact />
-      <form className="panel add-form" onSubmit={submit}>
+      {msg && <p className={msg.ok ? 'ok-text' : 'bad-text'} role="status">{msg.text}</p>}
+      {addOpen && <form id="add-channel-panel" className="panel add-form" onSubmit={submit}>
         <h2><Icon name="plus" size={18} /> Seguir un canal</h2>
         <label>
           Enlace o ID del canal
-          <input value={input} onChange={(e) => setInput(e.target.value)} required placeholder="Pega aquí el enlace del canal" inputMode="url" autoComplete="off" />
+          <input value={input} onChange={(e) => setInput(e.target.value)} required placeholder="Pega aquí el enlace o ID del canal" inputMode="url" autoComplete="off" />
         </label>
         <label>
           Nombre (opcional)
-          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Se completa solo si lo dejas vacío" maxLength={80} />
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Nombre para identificarlo" maxLength={80} />
         </label>
-        {!ownerKey && <p className="note">Para añadir canales en esta versión, pon tu clave de propietario en <Link to="/ajustes">Ajustes</Link>.</p>}
-        <button className="btn primary" disabled={busy || !ownerKey}>{busy ? 'Añadiendo…' : 'Seguir'}</button>
-        {msg && <p className={msg.ok ? 'ok-text' : 'bad-text'} role="status">{msg.text}</p>}
-        <p className="note">Próximamente: importar todas tus suscripciones de una vez.</p>
-      </form>
+        {!ownerKey && <p className="note">Para seguir canales, configura primero tu clave de propietario en <Link to="/ajustes">Ajustes</Link>.</p>}
+        <div className="row-btns">
+          <button className="btn primary" disabled={busy || !ownerKey}>{busy ? 'Añadiendo…' : 'Seguir'}</button>
+          <button type="button" className="btn" disabled={busy} onClick={() => { setAddOpen(false); setMsg(null); }}>Cancelar</button>
+        </div>
+      </form>}
 
       {list.error && <ErrorBox message={`No se pudo cargar la lista (${list.error}).`} onRetry={list.reload} />}
-      {list.data && items.length === 0 && <Empty title="Todavía no sigues ningún canal"><p>Añade el primero con el formulario de arriba.</p></Empty>}
+      {list.data && items.length === 0 && <Empty title="Todavía no sigues ningún canal">
+        <p>Añade el primero con el botón «Seguir canal».</p>
+        <button type="button" className="btn primary" onClick={() => setAddOpen(true)}>Seguir el primer canal</button>
+      </Empty>}
       <ul className="channel-list">
         {items.map((c) => {
           const st = STATUS[c.status] ?? STATUS.pending;

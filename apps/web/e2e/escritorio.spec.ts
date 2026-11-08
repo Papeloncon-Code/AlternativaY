@@ -174,3 +174,15 @@ test('Watch · Me gusta se guarda en la biblioteca local de TodoTube, no en YouT
   await page.goto('/me-gusta');
   await expect(page.locator('.vcard').first()).toBeVisible();
 });
+
+
+test('Suscripciones: el formulario de alta se despliega cuando se solicita', async ({ page }) => {
+  await page.goto('/suscripciones');
+  await expect(page.locator('.channel-list')).toBeVisible();
+  await expect(page.locator('.add-form')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Seguir canal' }).click();
+  await expect(page.locator('#add-channel-panel')).toBeVisible();
+  await expect(page.locator('#add-channel-panel')).toBeVisible();
+  await page.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(page.locator('#add-channel-panel')).toHaveCount(0);
+});
