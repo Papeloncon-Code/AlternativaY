@@ -13,7 +13,7 @@
 | P1 | ☰ alterna el menú lateral | ✅ | |
 | P2 | Logo → Principal | ✅ | Marca propia 🚫 YouTube |
 | P3 | Buscador con botón; Enter busca | ✅ | Con el Puente busca en todo (vídeos y canales con foto y Seguir); sin él, en tus canales y lo explica |
-| P4 | Sugerencias mientras escribes | ✅ | Canales y títulos de tus canales, por comienzo de palabra (“chin” no encuentra “Tou**chin**g”); ↑/↓, Enter, Esc. Global 🔌 |
+| P4 | Sugerencias mientras escribes | ✅ | Canales y títulos de tus canales, por comienzo de palabra (“chin” no encuentra “Tou**chin**g”); ↑/↓, Enter, Esc. Resultados globales al pulsar Enter, sin Puente (2026-11-08) |
 | P5 | Búsquedas recientes (con borrar) | ✅ | Quitar una o borrar todas |
 | P6 | Atajo `/` para enfocar el buscador | ✅ | |
 | P7 | Búsqueda por voz | ❌ | Web Speech API (Chrome); baja prioridad |
@@ -40,7 +40,7 @@
 | H1 | Fila de filtros desplazable con flechas | ✅ | Corregido 2026-11-07: los filtros que daban lo mismo que «Todos» parecían rotos; ahora solo aparecen si cambian algo y se confirma con «N vídeos · filtro» |
 | H2 | Cuadrícula que se adapta (3–6 columnas según el ancho) | ✅ | Tarjetas de ≥ 320 px como en YouTube: 1243 px → 3, 1920 px → 4 (bloque 7) |
 | H3 | Tarjeta: miniatura, avatar, título 2 líneas, canal, visitas, antigüedad | ✅ | Visitas del RSS público, sin Puente |
-| H4 | Duración en la esquina de la miniatura | ❌ 🔌 | |
+| H4 | Duración en la esquina de la miniatura | ✅ | Sin Puente: pestaña pública «Vídeos» de cada canal y página de resultados; medidas de la referencia (2026-11-08) |
 | H5 | “EN VIVO” con contador de espectadores | ❌ 🔌 | |
 | H6 | Barra roja de progreso en lo ya visto | ✅ | |
 | H7 | Vista previa al pasar el ratón (el vídeo se reproduce sin sonido) | ❌ 🔌 | |
@@ -54,7 +54,7 @@
 | W1 | Reproductor grande + columna “A continuación” a la derecha | ✅ | |
 | W2 | Título, canal con avatar y botón **Suscrito 🔔** | ✅ | |
 | W3 | Me gusta, Compartir (copiar enlace), Guardar | ✅ | |
-| W4 | Visitas, fecha y **descripción** desplegable | ✅ | Sin Puente, del RSS público (vídeos de tus canales); me gusta en el botón. Duración 🔌 |
+| W4 | Visitas, fecha y **descripción** desplegable | ✅ | Sin Puente, del RSS público (vídeos de tus canales); me gusta en el botón; enlaces en la descripción |
 | W5 | **Reproducción automática del siguiente** (cuenta atrás, cancelable) | ✅ | 8 s, interruptor en el reproductor |
 | W6 | Atajos de teclado: K/espacio, J/L ±10 s, F, M, flechas, `<`/`>` velocidad | ✅ | También 0–9, T (cine) y Mayús+N (siguiente) |
 | W7 | Modo cine (reproductor a todo el ancho) | ✅ | |
@@ -76,9 +76,11 @@
 ## 6. Canal
 | # | Función | TodoTube | Nota |
 |---|---|---|---|
-| C1 | Cabecera: avatar, nombre, suscrito 🔔 | ✅ | Banner y avatar reales 🔌 |
-| C2 | Pestañas Inicio / Vídeos / Shorts / En directo | 🟡 | Vídeos y Shorts separados con contador ✅; “En directo” 🔌 |
-| C3 | Orden: más recientes / populares | ❌ 🔌 | |
+| C1 | Cabecera: avatar, nombre, suscrito 🔔 | ✅ | Sin Puente: banner, foto de 160 px, verificado, @usuario · suscriptores · vídeos, descripción con «…más», enlace y «Acerca de» (2026-11-08) |
+| C2 | Pestañas Inicio / Vídeos / Shorts / En directo | 🟡 | Inicio (destacado y estantes), Vídeos, Shorts y buscar en el canal ✅; “En directo”, “Listas” y “Publicaciones” 🔌 |
+| C3 | Orden: más recientes / populares | ✅ | Más recientes / Populares / Más antiguos, en la dirección (`?orden=`) |
+| C4 | Cualquier canal, aunque no lo sigas | ✅ | Sin Puente: páginas públicas, bajo demanda (ADR-006 enm. 6) |
+| P5 | Búsqueda en todo YouTube | ✅ | Sin Puente: página pública de resultados, bajo demanda; canales con «Suscribirse» y vídeos con duración (ADR-006 enm. 6) |
 
 ## 7. Suscripciones (pantalla)
 | # | Función | TodoTube | Nota |
@@ -145,7 +147,7 @@ Un agente sin acceso al razonamiento del desarrollo probó la web publicada como
 | 22 | «Hoy» y «Esta semana» no cambiaban la primera pantalla | ✅ quitados (en una lista por fecha nunca la cambian) |
 | 23, 24 | Título de la pestaña; vídeo por enlace sin título | ✅ |
 | 25 | Suscripciones parece un formulario de gestión; jerga interna visible | 🟡 jerga quitada; rediseño pendiente |
-| 26 | Búsqueda limitada sin Puente | 🔌 explicado en pantalla |
+| 26 | Búsqueda limitada sin Puente | ✅ resuelto: búsqueda en todo sin Puente (2026-11-08) |
 | Leves | Mención de la marca en un error, 404 sin salida, flechas que no rellenaban el buscador, importar con error técnico, Escape en el menú lateral, toasts que faltaban | ✅ |
 | Leves pendientes | Pestaña Inicio y banner del canal 🔌, fecha en las listas de Tú, interruptor de reproducción automática, tamaño táctil del nombre del canal | ❌ |
 

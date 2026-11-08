@@ -2,6 +2,7 @@
 import ASSETS from './assets.generated.js';
 import FALLBACK_CHANNELS from './fallback-channels.json';
 import { parseAtom } from '../../spikes/websub/src/atom.js';
+import { searchPublic, channelPublic } from './server/publico.js';
 // specs/004-web-v0/spec.md · Constitución §I.2: no se extrae YouTube; solo se leen datos de WebSub/RSS.
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
@@ -62,6 +63,20 @@ const forget = (prefix) => { for (const k of memo.keys()) if (k.startsWith(prefi
 async function api(request, env, url) {
   // Cualquier cambio (seguir, dejar de seguir, campanita, foto) invalida la copia en memoria de este aislado.
   if (request.method !== 'GET' && request.method !== 'HEAD') { forget('channels'); forget('feed'); }
+  // Búsqueda en todo YouTube sin Puente: el servidor lee la página pública de resultados (ADR-006, enmienda 6).
+  // La búsqueda no se guarda ni se registra (registros de Cloudflare desactivados); YouTube ve la IP del servidor, no la tuya.
+  if (url.pathname === '/api/search' && request.method === 'GET') {
+    const q = (url.searchParams.get('q') ?? '').trim().slice(0, 100);
+    if (!q) return json({ videos: [], channels: [] });
+    const r = await cached(`search:${q.toLowerCase()}`, 600, () => searchPublic(q));
+    return json(r, 200, { 'cache-control': 'private, max-age=300' });
+  }
+  // Cualquier canal (también los que no sigues): cabecera pública y sus ~30 vídeos más recientes.
+  const pub = url.pathname.match(/^\/api\/canal\/(UC[A-Za-z0-9_-]{22})$/);
+  if (pub && request.method === 'GET') {
+    const r = await cached(`canal:${pub[1]}`, 1800, () => channelPublic(pub[1]));
+    return json(r, 200, { 'cache-control': 'public, max-age=900' });
+  }
   if (url.pathname === '/api/feed' && request.method === 'GET') {
     // Hasta 1000: la página de canal pide todos los vídeos guardados de una vez (el servidor no sabe qué canal miras).
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 60, 1), 1000);

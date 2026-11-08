@@ -70,7 +70,7 @@ test('#18 un gesto del panel táctil pasa un solo Short', async ({ page }) => {
 
 test('#8 la búsqueda no mezcla Shorts con vídeos', async ({ page }) => {
   await page.goto('/buscar?q=news');
-  await expect(page.locator('.search-q')).toContainText('news');
+  await expect(page.locator('.sresult').first()).toBeVisible({ timeout: 20_000 });
   const shortIdsInRows = await page.locator('.sresult .vthumb').evaluateAll((as) => as.map((a) => a.getAttribute('href')).filter((h) => h?.startsWith('/shorts/')));
   expect(shortIdsInRows).toEqual([]);
 });

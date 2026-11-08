@@ -65,7 +65,7 @@ export default function PermissionPrompt() {
         <b id="perm-t">{push ? '¿Te avisamos cuando tus canales publiquen?' : 'Ve los vídeos sin anuncios'}</b>
         <p id="perm-d">{push
           ? 'Recibe un aviso al momento de cada vídeo nuevo, aunque tengas TodoTube cerrado. Puedes elegir qué canales en la campanita.'
-          : 'Con TodoTube Puente los vídeos se ven en nuestro reproductor, sin anuncios, y puedes buscar en todo y ver las fotos de los canales.'}</p>
+          : 'Con TodoTube Puente los vídeos se ven en nuestro reproductor, sin anuncios.'}</p>
         <div className="perm-actions">
           <button type="button" className="btn" onClick={later}>Ahora no</button>
           <button type="button" className="btn primary" onClick={accept}>{push ? 'Permitir avisos' : 'Instalar'}</button>

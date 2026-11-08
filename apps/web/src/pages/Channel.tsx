@@ -9,7 +9,7 @@ import Shelf from '../components/Shelf';
 import Icon from '../components/Icon';
 import BellMenu, { type Bell } from '../components/BellMenu';
 import { setChannelBell } from '../push';
-import { fetchVideo, removeChannel, thumb, type ChannelHeader, type Video } from '../api';
+import { addChannel, fetchPublicChannel, fetchVideo, removeChannel, thumb, type ChannelHeader, type Video } from '../api';
 import { useStore } from '../store';
 import { Empty } from '../components/States';
 import { ago, fmtViews } from '../format';
@@ -94,12 +94,24 @@ export default function Channel() {
   const tab: Tab = tabParam === 'videos' || tabParam === 'shorts' || tabParam === 'buscar' ? tabParam : 'inicio';
   const order = (ORDERS.find((o) => o.id === sp.get('orden'))?.id ?? 'recientes') as Order;
   const c = channels.data?.find((x) => x.id === id);
-  const h = c?.header ?? null;
-  const vids = useMemo(() => (all.data ?? []).filter((v) => v.channelId === id), [all.data, id]);
+  // Canal que no sigues: el servidor lee su página pública (cabecera y ~30 vídeos), sin Puente.
+  const [pub, setPub] = useState<{ id: string; data?: Awaited<ReturnType<typeof fetchPublicChannel>>; error?: string } | null>(null);
+  const notFollowed = Boolean(channels.data) && !c;
+  useEffect(() => {
+    if (!notFollowed) return;
+    let alive = true;
+    setPub({ id });
+    fetchPublicChannel(id).then((data) => alive && setPub({ id, data })).catch((e) => alive && setPub({ id, error: e instanceof Error ? e.message : String(e) }));
+    return () => { alive = false; };
+  }, [id, notFollowed]);
+  const pubData = pub?.id === id ? pub.data : undefined;
+  const h = c?.header ?? pubData?.channel.header ?? null;
+  const vids = useMemo(() => (notFollowed ? pubData?.videos ?? [] : (all.data ?? []).filter((v) => v.channelId === id)), [all.data, id, notFollowed, pubData]);
+  const loading = notFollowed ? !pubData && !(pub?.id === id && pub.error) : all.loading;
   const longs = useMemo(() => vids.filter((v) => v.kind !== 'short'), [vids]);
   const shorts = useMemo(() => vids.filter((v) => v.kind === 'short'), [vids]);
   // Nombre real del canal (cabecera pública); si aún no se ha leído, el que diste al seguirlo.
-  const name = h?.title ?? c?.name ?? vids[0]?.channel ?? 'Canal';
+  const name = h?.title ?? c?.name ?? pubData?.channel.name ?? vids[0]?.channel ?? 'Canal';
   useTitle(name);
   useEffect(() => { if (searching) searchRef.current?.focus(); }, [searching]);
   const act = async (fn: () => Promise<unknown>) => { try { if (!ownerKey) throw new Error('Pon tu clave de propietario en Ajustes.'); await fn(); channels.reload(); } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); } };
@@ -130,7 +142,7 @@ export default function Channel() {
     <div className="page channel-page">
       {h?.banner && <div className="ch-banner"><img src={h.banner} alt="" /></div>}
       <header className="ch-head">
-        <Avatar name={name} id={id} size={160} />
+        <Avatar name={name} id={id} src={pubData?.channel.avatar ?? undefined} size={160} />
         <div className="ch-info">
           <h1>{name}{h?.verified && <VerifiedBadge size={24} />}</h1>
           <p className="ch-meta">
@@ -149,6 +161,7 @@ export default function Channel() {
             </p>
           )}
           <div className="ch-actions">
+            {notFollowed && <button type="button" className="btn primary sub-btn" onClick={() => act(() => addChannel(id, name, ownerKey))}>Suscribirse</button>}
             {c && <BellMenu name={name} value={c.notify ?? 'all'} onChange={(v: Bell) => act(() => setChannelBell(id, v, ownerKey))} onUnfollow={() => act(() => removeChannel(id, ownerKey))} />}
           </div>
           {msg && <p className="bad-text">{msg}</p>}
@@ -166,9 +179,10 @@ export default function Channel() {
         </form>
       </div>
 
-      {all.loading && <p className="sub ch-loading">Cargando…</p>}
+      {loading && <p className="sub ch-loading">Cargando…</p>}
+      {notFollowed && pub?.id === id && pub.error && <Empty title="No se pudo cargar este canal"><p>{pub.error}</p></Empty>}
 
-      {tab === 'inicio' && !all.loading && (
+      {tab === 'inicio' && !loading && (
         <>
           {featId && (
             <section className="ch-featured">
@@ -187,19 +201,19 @@ export default function Channel() {
         </>
       )}
 
-      {tab === 'videos' && !all.loading && (longs.length
+      {tab === 'videos' && !loading && (longs.length
         ? <>{orderChips}<div className="vgrid ch-grid">{sortBy(longs, order).map(card)}</div></>
         : <Empty title="Sin vídeos recientes" />)}
 
-      {tab === 'shorts' && !all.loading && (shorts.length
+      {tab === 'shorts' && !loading && (shorts.length
         ? <>{orderChips}<div className="shorts-grid ch-grid">{sortBy(shorts, order).map(short)}</div></>
         : <Empty title="Sin Shorts recientes" />)}
 
-      {tab === 'buscar' && !all.loading && (hits.length
+      {tab === 'buscar' && !loading && (hits.length
         ? <div className="ch-results">{hits.map((v) => <VideoCard key={v.id} {...v} title={v.title ?? v.id} compact noChannel short={v.kind === 'short'} />)}</div>
         : <Empty title={q.trim() ? `No hay vídeos de este canal con «${q.trim()}»` : 'Escribe qué buscar en este canal'} />)}
 
-      <p className="note ch-scope">Se muestran los vídeos que TodoTube ha guardado de este canal ({vids.length}).</p>
+      <p className="note ch-scope">{notFollowed ? `Se muestran los ${vids.length} vídeos más recientes del canal.` : `Se muestran los vídeos que TodoTube ha guardado de este canal (${vids.length}).`}</p>
     </div>
   );
 }

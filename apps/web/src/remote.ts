@@ -2,8 +2,8 @@
 // Se carga bajo demanda para no pesar en la primera visita.
 import type { YTNodes } from 'youtubei.js/web';
 
-export type RemoteVideo = { id: string; title: string; channel: string; channelId: string; channelAvatar?: string; duration?: string; views?: string; published?: string; live: boolean; short: boolean };
-export type RemoteChannel = { id: string; name: string; avatar?: string; subs?: string; videos?: string };
+export type RemoteVideo = { id: string; title: string; channel: string; channelId: string; channelAvatar?: string; duration?: string; views?: string; published?: string; live: boolean; short: boolean; verified?: boolean; snippet?: string };
+export type RemoteChannel = { id: string; name: string; avatar?: string; subs?: string; videos?: string; handle?: string; about?: string; verified?: boolean };
 
 const best = (t?: { url: string; width?: number }[]) => (t && t.length ? [...t].sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0].url : undefined);
 const abs = (u?: string) => (u && u.startsWith('//') ? `https:${u}` : u);

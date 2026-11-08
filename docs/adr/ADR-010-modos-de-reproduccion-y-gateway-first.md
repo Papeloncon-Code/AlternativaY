@@ -1,6 +1,6 @@
 # ADR-010 · Modos de reproducción, fallback y propuesta «Gateway-first»
 
-- **Estado:** Aceptado en parte (2026-11-08). La parte «el servidor obtiene y retransmite los vídeos de YouTube» queda **rechazada**: no se construye.
+- **Estado:** Aceptado en parte (2026-11-08); actualizado el mismo día con la decisión del propietario de §«Objetivo del propietario». La parte «el servidor obtiene y retransmite los vídeos de YouTube» sigue **bloqueada**: no se construye.
 - **Relacionado con:** ADR-005 (la extracción se hace en el dispositivo), ADR-009 (PoC del gateway con vídeos propios), revisión del propietario en [Papeloncon-Code/AlternativaY#2](https://github.com/Papeloncon-Code/AlternativaY/pull/2) (2026-11-08), triage `docs/research/11` (PB-02).
 
 ## Contexto
@@ -30,3 +30,31 @@ Para que el servidor entregue un vídeo de YouTube, alguien tiene que pedirle a 
 ## Consecuencias
 - Sin Puente no hay reproductor propio. La web sigue funcionando con el reproductor oficial, y con datos públicos (fotos, cabeceras, visitas, duración) leídos sin API interna (ADR-006, enmiendas 3 a 5).
 - Si en el futuro YouTube ofreciera un acceso autorizado a sus vídeos, o el contenido fuera propio o con licencia, el gateway ya probado sería la base. Se revisaría en un ADR nuevo.
+
+## Objetivo del propietario (2026-11-08, segunda decisión)
+El propietario fija como objetivo:
+- que el gateway sea la ruta principal de reproducción y el reproductor propio con Puente la segunda;
+- quitarle funciones al Puente y, más adelante, eliminarlo, «como las otras alternativas a YouTube que no usan este puente».
+
+**Hecho hacia ese objetivo (sin eludir nada):** el Puente ya no hace falta para nada salvo reproducir con el reproductor propio.
+
+| Función | Antes | Ahora |
+|---|---|---|
+| Búsqueda en todo | 🔌 Puente | ✅ Servidor, página pública de resultados (ADR-006 enm. 6) |
+| Cualquier canal (también los no seguidos) | 🔌 Puente | ✅ Servidor, páginas públicas de canal (enm. 6) |
+| Fotos, banner, @usuario, suscriptores | 🔌 Puente | ✅ Servidor, una vez al día (enm. 3 y 4) |
+| ~30 vídeos por canal y su duración | 🔌 Puente | ✅ Servidor, una vez al día (enm. 5) |
+| Visitas, me gusta, descripción | 🔌 Puente | ✅ RSS público (enm. 3) |
+| **Reproducir con el reproductor propio, sin anuncios** | 🔌 Puente | 🔌 Puente (sin cambios) |
+
+**Lo que sigue bloqueado:** la reproducción. Las alternativas que funcionan sin extensión (Invidious, Piped) obtienen los vídeos desde sus servidores. Para ello generan en el servidor la prueba anti-robots de YouTube (PoToken/BotGuard) y van cambiando de IP cuando las bloquean. Es la elusión descrita arriba, y en este proyecto no se construye. Mientras YouTube no ofrezca un acceso autorizado:
+- sin Puente se reproduce con el reproductor oficial (youtube-nocookie);
+- con Puente, con el reproductor propio;
+- el gateway queda listo para contenido propio o con licencia.
+
+**Para eliminar el Puente de verdad** haría falta una de estas tres cosas:
+1. un acceso autorizado de YouTube a sus vídeos;
+2. que el catálogo sea propio o con licencia;
+3. aceptar el reproductor oficial como único reproductor web.
+
+Cualquiera de las tres se decidirá en un ADR nuevo.

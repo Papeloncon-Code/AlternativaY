@@ -34,10 +34,9 @@ test('P3–P6 · buscador: “/”, sugerencias, recientes, Esc; sin Puente expl
   await expect(page.locator('.suggest')).toHaveCount(0);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/buscar\?q=news/);
-  await expect(page.locator('.search-scope')).toContainText('canales que sigues');
-  await expect(page.locator('.search-scope a', { hasText: 'Instalar' })).toHaveAttribute('href', '/puente');
-  await page.goto('/buscar?q=fern');
-  await expect(page.getByText('Ninguno de tus canales ha publicado nada sobre «fern»')).toBeVisible();
+  // Sin Puente se busca en todo (el servidor lee la página pública de resultados): ya no hay aviso de «solo tus canales».
+  await expect(page.locator('.sresult').first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.search-scope')).toHaveCount(0);
   await page.locator('#q').fill(''); await page.locator('#q').focus();
   await expect(page.locator('.suggest li[role=option]', { hasText: 'news' })).toBeVisible();
   await page.locator('.suggest-x').first().click();
@@ -49,14 +48,15 @@ test('P8–P9 · avisos: el contador se borra al abrir; ⋮ oculta con Deshacer'
   await page.goto('/'); await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });
   await page.locator('.notif > button').click();
   await expect(page.locator('.notif-count')).toHaveCount(0);
-  const first = await page.locator('.notif-li .notif-text').first().textContent();
+  // Solo la línea del aviso: el «hace X minutos» puede cambiar durante la prueba (causa de los fallos intermitentes).
+  const first = await page.locator('.notif-li .notif-line').first().textContent();
   await page.locator('.notif-li').first().hover();
   await page.locator('.notif-kebab').first().click();
   await page.getByRole('menuitem', { name: 'Ocultar este aviso' }).click();
-  await expect(page.locator('.notif-li .notif-text').first()).not.toHaveText(first!);
+  await expect(page.locator('.notif-li .notif-line').first()).not.toHaveText(first!);
   await page.locator('.toast-act').click();
   await page.locator('.notif > button').click();
-  await expect(page.locator('.notif-li .notif-text').first()).toHaveText(first!);
+  await expect(page.locator('.notif-li .notif-line').first()).toHaveText(first!);
 });
 
 test('P10 · menú de cuenta: tema y combinaciones de teclas', async ({ page }) => {
@@ -162,11 +162,11 @@ test('Permisos · avisos con el diálogo nativo al llegar (como YouTube); luego 
   await ctx.close();
 });
 
-test('Puente simulado que falla: la búsqueda muestra el error, no se rompe', async ({ page }) => {
-  // Puente falso que rechaza todo: no sale ninguna petición a YouTube.
+test('Puente simulado que falla: la búsqueda no depende de él (la hace el servidor) y no se rompe', async ({ page }) => {
+  // Puente falso que rechaza todo: no sale ninguna petición a YouTube desde el navegador.
   await page.addInitScript(() => { (window as any).todotubeBridge = { installed: true, version: 'test', fetch: () => Promise.reject(new Error('sin red (prueba)')) }; });
   const ok = trackErrors(page);
   await page.goto('/buscar?q=lofi');
-  await expect(page.getByText('No se pudo buscar')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.sresult').first()).toBeVisible({ timeout: 20_000 });
   ok();
 });

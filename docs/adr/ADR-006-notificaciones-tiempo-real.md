@@ -143,3 +143,14 @@ sequenceDiagram
 2. A los vídeos ya conocidos se les añade la **duración** (y las visualizaciones si faltaban).
 3. Los que no conocíamos se añaden con **fecha aproximada** (`approx = 1`) y como «ya vistos» (`baseline`), **solo si tienen al menos 2 días**: así un vídeo recién subido nunca se registra antes de que llegue su aviso por WebSub (que lo daría por visto y no avisaría).
 4. El historial completo del canal sigue siendo 🔌 solo con Puente.
+
+## Enmienda 6 (2026-11-08): búsqueda en todo y cualquier canal, sin Puente
+**Problema (propietario):** «en la web no se puede buscar ningún vídeo aparte de estos 14; no tomemos por estúpidos a los usuarios». Sin Puente, la búsqueda solo miraba los canales seguidos.
+
+**Hallazgo (2026-11-08):** la página pública de resultados (`/results?search_query=…`, ~1,2 MB) trae ~20–40 vídeos (id, título, canal, foto del canal, verificado, duración, visualizaciones, antigüedad, fragmento de descripción) y los canales que coinciden (@usuario, suscriptores, descripción). Leída desde Cloudflare: 200 en ~1,2 s; análisis ~22 ms.
+
+**Decisión del propietario (2026-11-08):**
+1. `GET /api/search?q=` — el servidor lee la página pública de resultados **bajo demanda**. Si YouTube responde con una comprobación anti-robots, se devuelve error: **no se elude**.
+2. `GET /api/canal/:id` — cualquier canal, aunque no se siga: las mismas páginas públicas de Inicio y Vídeos de las enmiendas 4 y 5, bajo demanda.
+3. Privacidad: la consulta y el canal abierto llegan al servidor **de paso**. Solo se guardan unos minutos en memoria, para no repetir la petición, sin registros ni base de datos. YouTube ve la IP del servidor, no la del usuario. La página `/privacidad` lo explica.
+4. El Puente deja de hacer falta para buscar, ver canales y ver fotos. Solo se usa para el reproductor propio. Si la búsqueda del servidor falla y hay Puente, se usa el Puente como respaldo.

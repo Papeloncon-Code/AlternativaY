@@ -70,3 +70,8 @@ export function fetchVideo(id: string): Promise<VideoData | null> {
 }
 export const thumb = (id: string) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 export const shortThumb = (id: string) => `https://i.ytimg.com/vi/${id}/oar2.jpg`;
+
+// Búsqueda en todo y cualquier canal, sin Puente: el servidor lee las páginas públicas (ADR-006, enmienda 6).
+import type { RemoteChannel, RemoteVideo } from './remote';
+export const searchServer = (q: string) => get<{ videos: RemoteVideo[]; channels: RemoteChannel[] }>(`/api/search?q=${encodeURIComponent(q)}`);
+export const fetchPublicChannel = (id: string) => get<{ channel: { id: string; name: string; avatar: string | null; header: ChannelHeader | null }; videos: Video[] }>(`/api/canal/${id}`);

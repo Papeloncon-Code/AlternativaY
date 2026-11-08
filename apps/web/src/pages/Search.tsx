@@ -8,7 +8,7 @@ import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import { Empty, SkeletonGrid } from '../components/States';
 import { useBridge } from '../bridge';
-import { addChannel } from '../api';
+import { addChannel, searchServer } from '../api';
 import { useTitle } from '../title';
 import { getState } from '../store';
 import { setAvatar } from '../avatars';
@@ -17,7 +17,7 @@ import type { RemoteChannel, RemoteVideo } from '../remote';
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-// Búsqueda: con TodoTube Puente busca en todo (como el buscador de las apps de vídeo); sin él, en lo que publican tus canales.
+// Búsqueda en todo (spec 007 S1): el servidor lee la página pública de resultados; sin Puente. Respaldo: Puente o tus canales.
 export default function Search() {
   const [params] = useSearchParams();
   const q = params.get('q') ?? '';
@@ -33,15 +33,19 @@ export default function Search() {
   const followed = new Set((channels.data ?? []).map((c) => c.id));
   useTitle(q ? `${q} - Buscar` : 'Buscar');
 
+  // 1.º el servidor (páginas públicas, sin Puente); 2.º el Puente si está instalado; si ambos fallan, tus canales.
   useEffect(() => {
-    if (!bridge || !q.trim()) return;
+    if (!q.trim()) return;
     let alive = true;
     setError('');
-    import('../remote').then((m) => m.searchAll(q)).then((r) => {
-      if (!alive) return;
-      r.channels.forEach((c) => c.avatar && setAvatar(c.id, c.avatar));
-      setRemote({ q, ...r });
-    }).catch((e) => { if (alive) setError(e instanceof Error ? e.message : String(e)); });
+    searchServer(q)
+      .catch((e) => (bridge ? import('../remote').then((m) => m.searchAll(q)) : Promise.reject(e)))
+      .then((r) => {
+        if (!alive) return;
+        r.channels.forEach((c) => c.avatar && setAvatar(c.id, c.avatar));
+        setRemote({ q, ...r });
+      })
+      .catch((e) => { if (alive) setError(e instanceof Error ? e.message : String(e)); });
     return () => { alive = false; };
   }, [q, bridge]);
 
@@ -52,19 +56,19 @@ export default function Search() {
     catch (e) { toast(e instanceof Error ? e.message : 'No se pudo seguir el canal'); }
   }
 
-  if (bridge) {
+  if (!q.trim()) return <Navigate to="/" replace />;
+  if (!error) {
     const r = remote?.q === q ? remote : null;
     return (
       <div className="page narrow-list">
-        {error && <Empty title="No se pudo buscar"><p>{error}</p></Empty>}
-        {!r && !error && <SkeletonGrid n={4} />}
+        {!r && <SkeletonGrid n={4} />}
         {r && r.channels.map((c) => (
           <div key={c.id} className="search-channel">
-            <Avatar name={c.name} id={c.id} src={c.avatar} size={136} />
-            <span className="sc-info"><b>{c.name}</b><small>{[c.subs, c.videos].filter(Boolean).join(' · ')}</small></span>
+            <Link to={`/canal/${c.id}`} aria-label={`Canal ${c.name}`}><Avatar name={c.name} id={c.id} src={c.avatar} size={136} /></Link>
+            <span className="sc-info"><Link to={`/canal/${c.id}`}><b>{c.name}</b></Link><small>{[c.handle, c.subs, c.videos].filter(Boolean).join(' • ')}</small>{c.about && <small className="sc-about">{c.about}</small>}</span>
             {followed.has(c.id)
-              ? <Link className="btn" to={`/canal/${c.id}`}><Icon name="check" size={18} /> Siguiendo</Link>
-              : <button type="button" className="btn primary" onClick={() => void follow(c)}>Seguir</button>}
+              ? <Link className="btn" to={`/canal/${c.id}`}><Icon name="check" size={18} /> Suscrito</Link>
+              : <button type="button" className="btn primary" onClick={() => void follow(c)}>Suscribirse</button>}
           </div>
         ))}
         {r && r.videos.some((v) => v.short) && (
@@ -81,7 +85,8 @@ export default function Search() {
             <div className="sr-text">
               <Link to={`/ver/${v.id}`} state={{ meta: { id: v.id, title: v.title, channel: v.channel, channelId: v.channelId } }} className="vtitle">{v.title}</Link>
               <span className="vmeta">{[v.views, v.published].filter(Boolean).join(' · ')}</span>
-              <span className="sr-chan"><Avatar name={v.channel} id={v.channelId} src={v.channelAvatar} size={24} /> {v.channel}</span>
+              <Link to={`/canal/${v.channelId}`} className="sr-chan"><Avatar name={v.channel} id={v.channelId} src={v.channelAvatar} size={24} /> {v.channel}</Link>
+              {v.snippet && <span className="sr-snippet">{v.snippet}</span>}
             </div>
           </article>
         ))}
@@ -90,7 +95,6 @@ export default function Search() {
     );
   }
 
-  if (!q.trim()) return <Navigate to="/" replace />;
   const localVideos = vids.filter((v) => v.kind !== 'short');
   const localShorts = vids.filter((v) => v.kind === 'short');
   return (
@@ -98,13 +102,12 @@ export default function Search() {
       <p className="search-q">Resultados de «{q}»</p>
       <div className="search-scope">
         <Icon name="search2" size={20} />
-        <p>Ahora se busca solo en lo que publican los <b>{(channels.data ?? []).length} canales que sigues</b>. Para buscar en todo, como en cualquier app de vídeo, instala <b>TodoTube Puente</b>.</p>
-        <Link className="btn primary" to="/puente">Instalar</Link>
+        <p>La búsqueda en todo no responde ahora mismo ({error}). Mientras tanto, se busca en lo que publican los <b>{(channels.data ?? []).length} canales que sigues</b>.</p>
       </div>
       {chans.map((c) => (
         <Link key={c.id} to={`/canal/${c.id}`} className="search-channel"><Avatar name={c.name} id={c.id} size={88} /><span className="sc-info"><b>{c.name}</b><small>{c.videos} vídeos recientes</small></span></Link>
       ))}
-      {vids.length === 0 && chans.length === 0 && <Empty title={`Ninguno de tus canales ha publicado nada sobre «${q}»`}><p>Con TodoTube Puente podrás buscar en todo y seguir canales nuevos desde aquí.</p></Empty>}
+      {vids.length === 0 && chans.length === 0 && <Empty title={`Ninguno de tus canales ha publicado nada sobre «${q}»`}><p>Vuelve a intentarlo en un momento.</p></Empty>}
       {localShorts.length > 0 && (
         <section className="shelf" aria-label="Shorts"><h2><Icon name="shorts" size={22} /> Shorts</h2>
           <div className="shorts-row">{localShorts.map((v) => <ShortCard key={v.id} id={v.id} title={v.title ?? v.id} channel={v.channel} publishedAt={v.publishedAt} views={v.views} />)}</div>
