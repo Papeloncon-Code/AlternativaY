@@ -52,8 +52,7 @@ test('Shorts nunca carga el reproductor oficial de YouTube', async ({ page }) =>
   await expect(page.locator('.short-player .own-player')).toBeVisible();
   await expect(page.locator('.short-player iframe')).toHaveCount(0);
   await expect(page.locator('.own-player-error')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Abrir el vídeo original' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Abrir medios propios' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Abrir origen' })).toBeVisible();
 });
 
 test('#19 ↓ en el buscador no cambia de Short; #20 «Atrás» vuelve al Short anterior', async ({ page }) => {

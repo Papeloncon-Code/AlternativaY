@@ -55,14 +55,16 @@ test('#13 el reproductor ocupa todo el ancho; #16 el menu ⋮ no queda bajo la b
   expect(Math.round((await page.locator('#player-slot').boundingBox())!.width)).toBe(390);
 });
 
-test('minirreproductor móvil: conserva el reproductor propio y no crea iframe', async ({ page }) => {
+test('minirreproductor móvil: conserva la ficha externa y no crea iframe', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.vcard .vthumb').first()).toBeVisible({ timeout: 15_000 });
   await page.locator('.vcard .vthumb').first().click();
-  await expect(page.locator('.player-dock .own-player')).toBeVisible();
+  await expect(page.locator('.player-dock .own-player-error')).toBeVisible();
   await expect(page.locator('.player-dock iframe')).toHaveCount(0);
   await page.locator('.logo-link').click();
   await expect(page.locator('.player-dock')).toHaveClass(/mini/);
+  await expect(page.locator('.player-dock .own-player-compact')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Abrir vídeo original' })).toBeVisible();
   await expect(page.locator('.mini-cover')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

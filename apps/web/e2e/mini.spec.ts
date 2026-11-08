@@ -3,7 +3,7 @@ import { noPrompts, trackErrors } from './helpers';
 
 test.beforeEach(async ({ page }) => { await noPrompts(page); });
 
-test('W8 · el reproductor ocupa su hueco, pasa a mini al salir sin recargarse, y vuelve', async ({ page }) => {
+test('W8 · el reproductor ocupa su hueco; la ficha externa pasa a mini y vuelve', async ({ page }) => {
   const ok = trackErrors(page);
   await page.goto('/'); await expect(page.locator('.vcard').first()).toBeVisible({ timeout: 15_000 });
   const href = (await page.locator('.vcard .vthumb').first().getAttribute('href'))!;
@@ -15,18 +15,18 @@ test('W8 · el reproductor ocupa su hueco, pasa a mini al salir sin recargarse, 
   await page.waitForTimeout(500);
   const [h, s] = await Promise.all([host.boundingBox(), page.locator('#player-slot').boundingBox()]);
   for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(h![k] - s![k])).toBeLessThan(2);
-  // Marca el reproductor propio para comprobar que no se desmonta al pasar a mini.
-  await expect(page.locator('.player-dock .own-player')).toBeVisible();
-  await page.locator('.player-dock .own-player').evaluate((e) => { (e as HTMLElement).dataset.mark = 'mismo'; });
+  // No hay stream YouTube dentro de TodoTube: al salir de Watch, la ficha compacta ofrece abrir el origen.
+  await expect(page.locator('.player-dock .own-player-error')).toBeVisible();
   await expect(page.locator('.player-dock iframe')).toHaveCount(0);
   await page.locator('.logo-link').click();
   await expect(host).toHaveClass(/mini/);
-  await expect(page.locator('.player-dock .own-player')).toHaveAttribute('data-mark', 'mismo');
+  await expect(page.locator('.player-dock .own-player-compact')).toContainText('Contenido externo');
+  await expect(page.getByRole('link', { name: 'Abrir vídeo original' })).toBeVisible();
   await expect(page.locator('.mini-cover')).toHaveCount(0);
   await page.locator('.mini-text').click();
   await expect(page).toHaveURL(href);
   await expect(host).toHaveClass(/on-page/);
-  await expect(page.locator('.player-dock .own-player')).toHaveAttribute('data-mark', 'mismo');
+  await expect(page.locator('.player-dock .own-player-error')).toBeVisible();
   // Cerrar desde el mini reproductor
   await page.locator('.logo-link').click();
   await page.getByRole('button', { name: 'Cerrar el mini reproductor' }).click();
