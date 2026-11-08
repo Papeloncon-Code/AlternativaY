@@ -71,7 +71,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - if: steps.hay.outputs.si == 'true'
         working-directory: apps/media-gateway
-        run: npm ci && (cd ../web && npm ci) && npx playwright install --with-deps chromium && npm run test:all
+        # La prueba de navegador usa «playwright» (en este entorno viene preinstalado): en CI se instala sin guardarlo,
+        # en la misma versión que @playwright/test de la web.
+        run: |
+          npm ci && (cd ../web && npm ci)
+          npm i --no-save "playwright@$(node -p "require('../web/node_modules/@playwright/test/package.json').version")"
+          npx playwright install --with-deps chromium
+          npm run test:all
 
   desplegar:
     name: Despliegue en Cloudflare y humo en producción
