@@ -15,7 +15,7 @@ async function measure(page: Page, screen: string): Promise<Metric> {
       '.topbar', '.mobile-feed-tabs', '.side', '.rail', '.bottombar', '.main', '.page',
       '.vgrid', '.vcard', '.vthumb', '.shorts-stage', '.short-player',
       '.short-nav', '.watch-layout', '#player-slot', '.watch-main',
-      '.watch-side', '.notif-panel', '.account-menu'
+      '.watch-side', '.notif-panel', '.account-menu', '.create-menu', '.create-playlist-form', '.create-quick-actions'
     ];
     const elements: Metric['elements'] = {};
     for (const selector of selectors) {
@@ -145,5 +145,9 @@ test('Visual audit · móvil 390×844 · pantallas, búsqueda y navegación infe
   await page.mouse.wheel(0, 120);
   await expect(page.locator('.mobile-feed-tabs')).toHaveClass(/is-collapsed/);
   metrics.push(await capture(page, info, 'mobile-390x844', '09-feed-tabs-collapsed'));
+  await ready(page, '/', '.vcard');
+  await page.locator('.bottombar .tab-create').click();
+  await expect(page.getByRole('dialog', { name: 'Crear en TodoTube' })).toBeVisible();
+  metrics.push(await capture(page, info, 'mobile-390x844', '10-crear-abierto'));
   await saveMetrics(info, 'mobile-390x844', metrics);
 });
