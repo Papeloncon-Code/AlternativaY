@@ -74,12 +74,13 @@ test('Visual audit · desktop 1440×900 · pantallas y menús', async ({ page },
     { name: '02-shorts', url: '/shorts', selector: '.short-player' },
     { name: '03-watch', url: '/ver/dQw4w9WgXcQ', selector: '.watch-title' },
     { name: '04-canal', url: '/canal/UCNye-wNBqNL5ZzHSJj3l8Bg', selector: '.ch-head' },
-    { name: '05-suscripciones', url: '/suscripciones', selector: '.channel-list' },
-    { name: '06-busqueda', url: '/buscar?q=news', selector: '.sresult' },
-    { name: '07-tu', url: '/tu', selector: '.page-title' },
-    { name: '08-ajustes', url: '/ajustes', selector: '.page-head' },
-    { name: '09-medios', url: '/medios', selector: '.media-library' },
-    { name: '10-privacidad', url: '/privacidad', selector: '.privacy' }
+    { name: '05-suscripciones', url: '/suscripciones', selector: '.subscription-feed' },
+    { name: '06-gestionar-suscripciones', url: '/suscripciones/gestionar', selector: '.channel-list' },
+    { name: '07-busqueda', url: '/buscar?q=news', selector: '.sresult' },
+    { name: '08-tu', url: '/tu', selector: '.page-title' },
+    { name: '09-ajustes', url: '/ajustes', selector: '.page-head' },
+    { name: '10-medios', url: '/medios', selector: '.media-library' },
+    { name: '11-privacidad', url: '/privacidad', selector: '.privacy' }
   ];
   for (const screen of screens) {
     await ready(page, screen.url, screen.selector);
@@ -122,9 +123,10 @@ test('Visual audit · móvil 390×844 · pantallas, búsqueda y navegación infe
     { name: '01-inicio', url: '/', selector: '.vcard' },
     { name: '02-shorts', url: '/shorts', selector: '.short-player' },
     { name: '03-watch', url: '/ver/dQw4w9WgXcQ', selector: '.watch-title' },
-    { name: '04-suscripciones', url: '/suscripciones', selector: '.channel-list' },
-    { name: '05-tu', url: '/tu', selector: '.page-title' },
-    { name: '06-ajustes', url: '/ajustes', selector: '.page-head' }
+    { name: '04-suscripciones', url: '/suscripciones', selector: '.subscription-feed' },
+    { name: '05-gestionar-suscripciones', url: '/suscripciones/gestionar', selector: '.channel-list' },
+    { name: '06-tu', url: '/tu', selector: '.page-title' },
+    { name: '07-ajustes', url: '/ajustes', selector: '.page-head' }
   ]) {
     await ready(page, screen.url, screen.selector);
     metrics.push(await capture(page, info, 'mobile-390x844', screen.name));
