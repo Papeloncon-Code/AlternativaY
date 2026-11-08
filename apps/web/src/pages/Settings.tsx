@@ -34,7 +34,7 @@ export default function Settings() {
     try {
       let j; try { j = JSON.parse(await f.text()); } catch { throw new Error('Este archivo no es una copia de TodoTube.'); }
       if (j?.app !== 'todotube' || typeof j.data !== 'object' || !j.data) throw new Error('Este archivo no es una copia de TodoTube.');
-      const allowed = ['favorites', 'watchLater', 'history', 'progress', 'watched', 'hidden', 'notifHidden', 'searches', 'theme', 'autoplay', 'theater', 'sidebar', 'focus', 'dearrow', 'blockWords', 'groups', 'playlists'];
+      const allowed = ['favorites', 'watchLater', 'history', 'progress', 'watched', 'hidden', 'notifHidden', 'searches', 'theme', 'theater', 'sidebar', 'focus', 'dearrow', 'blockWords', 'groups', 'playlists'];
       const data = Object.fromEntries(Object.entries(j.data).filter(([k]) => allowed.includes(k)));
       if (!confirm(`Se sustituirán tus datos de este navegador (historial, Me gusta, Ver más tarde…) por los de la copia del ${String(j.exportedAt ?? '').slice(0, 10) || 'archivo'}. ¿Continuar?`)) return;
       actions.importAll(data);

@@ -11,7 +11,6 @@ type State = {
   sidebar: 'full' | 'mini';
   notifSeenAt: number;
   theater: boolean;
-  autoplay: boolean;
   hidden: Record<string, number>;
   notifHidden: Record<string, number>;
   searches: string[];
@@ -31,14 +30,15 @@ type State = {
 };
 
 const KEY = 'todotube:v1';
-const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, autoplay: true, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system', dearrow: false, promptDismissed: {}, visitAt: 0, visitPrev: 0, blockWords: [], groups: [], playlists: [] };
+const empty: State = { favorites: {}, watchLater: {}, sidebar: 'full', notifSeenAt: 0, theater: false, hidden: {}, notifHidden: {}, searches: [], focus: false, progress: {}, history: [], watched: {}, ownerKey: '', theme: 'system', dearrow: false, promptDismissed: {}, visitAt: 0, visitPrev: 0, blockWords: [], groups: [], playlists: [] };
 
 function load(): State {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return empty;
-    const saved = JSON.parse(raw) as Partial<State> & { sponsorblock?: boolean };
+    const saved = JSON.parse(raw) as Partial<State> & { sponsorblock?: boolean; autoplay?: boolean };
     delete saved.sponsorblock;
+    delete saved.autoplay;
     return { ...empty, ...saved };
   } catch {
     return empty;
@@ -119,7 +119,6 @@ export const actions = {
     });
   },
   toggleTheater() { set((s) => ({ ...s, theater: !s.theater })); },
-  toggleAutoplay() { set((s) => ({ ...s, autoplay: !s.autoplay })); },
   addBlockWord(w: string) { const v = w.trim().toLowerCase(); if (v) set((s) => ({ ...s, blockWords: [...new Set([...s.blockWords, v])] })); },
   removeBlockWord(w: string) { set((s) => ({ ...s, blockWords: s.blockWords.filter((x) => x !== w) })); },
   addGroup(name: string) { const id = Math.random().toString(36).slice(2, 9); set((s) => ({ ...s, groups: [...s.groups, { id, name: name.trim(), channels: [] }] })); return id; },

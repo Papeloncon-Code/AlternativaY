@@ -67,7 +67,7 @@ test('P10 · menú de cuenta: tema y combinaciones de teclas', async ({ page }) 
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.getByRole('button', { name: 'Menú de cuenta' }).click();
   await page.getByText('Combinaciones de teclas').click();
-  await expect(page.locator('.modal .keys > div')).toHaveCount(4);
+  await expect(page.locator('.modal .keys > div')).toHaveCount(5);
   await page.keyboard.press('Escape');
   await expect(page.locator('.modal')).toHaveCount(0);
 });
