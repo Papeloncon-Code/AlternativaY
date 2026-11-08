@@ -63,7 +63,6 @@ export default function PlayerHost() {
         {own ? <OwnPlayer key={s.id} {...props} onFail={(r) => patch({ fallback: r })} onDetails={(d) => patch({ details: d })} />
           : <OfficialPlayer key={s.id} {...props} />}
       </div>
-      {!onPage && <button type="button" className="mini-cover" aria-label="Volver al vídeo" onClick={() => navigate(back)} />}
       {!onPage && (
         <div className="mini-bar">
           <button type="button" className="mini-text" onClick={() => navigate(back)} title="Volver al vídeo">

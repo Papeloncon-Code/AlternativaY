@@ -93,8 +93,11 @@ test('S1–S2 · Shorts: abre el reproductor vertical y pasa con teclas y rueda'
   await expect(page).not.toHaveURL(u1);
   const u2 = page.url();
   await page.waitForTimeout(700); // bloqueo anti doble salto de 600 ms
-  const box = await page.locator('.short-player').boundingBox();
-  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  // Rueda sobre el escenario, a un lado del vídeo. Desde 4931fed no se pone ninguna capa encima del reproductor oficial
+  // (sus controles y su atribución deben quedar libres), así que la rueda sobre el propio iframe la recibe YouTube.
+  const stage = await page.locator('.shorts-stage').boundingBox();
+  const player = await page.locator('.short-player').boundingBox();
+  await page.mouse.move(stage!.x + Math.max(10, (player!.x - stage!.x) / 2), player!.y + player!.height / 2);
   await page.mouse.wheel(0, 300);
   await expect(page).not.toHaveURL(u2);
 });

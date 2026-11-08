@@ -96,9 +96,11 @@ test('S1 · sin Puente se busca en todo: canales y vídeos de fuera de tus suscr
 });
 
 test('C3 · cualquier canal, aunque no lo sigas: cabecera, vídeos con duración y «Suscribirse»', async ({ page }) => {
-  await page.goto('/canal/UCuTIiHyNqELu6RNtB4AahAA/videos'); // John Acquaviva (no está entre los seguidos)
-  await expect(page.locator('.ch-info h1')).toContainText('John Acquaviva', { timeout: 20_000 });
-  await expect(page.locator('.ch-meta')).toContainText('@JohnAcquaviva');
+  const ID = 'UCuTIiHyNqELu6RNtB4AahAA'; // no está entre los seguidos (en producción, John Acquaviva; en CI, datos sintéticos)
+  const want = await (await page.request.get(`/api/canal/${ID}`)).json();
+  await page.goto(`/canal/${ID}/videos`);
+  await expect(page.locator('.ch-info h1')).toContainText(want.channel.header?.title ?? want.channel.name, { timeout: 20_000 });
+  if (want.channel.header?.handle) await expect(page.locator('.ch-meta')).toContainText(want.channel.header.handle);
   await expect(page.getByRole('button', { name: 'Suscribirse' })).toBeVisible();
   expect(await page.locator('.ch-grid .vcard').count()).toBeGreaterThanOrEqual(10);
   await expect(page.locator('.ch-grid .vdur').first()).toHaveText(/^\d{1,2}(:\d{2}){1,2}$/);

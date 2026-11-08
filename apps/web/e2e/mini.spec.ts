@@ -20,6 +20,10 @@ test('W8 · el reproductor ocupa su hueco, pasa a mini al salir sin recargarse, 
   await page.locator('.logo-link').click();
   await expect(host).toHaveClass(/mini/);
   await expect(page.locator('.player-dock iframe')).toHaveAttribute('data-mark', 'mismo');
+  await expect(page.locator('.mini-cover')).toHaveCount(0);
+  const miniFrame = await page.locator('.player-dock iframe').boundingBox();
+  expect(miniFrame!.width).toBeGreaterThanOrEqual(200);
+  expect(miniFrame!.height).toBeGreaterThanOrEqual(200);
   await page.locator('.mini-text').click();
   await expect(page).toHaveURL(href);
   await expect(host).toHaveClass(/on-page/);
