@@ -1,13 +1,13 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import OwnPlayer from './OwnPlayer';
+import YouTubePlayer from './YouTubePlayer';
 import Icon from './Icon';
 import { stop, useSession } from '../player/session';
 
 /** Elemento que ocupa el reproductor (para pantalla completa con “f”). */
 export const hostEl: { current: HTMLDivElement | null } = { current: null };
 
-// Una sola ficha de origen por sesión. No se simula reproducción si el origen no ofrece un stream autorizado.
+// Una sola sesión de reproducción: el iframe permanece montado al navegar fuera de la ficha.
 export default function PlayerHost() {
   const s = useSession();
   const loc = useLocation();
@@ -39,21 +39,17 @@ export default function PlayerHost() {
     ? (rect ? { position: 'absolute', ...rect } : { position: 'absolute', visibility: 'hidden' })
     : {};
   const back = '/ver/' + s.id + (s.list ? '?lista=' + s.list : '');
-  const original = 'https://www.youtube.com/watch?v=' + encodeURIComponent(s.id) + (s.startAt > 0 ? '&t=' + Math.floor(s.startAt) + 's' : '');
 
   return (
     <div ref={box} className={'player-dock' + (onPage ? ' on-page' : ' mini') + (s.vertical ? ' vertical' : '')} style={style}>
       <div className="player-dock-video">
-        <OwnPlayer key={s.id} id={s.id} startAt={s.startAt} compact={!onPage} />
+        <YouTubePlayer key={s.id} id={s.id} startAt={s.startAt} title={s.meta.title} />
       </div>
       {!onPage && (
         <div className="mini-bar">
           <button type="button" className="mini-text" onClick={() => navigate(back)} title="Volver a la ficha del vídeo">
-            <b className="ellipsis">{s.meta.title}</b><span className="ellipsis">{s.meta.channel || 'Contenido externo'}</span>
+            <b className="ellipsis">{s.meta.title}</b><span className="ellipsis">{s.meta.channel || 'YouTube'}</span>
           </button>
-          <a className="icon-btn mini-source" aria-label="Abrir vídeo original" title="Abrir vídeo original" href={original} target="_blank" rel="noreferrer">
-            <Icon name="external-link" size={20} />
-          </a>
           <button type="button" className="icon-btn mini-expand" aria-label="Volver a la ficha" onClick={() => navigate(back)}><Icon name="expand" size={20} /></button>
           <button type="button" className="icon-btn" aria-label="Cerrar el minirreproductor" onClick={stop}><Icon name="close" size={20} /></button>
         </div>
