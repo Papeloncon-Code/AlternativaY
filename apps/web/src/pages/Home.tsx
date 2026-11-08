@@ -91,7 +91,7 @@ export default function Home() {
       {feed.loading && <SkeletonGrid n={8} />}
       {feed.error && <ErrorBox message={`No se pudieron cargar las novedades (${feed.error}).`} onRetry={feed.reload} />}
       {feed.data && feed.data.length === 0 && (
-        <Empty title="Aún no hay vídeos"><p>Sigue algún canal y sus vídeos aparecerán aquí en cuanto se publiquen.</p><Link className="btn primary" to="/suscripciones">Añadir canales</Link></Empty>
+        <Empty title="Aún no hay vídeos"><p>Sigue algún canal y sus vídeos aparecerán aquí en cuanto se publiquen.</p><Link className="btn primary" to="/suscripciones/gestionar">Añadir canales</Link></Empty>
       )}
       {feed.data && feed.data.length > 0 && videos.length === 0 && (
         <Empty title="Nada con este filtro"><button type="button" className="btn" onClick={() => setChip('todos')}>Ver todos</button></Empty>
