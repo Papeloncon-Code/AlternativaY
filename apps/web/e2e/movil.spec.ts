@@ -21,16 +21,14 @@ test('buscador móvil: abrir, sugerir y cerrar con Esc', async ({ page }) => {
   await expect(page.locator('.topbar.searching')).toHaveCount(0);
 });
 
-test('Shorts: deslizar hacia arriba pasa al siguiente', async ({ page }) => {
-  await page.goto('/shorts'); await expect(page).toHaveURL(/\/shorts\/[\w-]{11}/);
+test('Shorts móvil: el fallback navega con botones externos sin cubrir el iframe', async ({ page }) => {
+  await page.goto('/shorts');
+  await expect(page).toHaveURL(/\/shorts\/[\w-]{11}/);
   const u1 = page.url();
-  const box = await page.locator('.short-player').boundingBox();
-  const x = box!.x + box!.width / 2, y = box!.y + box!.height * 0.6;
-  await page.evaluate(([x, y]) => {
-    const el = document.elementFromPoint(x, y)!; const t = (yy: number) => new Touch({ identifier: 1, target: el, clientX: x, clientY: yy });
-    el.dispatchEvent(new TouchEvent('touchstart', { touches: [t(y)], changedTouches: [t(y)], bubbles: true }));
-    el.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(y - 200)], bubbles: true }));
-  }, [x, y]);
+  await expect(page.locator('.shorts-stage.official')).toHaveCount(1);
+  await expect(page.locator('.short-gesture')).toHaveCount(0);
+  await expect(page.locator('.short-nav')).toBeVisible();
+  await page.locator('.short-nav button[aria-label="Short siguiente"]').click();
   await expect(page).not.toHaveURL(u1);
 });
 
