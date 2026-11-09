@@ -95,3 +95,10 @@ Fuentes: [selector de Materialious](https://raw.githubusercontent.com/Materialio
 ## Puerta de aceptación final E4
 
 La aceptación de playback exige que un vídeo sí se reproduzca en una sesión E4 real del TodoTube desplegado: metadata, primer frame, dimensiones válidas, imagen en movimiento, audio audible y sincronizado, `currentTime` avanzando, seek en ambos sentidos, controles propios y recuperación de una interrupción transitoria en staging con el mismo asset/timeline. Las denegaciones deben detener la cadena y mostrar un error real como prueba de seguridad separada; no cuentan como éxito de reproducción. Una prueba con fixtures o un HTTP 200 no cierra la incidencia. Ver `docs/testing/real-playback-release-gate.md`.
+## SABR: attestation y protección del stream
+
+La ruta SABR para WEB/MWEB debe preparar el contexto de attestation del cliente con `innertube.getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND')` antes de conectar `SabrStreamingAdapter`. El desafío se ejecuta en la misma sesión/identidad y con el API público de YouTube.js; no es una evasión ni usa un servidor auxiliar.
+
+`ShakaPlayerAdapter` transmite `StreamProtectionStatus` detectado en UMP al runtime. Para estado `3`, el runtime re-primea attestation y renueva el WebPO mediante el `BotguardService` del navegador existente. La operación se deduplica y limita con cooldown; no cambia cliente, IP, proxy ni instancia remota.
+
+La respuesta Onesie no se debe considerar SABR-ready por tener un campo UStreamer no vacío. Materialious construye SABR con el `/player` WEB normal y Invidious PR #5814 documenta una diferencia de contextos SABR entre Onesie y el player normal. TodoTube deja de enviar `sendVideoPlaybackConfig=false`, pero aún necesita evidencia real de que el servidor devuelve contextos/segmentos y permite seek. El comportamiento debe verificarse mediante UMP telemetry segura y E4.
