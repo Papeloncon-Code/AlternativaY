@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | Implementación web inicial en PR #37; matriz real de vídeo/audio pendiente |
+| Estado | PR #37: build y 86/86 Playwright verdes; reproducción real en navegador pendiente |
 | Decisión rectora | ADR-013 |
 | Broker | Especificación 009 |
 | Plataformas | Web Chrome/Edge (Bridge MV3); Android/Desktop vía providers nativos futuros |
@@ -17,6 +17,7 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 1. PlayerHost consulta si existe una copia autorizada en R2.
 2. Si existe, reproduce en GatewayPlayer. Si R2 no está disponible, usa YouTubeSabrPlayer.
 3. TodoTube Bridge habilita el acceso del navegador a las solicitudes necesarias desde el origen TodoTube.
+   - Requisito actual: instalación manual de Bridge en Chrome/Edge. Sin él, la web no puede ejecutar la ruta SABR y presenta un error recuperable; no hay iframe como fallback.
 4. YouTubeSabrRuntime crea sesiones InnerTube independientes para los perfiles soportados.
 5. WEB intenta Onesie primero y cae a InnerTube estándar en el mismo perfil.
 6. Cada respuesta puede producir candidatos SABR, DASH, HLS o progresivo. Solo se intenta una fuente que exponga datos utilizables.
@@ -40,7 +41,9 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 
 ## Validación pendiente para cerrar
 
-- Instalar la extensión TodoTube Bridge compilada por CI.
+- Instalar la extensión TodoTube Bridge compilada por CI en Chrome y Edge.
+- Probar desde una instalación limpia sin Bridge y comprobar que el error explica el requisito sin crear iframe.
+- Probar el flujo con Bridge activo; CI Playwright no sustituye esta verificación.
 - Reproducir un vídeo público corto, un vídeo largo (>1 h), un vídeo con audio adaptativo, un Short y un directo cuando la fuente entregue una ruta compatible.
 - Forzar fallo de Onesie, perfil WEB, SABR y R2 para demostrar failover.
 - Verificar audio, seek, reanudación y ausencia de audio duplicado.
