@@ -43,6 +43,8 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npx tsc -b
+      - name: Validate production Gateway browser-smoke script syntax
+        run: node --check scripts/live-media-gateway-smoke.mjs
       - run: npx playwright install --with-deps chromium
       - name: Iniciar API local determinista para Playwright
         env: { E2E_API_PORT: '4174' }
