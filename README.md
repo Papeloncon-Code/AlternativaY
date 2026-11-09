@@ -24,6 +24,10 @@ El cambio automático de fuente conserva posición, play/pause, volumen y veloci
 
 **Estado de implementación:** PR #37 integra PlayerHost, Playback Broker, Shaka/SABR/Onesie, transportes y clientes alternativos y Bridge MV3. La rama compila y pasa 86 pruebas Playwright y CodeQL, pero aún no está fusionada ni desplegada. CI valida contratos/UI con fixtures, no demuestra reproducción audiovisual desde YouTube.
 
+### Diagnóstico y recuperación SABR
+
+La ruta SABR utiliza ahora la attestation oficial de YouTube.js en la misma sesión WEB/MWEB antes de adjuntar el adaptador. El adaptador comunica `StreamProtectionStatus`; si informa estado `3`, el runtime actualiza attestation y renueva el WebPO con el `BotguardService` local, con deduplicación/cooldown. Onesie no envía `sendVideoPlaybackConfig=false`. Estos cambios están en PR #47 y siguen pendientes de prueba E4 real. No añaden proxy, egress alternativo ni servidor externo de tokens.
+
 ### Criterio definitivo de aceptación
 
 La reproducción solo se considera terminada cuando un vídeo real reproduce imagen y sonido dentro del player TodoTube, avanza, permite seek hacia delante y atrás, responde a los controles propios y demuestra recuperación segura en el navegador/despliegue objetivo. Build, TypeScript, Playwright con fixtures, health checks, metadatos, manifests o URLs son pruebas intermedias, no éxito final. La matriz y el procedimiento obligatorios están en [la puerta de aceptación E4](docs/testing/real-playback-release-gate.md).
