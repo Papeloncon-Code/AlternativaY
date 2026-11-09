@@ -132,6 +132,12 @@ jobs:
       - name: Avisar que el despliegue quedó desactivado
         if: steps.secretos.outputs.ok != 'true'
         run: echo "::notice::CI pasó, pero no hay credenciales Cloudflare. No se modificó producción."
+      - name: Publicar paquete TodoTube Bridge dentro de la web
+        if: steps.secretos.outputs.ok == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: todotube-browser-bridge-${{ github.sha }}
+          path: apps/web/public
       - name: Servidor de avisos
         if: steps.secretos.outputs.ok == 'true'
         working-directory: spikes/websub
