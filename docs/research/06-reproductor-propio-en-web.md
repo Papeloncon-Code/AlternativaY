@@ -25,8 +25,8 @@ La web sin extensión/bridge no dispone por sí sola de los permisos de origen n
 | [Kira](https://github.com/LuanRT/kira) | Shaka + googlevideo/SABR + youtubei.js + BgUtils + Bridge | Implementación web de referencia; código adaptado con atribución MIT |
 | [googlevideo](https://github.com/LuanRT/googlevideo) | Adaptador SABR/UMP para Shaka | Dependencia de transporte |
 | [youtubei.js](https://github.com/LuanRT/YouTube.js) | Sesiones y clientes InnerTube | Resolución de vídeo |
-| [Flow Android](https://github.com/Flow-YouTube/Flow) | Cadena de clientes nativa y recuperación de playback | Referencia de resiliencia; no se copia implementación GPL |
-| [Flow Desktop](https://github.com/Flow-YouTube/Flow-Desktop) | SABR, manifiestos, revalidación y proxy local | Referencia arquitectónica; no se copia implementación GPL |
+| [Flow Android](https://github.com/Flow-Tube/Flow) | Cadena de clientes nativa y recuperación de playback | Referencia de resiliencia; no se copia implementación GPL |
+| [Flow Desktop](https://github.com/Flow-Tube/Flow-Desktop) | SABR, manifiestos, revalidación y proxy local | Referencia arquitectónica; no se copia implementación GPL |
 
 ## Límites conocidos de la primera versión
 
@@ -39,3 +39,10 @@ La web sin extensión/bridge no dispone por sí sola de los permisos de origen n
 ## Validación obligatoria
 
 Ver ADR-013 y la matriz de pruebas de la especificación 010: vídeo corto, largo, audio adaptativo, Short, directo, cambio de origen, reanudación y fallos inducidos.
+
+
+## Actualización de referencia Flow — 2026-11-09
+
+Flow v3.0.0 (publicado el 18 de octubre de 2026) dejó de utilizar NewPipeExtractor y pasó a su propio cliente InnerTube. Flow Desktop implementa el cliente nativo en Rust/Tauri, con resolución de playback, BotGuard/PoToken y rutas SABR/manifiestos. Es una referencia técnica útil, pero no un módulo JavaScript listo para importar en la web de TodoTube. Flow Desktop declara licencia GPL-3.0-only; no copiar su implementación sin revisar la compatibilidad de licencias del proyecto.
+
+Fuentes primarias: [Flow v3.0.0](https://github.com/Flow-Tube/Flow/releases/tag/v3.0.0), [Flow Desktop](https://github.com/Flow-Tube/Flow-Desktop), [licencia de Flow Desktop](https://github.com/Flow-Tube/Flow-Desktop/blob/main/LICENSE).
