@@ -2,7 +2,7 @@
 
 Principios rectores del producto. Se pueden revisar mediante ADR aprobado por el propietario; ningún documento histórico ni limitación heredada puede bloquear el objetivo vigente.
 
-Versión 4.0 · 2026-11-08 · Dirección de reproducción unificada definida por ADR-013.
+Versión 4.0 · 2026-11-09 · Dirección de reproducción unificada definida por ADR-013.
 
 ## I. Objetivo, seguridad y sostenibilidad
 
