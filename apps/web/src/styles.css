@@ -1015,3 +1015,45 @@ img.avatar { object-fit: cover; background: var(--chip); }
   min-height: 38px;
   box-sizing: border-box;
 }
+
+
+/* Shorts utiliza el mismo player Shaka propio, en un marco vertical. */
+.short-player .youtube-sabr-player {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.short-player .youtube-sabr-player .gateway-video {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  flex: 1 1 auto;
+  width: 100%;
+  height: 0;
+  min-height: 0;
+  max-width: 100%;
+  max-height: none;
+  aspect-ratio: auto;
+  object-fit: contain;
+}
+.short-player .youtube-sabr-player .gateway-controls {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+}
+.short-player .youtube-sabr-player .gateway-seek {
+  order: 10;
+  flex: 1 0 100%;
+  min-width: 0;
+}
+.short-player .youtube-sabr-player .gateway-volume { display: none; }
+.short-player .youtube-sabr-player .gateway-time { min-width: 34px; font-size: 11px; }
+.short-player .short-caption { bottom: 74px; }
