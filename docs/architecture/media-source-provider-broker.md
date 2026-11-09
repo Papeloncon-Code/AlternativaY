@@ -1,6 +1,6 @@
 # Source Provider Broker · arquitectura de reproducción
 
-**Estado:** implementación inicial en PR #37; dirección rectora ADR-013.
+**Estado:** implementación inicial fusionada en `main` mediante PR #37; las correcciones de transporte/diagnóstico de PR #39–#43 también están integradas. La última prueba smoke aún recibe HTTP 400 en `/youtubei/v1/player`; falta validar reproducción audiovisual real.
 
 ## Objetivo
 
@@ -18,7 +18,7 @@ Un solo reproductor TodoTube y varios proveedores/rutas detrás de un contrato c
 
 | Provider | Función | Estado |
 |---|---|---|
-| YouTube browser runtime | Resuelve mediante InnerTube/Onesie y reproduce por SABR/DASH/HLS/progresivo | Primera integración en PR #37; falta matriz manual |
+| YouTube browser runtime | Resuelve mediante InnerTube/Onesie y reproduce por SABR/DASH/HLS/progresivo | Integrado en `main`; smoke actual con HTTP 400 pendiente de resolver y matriz real pendiente |
 | TodoTube R2 | Copia propia/licenciada del mismo asset, Range y réplica | Worker implementado; operación real por verificar |
 | Creator-origin | HLS/DASH/URL firmada entregada por el titular | Siguiente adaptador a implementar |
 | Native Android/Desktop | Runtime nativo detrás del mismo contrato | Fase posterior |
@@ -72,4 +72,4 @@ El runtime recibe resumeAt y wasPlaying. El player conserva posición, volumen, 
 - Confirmar audio y vídeo completos, seek, buffering y fullscreen en navegadores objetivo.
 - Medir TTFF, tasa de buffer y tiempo de failover.
 
-El código presente en PR #37 es una primera integración. No se certifica playback completo hasta ejecutar pruebas reales de navegador y medios.
+El código de PR #37 ya está integrado en `main`; PR #39–#43 añadieron correcciones posteriores. No se certifica playback completo mientras la prueba smoke de `/youtubei/v1/player` siga devolviendo HTTP 400 y no exista evidencia de audio/vídeo real, seek y failover.
