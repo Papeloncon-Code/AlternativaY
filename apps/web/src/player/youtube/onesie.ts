@@ -13,7 +13,6 @@ import type { ApiResponse } from 'youtubei.js/web';
 import { Constants } from 'youtubei.js/web';
 import { CompositeBuffer, UmpReader } from 'googlevideo/ump';
 import { base64ToU8 } from 'googlevideo/utils';
-import type { Part } from 'googlevideo/shared-types';
 import { InnerTubePlayerHttpError } from './failurePolicy';
 import {
   encryptRequest,
@@ -27,7 +26,7 @@ type OnesieRequestArgs = {
   innertubeRequest: Record<string, any>;
 };
 
-type PartHandler = (part: Part) => void;
+type PartHandler = (data: CompositeBuffer) => void;
 
 export function encodeOnesieRequestEnvelope(args: {
   innertubeRequest: Record<string, any>;
@@ -132,25 +131,40 @@ export async function makePlayerRequest(args: OnesieRequestArgs): Promise<ApiRes
   }
 
   const arrayBuffer = await response.arrayBuffer();
-  const reader = new UmpReader(new CompositeBuffer([new Uint8Array(arrayBuffer)]));
   const onesie: Array<ReturnType<typeof OnesieHeader.decode> & { data?: Uint8Array }> = [];
 
+  const toBytes = (buffer: CompositeBuffer): Uint8Array => {
+    if (buffer.chunks.length === 1) return buffer.chunks[0];
+    const bytes = new Uint8Array(buffer.totalLength);
+    let offset = 0;
+    for (const chunk of buffer.chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return bytes;
+  };
+
   const handlers = new Map<UMPPartId, PartHandler>([
-    [UMPPartId.SABR_ERROR, (part) => {
-      const data = part.data.chunks[0];
-      const error = SabrError.decode(data);
+    [UMPPartId.SABR_ERROR, (partData) => {
+      const error = SabrError.decode(toBytes(partData));
       console.warn('[TodoTube] Onesie SABR response:', error);
     }],
-    [UMPPartId.ONESIE_HEADER, (part) => {
-      onesie.push(OnesieHeader.decode(part.data.chunks[0]));
+    [UMPPartId.ONESIE_HEADER, (partData) => {
+      onesie.push(OnesieHeader.decode(toBytes(partData)));
     }],
-    [UMPPartId.ONESIE_DATA, (part) => {
-      const data = part.data.chunks[0];
-      if (onesie.length > 0) onesie[onesie.length - 1].data = data;
+    [UMPPartId.ONESIE_DATA, (partData) => {
+      if (onesie.length > 0) onesie[onesie.length - 1].data = toBytes(partData);
     }],
   ]);
 
-  reader.read((part) => handlers.get(part.type)?.(part));
+  const reader = new UmpReader({
+    onPart: (type, data) => handlers.get(type)?.(data),
+  });
+  try {
+    await reader.feed(new Uint8Array(arrayBuffer));
+  } finally {
+    reader.dispose();
+  }
 
   const playerResponse = onesie.find((header) => header.type === OnesieHeaderType.ONESIE_PLAYER_RESPONSE);
   if (!playerResponse?.cryptoParams || !playerResponse.data) {
