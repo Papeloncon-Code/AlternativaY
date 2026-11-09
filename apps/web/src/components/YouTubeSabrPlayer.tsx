@@ -181,6 +181,7 @@ export default function YouTubeSabrPlayer({
 
   const original = 'https://www.youtube.com/watch?v=' + encodeURIComponent(id) +
     (startAt > 0 ? '&t=' + Math.floor(startAt) + 's' : '');
+  const bridgeMissing = detail.includes('Falta TodoTube Bridge');
 
   return (
     <div className={'gateway-player youtube-sabr-player' + (compact ? ' compact' : '')} ref={wrap}>
@@ -198,6 +199,12 @@ export default function YouTubeSabrPlayer({
         <div className="gateway-error" role="alert">
           <b>No se pudo iniciar la reproducción propia</b>
           <p>{detail}</p>
+          {bridgeMissing && (
+            <div className="player-message-actions gateway-bridge-actions">
+              <a className="btn primary" href="/todotube-browser-bridge.zip" download="todotube-browser-bridge.zip">Descargar TodoTube Bridge</a>
+              <a className="btn" href="https://github.com/Papeloncon-Code/AlternativaY/blob/main/apps/browser-bridge/README.md" target="_blank" rel="noreferrer">Ver instrucciones de instalación</a>
+            </div>
+          )}
           <div className="player-message-actions">
             <button type="button" className="btn primary" onClick={retryPlayback}>Reintentar proveedores</button>
             <a className="btn" href={original} target="_blank" rel="noreferrer">Abrir vídeo original</a>
