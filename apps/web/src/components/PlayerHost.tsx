@@ -135,7 +135,6 @@ export default function PlayerHost() {
     ? (rect ? { position: 'absolute', ...rect } : { position: 'absolute', visibility: 'hidden' })
     : {};
   const back = '/ver/' + s.id + (s.list ? '?lista=' + s.list : '');
-  const original = 'https://www.youtube.com/watch?v=' + encodeURIComponent(s.id) + (startAt > 0 ? '&t=' + Math.floor(startAt) + 's' : '');
 
   function failoverToYouTube(failure: {
     position: number;
@@ -212,10 +211,9 @@ export default function PlayerHost() {
             : status === 'external'
               ? <div className="own-player own-player-error" role="status">
                   <strong>Este vídeo no está disponible en los proveedores configurados.</strong>
-                  <p>TodoTube ya probó las fuentes internas disponibles. Puedes reintentar o abrir el origen.</p>
+                  <p>TodoTube agotó las rutas de reproducción disponibles para este vídeo.</p>
                   <div className="player-message-actions">
-                    <button className="btn primary" type="button" onClick={() => setResolveNonce((value) => value + 1)}>Reintentar fuentes</button>
-                    <a className="btn" href={original} target="_blank" rel="noreferrer">Abrir vídeo original</a>
+                    <button className="btn primary" type="button" onClick={() => setResolveNonce((value) => value + 1)}>Reintentar reproducción</button>
                   </div>
                 </div>
               : <div className="gateway-source-check" role="status">Buscando la primera fuente y comprobando redundancia…</div>}
@@ -225,9 +223,6 @@ export default function PlayerHost() {
           <button type="button" className="mini-text" onClick={() => navigate(back)} title="Volver a la ficha del vídeo">
             <b className="ellipsis">{s.meta.title}</b><span className="ellipsis">{s.meta.channel || 'Contenido externo'}</span>
           </button>
-          {(status === 'youtube' || status === 'external') && <a className="icon-btn mini-source" aria-label="Abrir vídeo original" title="Abrir vídeo original" href={original} target="_blank" rel="noreferrer">
-            <Icon name="external-link" size={20} />
-          </a>}
           <button type="button" className="icon-btn mini-expand" aria-label="Volver a la ficha" onClick={() => navigate(back)}><Icon name="expand" size={20} /></button>
           <button type="button" className="icon-btn" aria-label="Cerrar el minirreproductor" onClick={stop}><Icon name="close" size={20} /></button>
         </div>
