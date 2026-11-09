@@ -119,7 +119,6 @@ export class YouTubeSabrRuntime {
   private videoId = '';
   private playbackToken = '';
   private coldStartToken = '';
-  private tokenLock = false;
   private tokenPromise: Promise<void> | null = null;
   private sabrRefreshPromise: Promise<void> | null = null;
   private lastSabrRefreshAt = 0;
@@ -310,7 +309,6 @@ export class YouTubeSabrRuntime {
     this.videoId = videoId;
     this.playbackToken = '';
     this.coldStartToken = '';
-    this.tokenLock = false;
     this.candidates = [];
     this.candidateIndex = -1;
     this.nextClientIndex = 0;
@@ -624,11 +622,14 @@ export class YouTubeSabrRuntime {
 
     const targetVideoId = this.videoId;
     const pending = (async () => {
-      this.tokenLock = true;
       try {
         const coldStartToken = botguardService.mintColdStartToken(targetVideoId);
         if (this.videoId === targetVideoId) this.coldStartToken = coldStartToken;
-        if (forceReinit || !botguardService.isInitialized()) {
+        if (forceReinit) {
+          const pendingInitialization = botguardService.initializationPromise;
+          if (pendingInitialization) await pendingInitialization;
+          await botguardService.reinit();
+        } else if (!botguardService.isInitialized()) {
           await botguardService.reinit();
         }
         if (botguardService.integrityTokenBasedMinter) {
@@ -642,7 +643,6 @@ export class YouTubeSabrRuntime {
         console.warn('[TodoTube] No se pudo obtener el token web de reproducción:', error);
         if (forceReinit) throw error;
       } finally {
-        this.tokenLock = false;
       }
     })();
 
