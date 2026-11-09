@@ -71,11 +71,12 @@ test('Shaka HTTP error detail preserves the permission status for the recovery p
   expect(shouldStopSourceFallback(shakaError)).toBe(true);
 });
 
-test('stall watchdog triggers after 2 seconds without progress and without buffered media', () => {
-  expect(shouldRecoverPlaybackStall(idleStall())).toBe(true);
-  expect(shouldRecoverPlaybackStall(idleStall({ now: 18_999 }))).toBe(false);
+test('stall watchdog triggers at 2 seconds without progress and without buffered media', () => {
   expect(PLAYBACK_STALL_TIMEOUT_MS).toBe(2_000);
+  expect(shouldRecoverPlaybackStall(idleStall({ now: 18_999 }))).toBe(false);
+  expect(shouldRecoverPlaybackStall(idleStall({ now: 19_000 }))).toBe(true);
   expect(shouldRecoverPlaybackStall(idleStall({ bufferedAhead: 3 }))).toBe(false);
+  expect(shouldRecoverPlaybackStall(idleStall({ bufferedAhead: 0.25 }))).toBe(true);
   expect(shouldRecoverPlaybackStall(idleStall({ currentTime: 45.2 }))).toBe(false);
 });
 
