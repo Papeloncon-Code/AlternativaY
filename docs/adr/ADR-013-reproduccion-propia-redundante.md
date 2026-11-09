@@ -106,3 +106,11 @@ La aceptación de playback se cierra solo con un vídeo real en el TodoTube desp
 ## Estado actual de implementación
 
 PR #37 integra la primera versión a nivel de código y ya está fusionada en `main`. En el commit `1528993e1ac1a0f6185adbe18e7f8c706d3c537b`, CI #467 terminó con build, TypeScript, Bridge, Gateway, avisos y 86/86 pruebas Playwright en verde; CodeQL #106 también pasó. La integración no equivale a aceptación E4. El smoke desplegado del 2026-11-09 no decodificó metadata y las ramas de diagnóstico/recuperación #46–#47 siguen abiertas sin fusionar ni desplegar. Aún falta evidencia E4 de imagen, sonido audible, seek y recuperación con contenido real. Por tanto, playback no se declara completo.
+
+## Adaptación SABR derivada de Materialious
+
+La inspección del SABR local de Materialious añadió tres pasos: preparar `ENGAGEMENT_TYPE_UNBOUND` en el mismo cliente YouTube.js, escuchar `StreamProtectionStatus=3`, y renovar attestation/WebPO desde el minter local. TodoTube implementa esos pasos en PR #47 dentro de `YouTubeSabrRuntime` y `ShakaPlayerAdapter`; no se introduce proxy, `jsdom`, helper de PoToken ni cambio de IP. La bandera Onesie `sendVideoPlaybackConfig=false` se elimina, porque desactiva explícitamente la transmisión de la configuración de playback. El efecto de ese cambio sobre la respuesta real todavía debe probarse.
+
+El SABR de Materialious se construye a partir de `/player` WEB normal. Invidious PR #5814 observa que ciertas respuestas Onesie no habilitan contextos SABR que luego el servidor entrega vía `SABR_CONTEXT_UPDATE`; la PR sigue draft y también contiene un proxy/PoToken helper que TodoTube no adopta. No se asume que la ruta Onesie de TodoTube sea SABR-ready por el simple hecho de devolver HTTP 200 y un campo UStreamer.
+
+Estos cambios son una adaptación protocolaria, no evidencia de éxito. E4 sigue siendo obligatorio.
