@@ -9,6 +9,6 @@ for (const name of files) {
   const target = path.join(root, 'node_modules', 'shaka-player', 'dist', name);
   const source = await readFile(target, 'utf8');
   if (!source.includes('export default shaka')) {
-    await appendFile(target, '\\nexport default shaka;\\n');
+    await appendFile(target, '\nexport default shaka;\n');
   }
 }
