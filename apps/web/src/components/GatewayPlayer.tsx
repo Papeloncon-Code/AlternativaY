@@ -17,6 +17,7 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
   const videoRef = useRef<HTMLVideoElement>(null);
   const lastSaveRef = useRef(0);
   const retryCountRef = useRef(0);
+  const recoveryInFlightRef = useRef(false);
   const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPositionRef = useRef<number | null>(null);
   const resumePlaybackRef = useRef(false);
@@ -42,12 +43,13 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
       }
     };
     const finishRecovery = () => {
+      recoveryInFlightRef.current = false;
       setRecovering(false);
       setError('');
       clearStallTimer();
     };
     const recover = (reason: string, manual = false) => {
-      if (disposed || recovering) return;
+      if (disposed || recoveryInFlightRef.current) return;
       if (!manual && retryCountRef.current >= MAX_AUTOMATIC_RECOVERIES) {
         setError(reason);
         return;
@@ -56,6 +58,7 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
       retryCountRef.current += 1;
       pendingPositionRef.current = Number.isFinite(video.currentTime) ? video.currentTime : 0;
       resumePlaybackRef.current = !video.paused && !video.ended;
+      recoveryInFlightRef.current = true;
       setRecovering(true);
       setError('');
       clearStallTimer();
@@ -140,6 +143,7 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
   function retryManually() {
     const video = videoRef.current!;
     retryCountRef.current = 0;
+    recoveryInFlightRef.current = true;
     pendingPositionRef.current = Number.isFinite(video.currentTime) ? video.currentTime : current;
     resumePlaybackRef.current = playing;
     setError('');
