@@ -109,7 +109,7 @@ public final class Main {
         } catch (Exception exception) {
             // Never log stream URLs, cookies, request headers or extractor payloads.
             System.err.println("NewPipe resolution failed for " + id + ": "
-                    + exception.getClass().getSimpleName());
+                    + exception.getClass().getSimpleName() + " — " + safeDiagnostic(exception));
             send(exchange, 502, Map.of(
                     "error", "NewPipe no pudo resolver un flujo reproducible para este vídeo.",
                     "code", "EXTRACTION_FAILED"
@@ -154,6 +154,16 @@ public final class Main {
         result.put("resolvedAt", System.currentTimeMillis());
         result.put("cacheSeconds", CACHE_SECONDS);
         return result;
+    }
+
+    private static String safeDiagnostic(Throwable exception) {
+        String message = exception.getMessage();
+        if (message == null) return "";
+        // Keep useful extractor diagnostics without ever writing signed stream URLs or query credentials.
+        return message
+                .replaceAll("https?://[^\\\\s]+", "<url-redacted>")
+                .replaceAll("(?i)(sig|signature|token|key|pot|expire)=[^&\\\\s]+", "$1=<redacted>")
+                .substring(0, Math.min(240, message.length()));
     }
 
     private static boolean isMp4(VideoStream stream) {
