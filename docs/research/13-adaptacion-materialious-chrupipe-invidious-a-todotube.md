@@ -122,6 +122,19 @@ Solo después de aprobación explícita de una instancia administrada/permitida 
 
 No iniciar hasta que haya un segundo origen del mismo asset autorizado. Requiere fingerprint/timeline, alineación de segmentos, límites de RAM/buffer, expiración de URLs y medición de tiempo de conmutación.
 
+## Correspondencia con las incidencias abiertas de TodoTube
+
+| Incidencia | Problema real | Qué aporta la comparación | Decisión |
+|---|---|---|---|
+| [#35](https://github.com/Papeloncon-Code/AlternativaY/issues/35) | NewPipeExtractor devolvió `LOGIN_REQUIRED` en el smoke real | ChruPipe también usa NewPipeExtractor (0.26.4, incluso anterior al 0.27.0 probado por TodoTube); Materialious usa youtubei.js/Invidious; Invidious tiene su extractor Crystal propio | No añadir ChruPipe como extractor alternativo. Invidious es un resolver genuinamente distinto que puede estudiarse detrás de un provider configurable, pero no se activa hasta elegir una instancia/operación aprobada y probarla |
+| [#27](https://github.com/Papeloncon-Code/AlternativaY/issues/27) | Failover del mismo asset, misma timeline y posición; evitar una fuente diferente | Los tres proyectos cambian transporte/URL o extractor, pero ninguno demuestra un segundo origen independiente con segmentos ya sincronizados en buffer | Aplicar recuperación de ruta y posición ahora; mantener warm standby como fase posterior, solo con segunda fuente autorizada del mismo asset |
+| [#36](https://github.com/Papeloncon-Code/AlternativaY/issues/36) | La biblioteca debe mostrar el número real de orígenes R2 configurados y saludables | Los tres son reproductores/extractores/proxies de YouTube; no administran la replicación R2 del Gateway de TodoTube | No adaptar código de ellos. Resolverlo en el contrato/health del Media Gateway y su UI, sin confundir extractor con réplica |
+| [#38](https://github.com/Papeloncon-Code/AlternativaY/issues/38) | El E2E debe esperar a que el secreto de prueba del Worker esté activo antes de hacer setup | Ninguno de los tres aborda la propagación de secretos de Cloudflare/GitHub Actions | No es un problema de reproducción. Mantener el readiness probe autenticado del workflow |
+| [#9](https://github.com/Papeloncon-Code/AlternativaY/issues/9) | Paridad funcional/visual sin controles falsos ni iframe | Materialious e Invidious montan sus propios controles; ChruPipe deja controles nativos del elemento de vídeo | Conservar PlayerHost/Shaka y controles TodoTube; usar los otros proyectos como referencia de recuperación/modelos, no copiar su superficie visual ni mostrar controles nativos |
+| [#3](https://github.com/Papeloncon-Code/AlternativaY/issues/3) | Gateway para contenido propio/licenciado, con Range/seek y seguridad | Invidious y ChruPipe hacen proxy de streams del origen YouTube en sus propios servicios | No convertir el Gateway de TodoTube en proxy de YouTube. Mantenerlo cerrado a archivos propios/licenciados, con Range y health independientes |
+
+Esta separación evita que una mejora de extracción se contabilice como redundancia de almacenamiento, que un proxy de terceros se trate como autorización de distribución, o que un problema de CI se intente corregir desde el reproductor.
+
 ## Licencias y reutilización
 
 - Materialious: AGPL-3.0.
