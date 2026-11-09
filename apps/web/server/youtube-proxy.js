@@ -50,6 +50,7 @@ export function isAllowedYouTubeTarget(value) {
       target.pathname.startsWith('/s/player/') ||
       target.pathname === '/api/timedtext';
     const googleVideoPath = target.pathname === '/initplayback' ||
+      target.pathname.startsWith('/api/manifest/') ||
       target.pathname === '/videoplayback' ||
       target.pathname.startsWith('/videoplayback/');
     const googleApiPath = GOOGLE_API_HOSTS.has(target.hostname) &&
