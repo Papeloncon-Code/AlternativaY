@@ -4,9 +4,9 @@
 
 ## Conclusión corregida
 
-Un reproductor web propio es técnicamente posible cuando la página cuenta con un puente instalado en el navegador y un runtime que entienda los transportes que entrega el proveedor. Kira demuestra una ruta web basada en Shaka, youtubei.js, googlevideo/SABR, BgUtils y una extensión puente. No hace falta retransmitir el vídeo a través de un Worker de TodoTube.
+Kira demuestra un runtime web con Shaka, youtubei.js, googlevideo/SABR, BgUtils y un puente local. Materialious full web demuestra otra variante: proxy same-origin en backend Node para las peticiones que el navegador no puede realizar directamente. TodoTube prueba ahora un enfoque intermedio: extractor/attestation en el navegador y relay HTTPS restringido en el Worker del mismo dominio.
 
-La web sin extensión/bridge no dispone por sí sola de los permisos de origen necesarios para hacer todas las peticiones de este flujo. Por eso TodoTube entrega un Bridge propio, instalado por el usuario, de alcance restringido al dominio de TodoTube.
+La SPA no puede realizar directamente todas las peticiones cross-origin por las reglas CORS. La rama `fix/web-playback-without-bridge-2026-11-09` prueba un relay same-origin restringido para eliminar la instalación manual de Bridge. El éxito todavía depende de que YouTube acepte las solicitudes desde el Worker y se confirme E4.
 
 ## Arquitectura elegida
 
@@ -14,7 +14,7 @@ La web sin extensión/bridge no dispone por sí sola de los permisos de origen n
 - **Resolución:** Onesie como primera ruta WEB; InnerTube estándar como fallback.
 - **Clientes alternativos:** cadena Flow-style, adaptada a los perfiles disponibles en youtubei.js.
 - **Transporte:** SABR/UMP; DASH, HLS y URL progresiva cuando la respuesta los incluya.
-- **Bridge:** extensión Manifest V3 para Chrome/Edge. Su inyección está limitada a TodoTube y sus destinos a hosts del proveedor.
+- **Relay:** ruta same-origin del Worker que reenvía únicamente destinos HTTPS permitidos, con respuesta de segmentos en streaming y soporte Range.
 - **Redundancia de almacenamiento:** R2 own/licensed y réplica idéntica; no almacenar ni retransmitir vídeos de YouTube sin permiso.
 - **Failover:** misma sesión visual; conservar timestamp, play/pause, volumen y velocidad.
 
@@ -32,7 +32,7 @@ La web sin extensión/bridge no dispone por sí sola de los permisos de origen n
 
 - Manifest V3 implementado para Chrome/Edge; no se presume compatibilidad con Firefox ni navegadores móviles.
 - No hay aún validación manual publicada de vídeo y audio completos con los vídeos reales de la matriz de pruebas.
-- Si no se instala Bridge, TodoTube muestra una instrucción de instalación/estado; no debe insertar un iframe de YouTube como sustituto.
+- La web no pide instalar Bridge. Si el relay o YouTube falla, TodoTube muestra un error propio y no inserta un iframe como sustituto.
 - Las fuentes de YouTube pertenecen a un mismo proveedor upstream. Los distintos perfiles y modos mejoran resiliencia, pero no equivalen a múltiples CDN independientes.
 - El failover de dominio independiente se obtiene con R2/creator-origin cuando exista una copia autorizada del mismo asset.
 
