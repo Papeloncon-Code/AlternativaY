@@ -69,3 +69,7 @@ Un rechazo observado desde la red compartida de GitHub Actions no demuestra que 
 ## Registro de resultado
 
 La evidencia de E4 debe añadirse a un registro versionado con fecha, commit desplegado, versión de Bridge, navegador, proveedor/ruta y resultado de cada paso. Redactar datos sensibles. Hasta que ese registro exista y todas las verificaciones requeridas pasen, el estado global permanece **PLAYBACK PENDIENTE DE VALIDACIÓN REAL**.
+
+### Verificación de la ruta SABR
+
+Cuando la fuente activa es SABR, el registro de staging debe mostrar que la misma sesión WEB/MWEB completó `ENGAGEMENT_TYPE_UNBOUND`, que UMP entregó progreso/segmentos y que la búsqueda temporal funciona. Ante `StreamProtectionStatus=3`, comprobar que se ejecuta como máximo una renovación simultánea de attestation y WebPO mediante el minter local, con cooldown, sin cambiar de cliente/IP ni usar un proxy. La presencia del callback o una respuesta HTTP satisfactoria no sustituye la evidencia E4 de imagen y sonido.
