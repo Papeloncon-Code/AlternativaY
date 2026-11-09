@@ -51,6 +51,13 @@ async function checkHttpContract() {
   assert.equal(item.size, fileBytes.byteLength);
   check(true, 'catalog lists the same test asset from the configured R2 origins');
 
+  const unauthorizedUpload = await fetch(gatewayUrl + '/v1/admin/media/' + mediaId + '_unauthorized', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'video/webm' },
+  });
+  assert.equal(unauthorizedUpload.status, 401, 'Administrative uploads must reject requests without the production bearer token');
+  check(true, 'administrative upload endpoint rejects unauthenticated requests');
+
   const head = await fetch(url, { method: 'HEAD', headers: originHeaders });
   assert.equal(head.status, 200, 'HEAD must return HTTP 200');
   assert.equal(head.headers.get('content-type')?.split(';')[0], 'video/webm');
