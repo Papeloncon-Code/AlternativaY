@@ -62,5 +62,5 @@ La salud del proveedor, la frescura de la sesión, la duración de la resolució
 - Usuario pulsa pausa durante conmutación -> el nuevo origen permanece pausado.
 - No se duplica audio ni se montan dos reproductores.
 - El usuario puede consultar diagnóstico de proveedor sin revelar tokens ni URLs firmadas.
-- Watchdog de estancamiento: intervalo 1 s, umbral 12 s, buffer útil máximo 0,25 s, máximo tres intentos; no se activa por pausa, seek, ended, pestaña oculta u offline.
+- Watchdog de estancamiento: intervalo 1 s, umbral 2 s (criterio de issue #27), buffer útil máximo 0,25 s, máximo tres intentos; no se activa por pausa, seek, ended, pestaña oculta u offline.
 - Denegaciones de acceso no se contabilizan como fallos transitorios y no provocan cambio de identidad.
