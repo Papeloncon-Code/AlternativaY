@@ -130,3 +130,50 @@ La columna “origen final distinto” es la importante para la resiliencia. Una
 - YouTubeStreamsExtractor: https://github.com/tmk907/YouTubeStreamsExtractor
 - YouTube Terms: https://www.youtube.com/t/terms
 - YouTube API Developer Policies: https://developers.google.com/youtube/terms/developer-policies
+
+
+## 7. Actualización: recuperación del script oficial completo de Grayjay
+
+**Actualización posterior a la primera versión de esta auditoría.** Se pudo recuperar el blob oficial de `YoutubeScript.js` directamente desde GitHub Git Data API, sin depender del visor web. La revisión corresponde a:
+
+- Repositorio: `futo-org/grayjay-plugin-youtube`
+- Ref inspeccionada: `master`
+- Commit del árbol: `78a84af62be98e21d35e9d3f2cf75c72aa51f2c1`
+- Blob: `26654660b246fd5b501448e37df44f98d9d84973`
+- Tamaño: 4,278,824 bytes
+- Configuración: versión 367
+
+Esto corrige la limitación de acceso indicada en la sección anterior: el archivo completo ya fue recuperado para análisis estructural. La auditoría no debe describirse más como bloqueada por el tamaño del archivo.
+
+### Arquitectura observada en el script
+
+El código está empaquetado/minificado en gran parte, pero conserva nombres de clases y funciones que permiten reconocer su separación interna:
+
+- Capa de sesión y contexto de cliente.
+- Extracción de metadatos del vídeo y detalles iniciales.
+- Seguimiento de reproducción.
+- Clases separadas para fuentes de vídeo, audio y representaciones combinadas.
+- Adaptadores para DASH y generación de manifiestos.
+- Ejecutores de reproducción diferenciados, incluidos caminos UMP/SABR.
+- Capas independientes para búsqueda, canales, listas, Shorts, comentarios, capítulos y subtítulos.
+- Funciones de actualización/recuperación de estado de reproducción.
+
+El plugin, por tanto, no es una única función que devuelve una URL. Es una implementación grande con capas de navegación, metadatos, selección de representación y transporte multimedia.
+
+### Qué significa para TodoTube
+
+1. **No copiar el plugin completo.** Su tamaño, acoplamiento al runtime Grayjay y licencia AGPL-3.0 hacen que integrarlo directamente en la aplicación web no sea una decisión razonable sin una revisión jurídica y de arquitectura.
+2. **Reutilizar solo ideas neutrales de diseño:** descriptor de asset separado de representaciones; fuentes tipadas; separación audio/vídeo; transporte detrás de adaptadores; estado de reproducción propiedad del player.
+3. **No reproducir los mecanismos privados de acceso.** El análisis estructural no se convierte en instrucciones para implementar ni eludir PoToken, BotGuard, verificaciones anti-bot, restricciones geográficas o controles de acceso.
+4. **Grayjay no constituye un proveedor de origen independiente:** sus modalidades de transporte siguen resolviendo contenido alojado por YouTube. Varias clases o modos no equivalen a varios proveedores independientes.
+5. **El código fuente completo ya está disponible para revisión estructural**, pero no se afirma que cada línea haya sido auditada manualmente. La siguiente revisión debe centrarse en dependencias, límites entre módulos, modelos de datos y licencia, no en reproducir mecanismos de acceso restringido.
+
+### Dependencias y configuración
+
+La configuración oficial de versión 367 declara paquetes y permisos del runtime Grayjay. El plugin está diseñado para ejecutarse dentro de ese entorno y no como una biblioteca TypeScript/Node autónoma. Su licencia AGPL-3.0 debe revisarse antes de reutilizar cualquier fragmento.
+
+### Fuentes primarias actualizadas
+
+- Blob oficial del script: https://github.com/futo-org/grayjay-plugin-youtube/blob/78a84af62be98e21d35e9d3f2cf75c72aa51f2c1/YoutubeScript.js
+- Árbol inspeccionado: https://github.com/futo-org/grayjay-plugin-youtube/tree/78a84af62be98e21d35e9d3f2cf75c72aa51f2c1
+- Configuración oficial: https://github.com/futo-org/grayjay-plugin-youtube/blob/78a84af62be98e21d35e9d3f2cf75c72aa51f2c1/YoutubeConfig.json
