@@ -146,7 +146,8 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
     url.searchParams.set('$fields', 'playerConfig,storyboards,captions,playabilityStatus,streamingData,responseContext.mainAppWebResponseContext.datasyncId,videoDetails.isLive,videoDetails.isLiveContent,videoDetails.title,videoDetails.author,videoDetails.thumbnail');
   }
 
-  if (url.pathname.includes('initplayback')) return fetch(url, requestInit);
+  // initplayback is a cross-origin control request, not a media segment. It must
+  // use the Bridge so page CORS does not block the redirector response.
 
   const proxyFetch = getInjectedProxyFunction();
   if (!proxyFetch) throw new Error('TodoTube Bridge no está instalado o no está activo en este sitio.');
