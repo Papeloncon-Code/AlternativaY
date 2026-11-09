@@ -179,8 +179,6 @@ export default function YouTubeSabrPlayer({
     setRetry((value) => value + 1);
   }
 
-  const original = 'https://www.youtube.com/watch?v=' + encodeURIComponent(id) +
-    (startAt > 0 ? '&t=' + Math.floor(startAt) + 's' : '');
 
   return (
     <div className={'gateway-player youtube-sabr-player' + (compact ? ' compact' : '')} ref={wrap}>
