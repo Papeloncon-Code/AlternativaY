@@ -101,7 +101,7 @@ La aceptación de playback se cierra solo con un vídeo real en el TodoTube desp
 - Confirmar que no existe iframe de YouTube como fallback dentro de TodoTube.
 - Medir tiempo al primer frame, duración de cada intento, tasa de éxito por proveedor y tiempo de failover.
 - Pruebas automatizadas de los contratos y pruebas manuales con vídeos públicos variados, directos, Shorts, vídeos largos y casos restringidos.
-- Build, TypeScript, contratos y Playwright son puertas intermedias; **E4 es el único cierre** y exige evidencia real de audio/vídeo, seek, controles propios y recuperación en el despliegue objetivo.
+- Build, TypeScript, contratos y Playwright son puertas intermedias; **E4 es el único cierre** y exige que un vídeo sí reproduzca en el despliegue objetivo con imagen, sonido audible/sincronizado, avance, seek, controles propios y recuperación real. Un error correcto ante contenido restringido es una prueba de seguridad separada, no un éxito de playback.
 
 ## Estado actual de implementación
 
