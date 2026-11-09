@@ -108,9 +108,13 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:18080/health
-          response="$(curl --retry 2 --retry-delay 2 --max-time 45 -fsS \
+          if ! response="$(curl --retry 2 --retry-delay 2 --max-time 45 -fsS \
             -H "Authorization: Bearer $RESOLVER_API_KEY" \
-            http://127.0.0.1:18080/v1/resolve/jNQXAC9IVRw)"
+            http://127.0.0.1:18080/v1/resolve/jNQXAC9IVRw)"; then
+            echo "NewPipe resolver log (sanitized):"
+            cat /tmp/todotube-newpipe.log
+            exit 1
+          fi
           echo "$response" | jq '{videoId, title, resolution, mimeType, provider}'
           stream_url="$(echo "$response" | jq -er '.streamUrl | select(startswith("https://"))')"
           test "$(echo "$response" | jq -r '.videoId')" = 'jNQXAC9IVRw'
