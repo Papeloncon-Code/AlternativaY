@@ -6,10 +6,7 @@ import { Empty } from '../components/States';
 import Icon from '../components/Icon';
 import { useTitle } from '../title';
 
-const ALLOWED_TYPES = new Set([
-  'video/mp4', 'video/webm', 'video/ogg',
-  'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/webm',
-]);
+const ALLOWED_TYPES = new Set(['video/mp4', 'video/webm', 'video/ogg']);
 const MAX_UPLOAD_BYTES = 90 * 1024 * 1024;
 
 function sizeLabel(bytes: number) {
