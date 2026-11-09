@@ -962,3 +962,20 @@ img.avatar { object-fit: cover; background: var(--chip); }
   .media-upload-actions { align-items: flex-start; flex-direction: column; }
   .media-player-frame { border-radius: 0; }
 }
+
+/* El reproductor nativo conserva proporción y controles dentro del minirreproductor. */
+.player-dock.gateway.mini .player-dock-video {
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 16 / 9;
+}
+.player-dock.gateway.mini .gateway-player.compact { height: auto; }
+.player-dock.gateway.mini .gateway-video {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  max-height: none;
+  object-fit: contain;
+}
+.player-dock.gateway.mini .gateway-controls { min-height: 38px; box-sizing: border-box; }
