@@ -8,7 +8,6 @@ import { useTitle } from '../title';
 
 const ALLOWED_TYPES = new Set([
   'video/mp4', 'video/webm', 'video/ogg',
-  'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/webm',
 ]);
 const MAX_UPLOAD_BYTES = 90 * 1024 * 1024;
 
@@ -123,7 +122,7 @@ export default function MediaLibrary() {
           <input value={licenseReference} onChange={(e) => setLicenseReference(e.target.value)} placeholder="URL, contrato o referencia verificable" maxLength={300} required disabled={uploading} />
         </label>}
         <label className="media-field media-field-wide">Archivo
-          <input ref={fileInput} type="file" accept="video/mp4,video/webm,video/ogg,audio/mp4,audio/mpeg,audio/ogg,audio/webm" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required disabled={uploading} />
+          <input ref={fileInput} type="file" accept="video/mp4,video/webm,video/ogg" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required disabled={uploading} />
           {file && <small>{file.name} · {sizeLabel(file.size)}</small>}
         </label>
         <label className="media-field media-field-wide">Token de carga del Gateway
