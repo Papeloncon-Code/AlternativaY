@@ -34,12 +34,18 @@ jobs:
 
   web:
     name: Web · compilación, tipos y pruebas de aceptación
+    needs: [bridge]
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: apps/web } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - name: Incorporar ZIP del Bridge en el build web
+        uses: actions/download-artifact@v4
+        with:
+          name: todotube-browser-bridge-${{ github.sha }}
+          path: apps/web/public
       - run: npm ci
       - name: Validar sintaxis YAML y JavaScript del E2E de producción
         run: |
@@ -48,6 +54,8 @@ jobs:
           node --check scripts/live-media-gateway-smoke.mjs
           node --check scripts/live-youtube-playback-smoke.mjs
       - run: npm run build
+      - name: Verificar que la web incluye el ZIP instalable del Bridge
+        run: test -s dist/todotube-browser-bridge.zip
       - run: npx tsc -b
       - run: npx playwright install --with-deps chromium
       - name: Iniciar API local determinista para Playwright
