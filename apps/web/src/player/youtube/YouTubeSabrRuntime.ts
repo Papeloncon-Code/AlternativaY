@@ -11,8 +11,7 @@ import {
 } from 'youtubei.js/web';
 import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
 import { buildSabrFormat } from 'googlevideo/utils';
-import { checkExtension, fetchFunction, fetchOnesieHotConfig, type OnesieHotConfig } from './helpers';
-import { makePlayerRequest } from './onesie';
+import { checkExtension, fetchFunction } from './helpers';
 import type { ReloadPlaybackContext } from 'googlevideo/protos';
 import { botguardService } from './BotguardService';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
@@ -107,7 +106,6 @@ function isWebClient(client: YouTubeClient): boolean {
  */
 export class YouTubeSabrRuntime {
   private readonly sessions = new Map<YouTubeClient, Promise<Innertube>>();
-  private onesieConfigPromise: Promise<OnesieHotConfig | null> | null = null;
   private player: shaka.Player | null = null;
   private sabrAdapter: SabrStreamingAdapter | null = null;
   private video: HTMLVideoElement | null = null;
@@ -329,13 +327,6 @@ export class YouTubeSabrRuntime {
     }
   }
 
-  private async getOnesieConfig(): Promise<OnesieHotConfig | null> {
-    if (!this.onesieConfigPromise) {
-      this.onesieConfigPromise = fetchOnesieHotConfig();
-    }
-    return this.onesieConfigPromise;
-  }
-
   private async fetchPlayerInfo(
     innertube: Innertube,
     client: YouTubeClient,
@@ -355,36 +346,16 @@ export class YouTubeSabrRuntime {
       (requestParams.playbackContext as Record<string, unknown>).reloadPlaybackContext = reloadContext;
     }
 
-    const request = (async () => {
-      // Onesie is the primary WEB player-request path. If its config is expired,
-      // unavailable or the request fails, fall back to normal InnerTube on the
-      // same client before the client ladder moves to its next rung.
-      if (client === 'WEB') {
-        const clientConfig = await this.getOnesieConfig();
-        if (clientConfig) {
-          try {
-            return await makePlayerRequest({
-              clientConfig,
-              innertubeRequest: {
-                context: innertube.session.context,
-                ...requestParams,
-              },
-            });
-          } catch (error) {
-            if (shouldStopSourceFallback(error)) throw error;
-            console.warn('[TodoTube] Onesie request failed; falling back to InnerTube on the same client:', error);
-            this.onesieConfigPromise = null;
-          }
-        }
-      }
-
-      return innertube.actions.execute('/player', {
-        ...requestParams,
-        client,
-        parse: false,
-      });
-    })();
-
+    // SABR requires the complete WEB player configuration and playback contexts.
+    // Materialious uses the ordinary WEB /player response for this path; the
+    // Invidious SABR investigation documents Onesie responses that omit the
+    // contexts later required for segments and seeking. Use the normal /player
+    // endpoint through the same Bridge, session and client identity.
+    const request = innertube.actions.execute('/player', {
+      ...requestParams,
+      client,
+      parse: false,
+    });
     return timeout(request, PLAYER_REQUEST_TIMEOUT_MS, 'InnerTube/Onesie ' + client);
   }
 
