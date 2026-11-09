@@ -3,13 +3,15 @@
     "id": 1,
     "priority": 1,
     "condition": {
-      "excludedInitiatorDomains": [
-        "youtube.com"
-      ],
       "resourceTypes": [
         "xmlhttprequest"
       ],
-      "urlFilter": "||googlevideo.com/"
+      "urlFilter": "||googlevideo.com/",
+      "initiatorDomains": [
+        "todotube.papelon.workers.dev",
+        "localhost",
+        "127.0.0.1"
+      ]
     },
     "action": {
       "type": "modifyHeaders",
@@ -40,6 +42,11 @@
           "header": "access-control-allow-headers",
           "operation": "set",
           "value": "*"
+        },
+        {
+          "header": "access-control-expose-headers",
+          "operation": "set",
+          "value": "Accept-Ranges, Content-Length, Content-Range, Content-Type, Date, ETag, Last-Modified"
         }
       ]
     }
@@ -48,14 +55,16 @@
     "id": 2,
     "priority": 1,
     "condition": {
-      "excludedInitiatorDomains": [
-        "youtube.com"
-      ],
       "resourceTypes": [
         "xmlhttprequest",
         "image"
       ],
-      "urlFilter": "||ggpht.com/"
+      "urlFilter": "||ggpht.com/",
+      "initiatorDomains": [
+        "todotube.papelon.workers.dev",
+        "localhost",
+        "127.0.0.1"
+      ]
     },
     "action": {
       "type": "modifyHeaders",
@@ -77,14 +86,16 @@
     "id": 3,
     "priority": 1,
     "condition": {
-      "excludedInitiatorDomains": [
-        "youtube.com"
-      ],
       "resourceTypes": [
         "xmlhttprequest",
         "image"
       ],
-      "urlFilter": "||ytimg.com/"
+      "urlFilter": "||ytimg.com/",
+      "initiatorDomains": [
+        "todotube.papelon.workers.dev",
+        "localhost",
+        "127.0.0.1"
+      ]
     },
     "action": {
       "type": "modifyHeaders",
