@@ -34,6 +34,18 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: Install web and Playwright dependencies
         run: npm ci
+      - name: Ensure primary and replica R2 buckets exist
+        run: |
+          set -euo pipefail
+          for bucket in todotube-media todotube-media-replica; do
+            if npx wrangler r2 bucket info "$bucket" >/dev/null 2>&1; then
+              echo "R2 bucket available: $bucket"
+            else
+              npx wrangler r2 bucket create "$bucket"
+            fi
+          done
+      - name: Deploy production Media Gateway
+        run: npx wrangler deploy --config ../media-gateway/wrangler.toml
       - name: Install browser and video fixture encoder
         run: |
           sudo apt-get update
@@ -95,6 +107,11 @@ jobs:
             -H "Content-Type: video/webm" \
             --data-binary "@$RUNNER_TEMP/todotube-media-e2e/fixture.webm" \
             | tee "$RUNNER_TEMP/todotube-media-e2e/setup.json"
+      - name: Remove replica copy to prove primary source selection
+        env:
+          WORKER_URL: ${{ steps.test-identity.outputs.worker_url }}
+          MEDIA_ID: ${{ steps.test-identity.outputs.media_id }}
+        run: curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer $MEDIA_TEST_TOKEN" "$WORKER_URL/drop-replica/$MEDIA_ID"
       - name: Verify primary R2, HTTP media contract and real web player
         env:
           MEDIA_ID: ${{ steps.test-identity.outputs.media_id }}
@@ -102,11 +119,6 @@ jobs:
           EXPECTED_ORIGIN: primary
           EVIDENCE_DIR: ${{ runner.temp }}/todotube-media-e2e/evidence
         run: node scripts/live-media-gateway-smoke.mjs
-      - name: Remove replica copy to prove primary source selection
-        env:
-          WORKER_URL: ${{ steps.test-identity.outputs.worker_url }}
-          MEDIA_ID: ${{ steps.test-identity.outputs.media_id }}
-        run: curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer $MEDIA_TEST_TOKEN" "$WORKER_URL/drop-replica/$MEDIA_ID"
       - name: Restore replica and verify same-version metadata
         env:
           WORKER_URL: ${{ steps.test-identity.outputs.worker_url }}
