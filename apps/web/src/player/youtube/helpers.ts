@@ -36,19 +36,13 @@ function decodeBase64(value: string): Uint8Array {
   return bytes;
 }
 
-function encodeBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(binary);
-}
-
 export async function encryptRequest(clientKey: Uint8Array, data: Uint8Array): Promise<EncryptedRequest> {
   if (clientKey.length !== 32) throw new Error('Invalid Onesie client key length.');
 
-  const aesKeyData = clientKey.slice(0, 16);
-  const hmacKeyData = clientKey.slice(16, 32);
+  const aesKeyData = new ArrayBuffer(16);
+  const hmacKeyData = new ArrayBuffer(16);
+  new Uint8Array(aesKeyData).set(clientKey.subarray(0, 16));
+  new Uint8Array(hmacKeyData).set(clientKey.subarray(16, 32));
   const iv = window.crypto.getRandomValues(new Uint8Array(16));
   const aesKey = await window.crypto.subtle.importKey('raw', aesKeyData, { name: 'AES-CTR', length: 128 }, false, ['encrypt']);
   const encrypted = new Uint8Array(await window.crypto.subtle.encrypt(
