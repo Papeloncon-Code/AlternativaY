@@ -77,7 +77,12 @@ const STOP_CLIENT_HTTP_STATUSES = new Set([400, 401, 403, 407, 429]);
 const STOP_ALL_HTTP_STATUSES = new Set([401, 403, 407, 429]);
 
 const RESTRICTED_ACCESS_PATTERN =
-  /LOGIN_REQUIRED|AGE_CHECK_REQUIRED|CONTENT_CHECK_REQUIRED|GEO_RESTRICTED|REGION_RESTRICTED|UNPLAYABLE|SIGN.?IN.?REQUIRED|SIGN.?IN.?TO.?CONFIRM|NOT\s+A\s+BOT|AUTOMATED\s+QUER|UNUSUAL\s+TRAFFIC|CONSENT_REQUIRED|FAILED_PRECONDITION/i;
+  /LOGIN_REQUIRED|AGE_CHECK_REQUIRED|CONTENT_CHECK_REQUIRED|GEO_RESTRICTED|REGION_RESTRICTED|UNPLAYABLE|SIGN.?IN.?REQUIRED|SIGN.?IN.?TO.?CONFIRM|NOT\s+A\s+BOT|AUTOMATED\s+QUER|UNUSUAL\s+TRAFFIC|CONSENT_REQUIRED/i;
+
+// FAILED_PRECONDITION alone does not identify why YouTube rejected the request.
+// It blocks changing client identity, but does not prove that the same client's
+// ordinary InnerTube endpoint is forbidden after an Onesie-specific failure.
+const INDETERMINATE_PRECONDITION_PATTERN = /FAILED_PRECONDITION/i;
 
 /**
  * True when the response says the request itself is rejected or access is
@@ -86,14 +91,18 @@ const RESTRICTED_ACCESS_PATTERN =
 export function shouldStopClientFallback(failure: unknown): boolean {
   const facts = collectFailureFacts(failure);
   return facts.statuses.some((status) => STOP_CLIENT_HTTP_STATUSES.has(status)) ||
-    facts.text.some((value) => RESTRICTED_ACCESS_PATTERN.test(value));
+    facts.text.some((value) =>
+      RESTRICTED_ACCESS_PATTERN.test(value) ||
+      INDETERMINATE_PRECONDITION_PATTERN.test(value),
+    );
 }
 
 /**
  * 401/403/429 and explicit access/anti-bot responses are not transport
- * failures. Do not retry the same video through another YouTube URL/profile.
- * An independently authorized provider (for example, a verified local asset)
- * may still be handled by PlayerHost outside this YouTube runtime.
+ * failures. A generic FAILED_PRECONDITION is indeterminate: allow only the
+ * same-client Onesie -> ordinary InnerTube fallback, then stop client rotation
+ * if the HTTP 400 repeats. Never change identity to work around the rejection.
+ * An independently authorized asset may still be handled outside this runtime.
  */
 export function shouldStopSourceFallback(failure: unknown): boolean {
   const facts = collectFailureFacts(failure);
