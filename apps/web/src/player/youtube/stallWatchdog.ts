@@ -11,7 +11,7 @@ export type PlaybackStallSnapshot = {
   online: boolean;
 };
 
-export const PLAYBACK_STALL_TIMEOUT_MS = 12_000;
+export const PLAYBACK_STALL_TIMEOUT_MS = 2_000;
 export const PLAYBACK_STALL_TIME_EPSILON_SECONDS = 0.05;
 export const PLAYBACK_STALL_BUFFER_EPSILON_SECONDS = 0.25;
 
