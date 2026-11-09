@@ -213,3 +213,16 @@ La respuesta HTTP 400 observada corresponde al intento Android final; por sí so
 Materialious obtiene el `VideoInfo` WEB normal antes de montar `SabrStreamingAdapter`. El draft SABR de Invidious explica que una respuesta Onesie puede contener un `ustreamerConfig` que no habilita los contextos que el servidor envía después mediante `SABR_CONTEXT_UPDATE`; la ruta WEB normal devuelve la configuración completa. TodoTube había usado Onesie como respuesta primaria de WEB y solo caía a `/player` normal cuando Onesie fallaba en red, no cuando devolvía HTTP 200 pero configuración SABR incompleta.
 
 La rama `fix/youtube-web-playerresponse-sabr-2026-11-09` elimina Onesie como fuente de `playerResponse` para el runtime SABR y utiliza el endpoint `/player` de YouTube.js en la misma sesión WEB/MWEB a través del Browser Bridge. No cambia IP, identidad de cliente ni proxy y no intenta superar una denegación explícita. Esta hipótesis necesita CI y otro smoke E4 real; no se considera solución hasta que el vídeo reproduzca imagen/sonido y seek.
+## Seguimiento del segundo smoke E4 (2026-11-09)
+
+El segundo smoke volvió a abrir TodoTube y el reproductor propio, pero no decodificó metadata (`readyState=0`, dimensiones 0 y duración nula). El diagnóstico adicional permitió distinguir tres eventos:
+
+- `BotguardService`: GenerateIT respondió sin integrity token. Esto es una limitación del entorno runner observado; no se debe reemplazar con un servidor remoto, proxy ni token de terceros.
+- `MWEB`: `buildCandidates()` falló con `TypeError: Failed to construct 'URL': Invalid URL` durante la generación del manifiesto SABR. Ese error local abortaba `buildCandidates` antes de que pudiera añadir otros candidatos DASH/HLS/progresivos de la misma respuesta MWEB.
+- `WEB`: `/youtubei/v1/player` respondió HTTP 400 con HTML de Google “Sorry…”, coherente con una denegación por tráfico automatizado del egress del GitHub runner. No demuestra que la red del propietario reciba la misma respuesta. No se intenta cambiar IP ni egress para eludirla.
+
+### Corrección de resiliencia MWEB
+
+La PR #50 aísla la creación del manifiesto SABR con `tryBuildSabrManifest()`. Si el formateo SABR falla por una URL/format inválido, ese transporte opcional se descarta y el broker continúa construyendo DASH, HLS y directos del mismo playerResponse y de la misma identidad MWEB. No reintenta la URL inválida, no cambia cliente y no ignora denegaciones HTTP. Se agregan tests para los dos caminos: SABR válido y SABR malformado que no debe abortar los otros candidatos.
+
+Este cambio ataca un bug real visto en la secuencia del smoke, pero no convierte el resultado de producción en éxito: mientras el runner reciba la página anti-automatización de Google y BotGuard no entregue el token, no hay evidencia E4. La red del propietario debe probarse sin cambiar el egress ni sortear controles.
