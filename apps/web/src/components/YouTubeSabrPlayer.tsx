@@ -1,13 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
+import type { Meta } from '../store';
+import { actions } from '../store';
 import { YouTubeSabrRuntime } from '../player/youtube/YouTubeSabrRuntime';
+
+type PlaybackFailure = {
+  position: number;
+  wasPlaying: boolean;
+  volume: number;
+  playbackRate: number;
+  error: string;
+};
 
 type Props = {
   id: string;
+  meta: Meta;
   startAt?: number;
   compact?: boolean;
   autoplay?: boolean;
   initialVolume?: number;
   initialPlaybackRate?: number;
+  onPlaybackExhausted?: (failure: PlaybackFailure) => void;
 };
 
 function timeLabel(seconds: number) {
@@ -18,15 +30,20 @@ function timeLabel(seconds: number) {
 
 export default function YouTubeSabrPlayer({
   id,
+  meta,
   startAt = 0,
   compact = false,
   autoplay = true,
   initialVolume = 1,
   initialPlaybackRate = 1,
+  onPlaybackExhausted,
 }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const runtimeRef = useRef<YouTubeSabrRuntime | null>(null);
+  const metaRef = useRef(meta);
+  metaRef.current = meta;
+  const lastSaveRef = useRef(0);
+  const fatalReportedRef = useRef(false);
   const [status, setStatus] = useState<'loading' | 'playing' | 'switching' | 'error'>('loading');
   const [detail, setDetail] = useState('Preparando el reproductor TodoTube…');
   const [playing, setPlaying] = useState(false);
@@ -40,6 +57,7 @@ export default function YouTubeSabrPlayer({
     const video = videoRef.current;
     if (!video) return;
     let active = true;
+    fatalReportedRef.current = false;
     const runtime = new YouTubeSabrRuntime({
       onStatus: (next, message) => {
         if (!active) return;
@@ -47,12 +65,20 @@ export default function YouTubeSabrPlayer({
         if (message) setDetail(message);
       },
       onFatal: (error) => {
-        if (!active) return;
+        if (!active || fatalReportedRef.current) return;
+        fatalReportedRef.current = true;
         setStatus('error');
         setDetail(error.message);
+        onPlaybackExhausted?.({
+          position: Number.isFinite(video.currentTime) ? video.currentTime : Math.max(0, startAt),
+          wasPlaying: !video.paused && !video.ended,
+          volume: video.volume,
+          playbackRate: video.playbackRate,
+          error: error.message,
+        });
       },
     });
-    runtimeRef.current = runtime;
+
     video.volume = initialVolume;
     video.playbackRate = initialPlaybackRate;
     setVolume(initialVolume);
@@ -61,18 +87,32 @@ export default function YouTubeSabrPlayer({
     setDetail('Conectando con los proveedores de reproducción…');
     setCurrent(Math.max(0, startAt));
     setDuration(0);
+    lastSaveRef.current = 0;
 
     void runtime.attach(video)
       .then(() => runtime.load(id, startAt, autoplay))
       .catch((error: unknown) => {
         if (!active) return;
+        const failure = error instanceof Error ? error : new Error(String(error));
         setStatus('error');
-        setDetail(error instanceof Error ? error.message : String(error));
+        setDetail(failure.message);
+        if (!fatalReportedRef.current) {
+          fatalReportedRef.current = true;
+          onPlaybackExhausted?.({
+            position: Number.isFinite(video.currentTime) ? video.currentTime : Math.max(0, startAt),
+            wasPlaying: !video.paused && !video.ended,
+            volume: video.volume,
+            playbackRate: video.playbackRate,
+            error: failure.message,
+          });
+        }
       });
 
     return () => {
       active = false;
-      runtimeRef.current = null;
+      if (video.duration && Number.isFinite(video.currentTime)) {
+        actions.saveProgress(metaRef.current, video.currentTime, video.duration);
+      }
       void runtime.dispose();
     };
   }, [id, startAt, autoplay, initialVolume, initialPlaybackRate, retry]);
@@ -80,21 +120,33 @@ export default function YouTubeSabrPlayer({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    const onTime = () => setCurrent(video.currentTime);
+    const save = () => {
+      if (video.duration && Date.now() - lastSaveRef.current > 4000) {
+        lastSaveRef.current = Date.now();
+        actions.saveProgress(metaRef.current, video.currentTime, video.duration);
+      }
+    };
+    const onTime = () => { setCurrent(video.currentTime); save(); };
     const onDuration = () => setDuration(Number.isFinite(video.duration) ? video.duration : 0);
     const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
+    const onPause = () => {
+      setPlaying(false);
+      if (video.duration) actions.saveProgress(metaRef.current, video.currentTime, video.duration);
+    };
+    const onHistory = () => actions.addHistory(metaRef.current);
     video.addEventListener('timeupdate', onTime);
     video.addEventListener('durationchange', onDuration);
     video.addEventListener('loadedmetadata', onDuration);
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
+    video.addEventListener('playing', onHistory, { once: true });
     return () => {
       video.removeEventListener('timeupdate', onTime);
       video.removeEventListener('durationchange', onDuration);
       video.removeEventListener('loadedmetadata', onDuration);
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
+      video.removeEventListener('playing', onHistory);
     };
   }, [id]);
 
