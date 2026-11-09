@@ -45,6 +45,8 @@ jobs:
       - run: npx tsc -b
       - name: Validate production Gateway browser-smoke script syntax
         run: node --check scripts/live-media-gateway-smoke.mjs
+      - name: Validate production Gateway workflow YAML
+        run: npx --yes prettier --parser yaml ../../.github/workflows/deploy-media-gateway.yml > /dev/null
       - run: npx playwright install --with-deps chromium
       - name: Iniciar API local determinista para Playwright
         env: { E2E_API_PORT: '4174' }
