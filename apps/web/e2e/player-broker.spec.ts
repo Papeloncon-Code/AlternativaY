@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { prepareBridgeRequest } from '../src/player/youtube/bridgeRequest';
 import {
   activateWithFallback,
   PlaybackBroker,
@@ -94,39 +95,20 @@ test('un aborto del usuario no se confunde con un fallo del proveedor', async ()
 });
 
 
-test('preserva método POST, body y cabeceras de un Request al reenviarlo por Bridge', async ({ page }) => {
-  await page.goto('/');
-  const forwarded = await page.evaluate(async () => {
-    const capture: { value?: { url: string; method: string | undefined; body: string; contentType: string | null } } = {};
-    window.ytcBridge = { installed: true };
-    window.proxyFetch = async (url: string, init?: RequestInit) => {
-      const body = init?.body instanceof ArrayBuffer
-        ? new TextDecoder().decode(init.body)
-        : String(init?.body ?? '');
-      capture.value = {
-        url,
-        method: init?.method,
-        body,
-        contentType: new Headers(init?.headers).get('content-type'),
-      };
-      return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
-    };
-    const { fetchFunction } = await import('/src/player/youtube/helpers.ts');
-    const payload = JSON.stringify({ videoId: 'dQw4w9WgXcQ', context: { client: { clientName: 'WEB' } } });
-    const request = new Request('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: payload,
-    });
-    await fetchFunction(request);
-    return capture.value ?? null;
+test('preserva método POST, body y cabeceras de un Request al prepararlo para Bridge', async () => {
+  const payload = JSON.stringify({ videoId: 'dQw4w9WgXcQ', context: { client: { clientName: 'WEB' } } });
+  const request = new Request('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: payload,
   });
 
-  expect(forwarded).not.toBeNull();
-  expect(forwarded!.method).toBe('POST');
-  expect(forwarded!.body).toContain('"videoId":"dQw4w9WgXcQ"');
-  expect(forwarded!.contentType).toBe('application/json');
-  expect(forwarded!.url).toContain('/youtubei/v1/player');
+  const forwarded = await prepareBridgeRequest(request);
+  expect(forwarded.init.method).toBe('POST');
+  expect(forwarded.init.body).toBeInstanceOf(ArrayBuffer);
+  expect(new TextDecoder().decode(forwarded.init.body as ArrayBuffer)).toBe(payload);
+  expect(new Headers(forwarded.init.headers).get('content-type')).toBe('application/json');
+  expect(forwarded.url.pathname).toBe('/youtubei/v1/player');
 });
 
 test('mantiene vídeo y controles SABR dentro del dock en página y minirreproductor', async ({ page }) => {
