@@ -17,7 +17,7 @@ function allowedOrigins(env) {
 function cors(req, env) {
   const h = new Headers({
     'Access-Control-Allow-Methods': 'GET, HEAD, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range, If-Range, If-None-Match, X-Media-Size, X-Media-Title, X-Media-Creator, X-Media-License, X-Media-License-Reference, X-Media-Visibility',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range, If-Range, If-None-Match, X-Media-Size, X-Media-Title, X-Media-Creator, X-Media-License, X-Media-License-Reference, X-Media-Visibility, X-Media-Size',
     'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length, Content-Type, ETag, Last-Modified, X-Media-Title, X-Media-Creator, X-Media-License, X-Media-Origin',
     'Vary': 'Origin',
   });
