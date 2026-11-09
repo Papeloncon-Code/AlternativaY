@@ -78,7 +78,7 @@ try {
     element.currentTime = target;
   }, seekTarget);
   await page.waitForFunction((target) => {
-    const video = document.querySelector('.youtube-sabr-player video') as HTMLVideoElement | null;
+    const video = document.querySelector('.youtube-sabr-player video');
     return !!video && Math.abs(video.currentTime - target) < 2;
   }, seekTarget, { timeout: 20_000 });
 
