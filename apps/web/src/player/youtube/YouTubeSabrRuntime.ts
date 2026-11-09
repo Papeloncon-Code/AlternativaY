@@ -129,6 +129,7 @@ export class YouTubeSabrRuntime {
   private stallWatchdogLastProgress = 0;
   private stallRecoveryAttempts = 0;
   private stallRecoveryInProgress = false;
+  private stallRecoveryExhausted = false;
   private lastStallRecoveryAt = 0;
 
   constructor(callbacks: RuntimeCallbacks = {}) {
@@ -228,7 +229,10 @@ export class YouTubeSabrRuntime {
     if (Math.abs(currentTime - this.stallWatchdogLastTime) > 0.05) {
       this.stallWatchdogLastTime = currentTime;
       this.stallWatchdogLastProgress = now;
-      if (now - this.lastStallRecoveryAt > 10_000) this.stallRecoveryAttempts = 0;
+      if (now - this.lastStallRecoveryAt > 10_000) {
+        this.stallRecoveryAttempts = 0;
+        this.stallRecoveryExhausted = false;
+      }
       return;
     }
 
@@ -259,8 +263,14 @@ export class YouTubeSabrRuntime {
   }
 
   private async recoverFromStall(): Promise<void> {
-    if (this.stallRecoveryInProgress || this.destroyed || !this.video) return;
+    if (
+      this.stallRecoveryInProgress ||
+      this.stallRecoveryExhausted ||
+      this.destroyed ||
+      !this.video
+    ) return;
     if (this.stallRecoveryAttempts >= 3) {
+      this.stallRecoveryExhausted = true;
       const error = new Error('La reproducción no logró recuperarse después de varios intentos.');
       this.callbacks.onStatus?.('error', error.message);
       this.callbacks.onFatal?.(error);
@@ -300,6 +310,12 @@ export class YouTubeSabrRuntime {
     this.refreshedClients.clear();
     this.currentClient = null;
     this.lastError = '';
+    this.stallRecoveryAttempts = 0;
+    this.stallRecoveryExhausted = false;
+    this.stallRecoveryInProgress = false;
+    this.lastStallRecoveryAt = 0;
+    this.stallWatchdogLastProgress = Date.now();
+    this.stallWatchdogLastTime = startAt;
     this.callbacks.onStatus?.('loading', 'Iniciando la cadena redundante de clientes…');
 
     const found = await this.loadNextClient(startAt, autoplay);
