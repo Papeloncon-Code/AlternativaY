@@ -28,7 +28,6 @@ export default function MediaLibrary() {
   const [token, setToken] = useState('');
   const [license, setLicense] = useState<'owned' | 'licensed'>('owned');
   const [licenseReference, setLicenseReference] = useState('');
-  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -77,9 +76,8 @@ export default function MediaLibrary() {
     setUploading(true);
     try {
       const result = await uploadGatewayMedia({
-        id, file, token, title, creator, license,
+        id, file, token, title, creator, license, visibility: 'public',
         licenseReference: license === 'licensed' ? licenseReference : undefined,
-        visibility,
       });
       await reloadCatalog();
       setUploadMessage(result.replicas.degraded
@@ -119,12 +117,6 @@ export default function MediaLibrary() {
           <select value={license} onChange={(e) => setLicense(e.target.value as 'owned' | 'licensed')} disabled={uploading}>
             <option value="owned">Contenido propio</option>
             <option value="licensed">Contenido licenciado</option>
-          </select>
-        </label>
-        <label className="media-field">Visibilidad
-          <select value={visibility} onChange={(e) => setVisibility(e.target.value as 'public' | 'private')} disabled={uploading}>
-            <option value="public">Público</option>
-            <option value="private">Privado</option>
           </select>
         </label>
         {license === 'licensed' && <label className="media-field media-field-wide">Referencia de licencia o permiso
