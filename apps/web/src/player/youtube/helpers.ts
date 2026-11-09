@@ -1,4 +1,4 @@
-import shaka from 'shaka-player/dist/shaka-player.ui.js';
+import shaka from 'shaka-player';
 import { prepareBridgeRequest } from './bridgeRequest';
 import { summarizeInnerTubeRequest } from './diagnostics';
 import { InnerTubePlayerHttpError } from './failurePolicy';
