@@ -11,7 +11,9 @@ import {
 } from 'youtubei.js/web';
 import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
 import { buildSabrFormat } from 'googlevideo/utils';
-import { checkExtension, fetchFunction } from './helpers';
+import { checkExtension, fetchFunction, fetchOnesieHotConfig, type OnesieHotConfig } from './helpers';
+import { makePlayerRequest } from './onesie';
+import type { ReloadPlaybackContext } from 'googlevideo/protos';
 import { botguardService } from './BotguardService';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
 
@@ -106,6 +108,7 @@ function isWebClient(client: YouTubeClient): boolean {
  */
 export class YouTubeSabrRuntime {
   private readonly sessions = new Map<YouTubeClient, Promise<Innertube>>();
+  private onesieConfigPromise: Promise<OnesieHotConfig | null> | null = null;
   private player: shaka.Player | null = null;
   private sabrAdapter: SabrStreamingAdapter | null = null;
   private video: HTMLVideoElement | null = null;
@@ -212,19 +215,62 @@ export class YouTubeSabrRuntime {
     }
   }
 
-  private async fetchPlayerInfo(innertube: Innertube, client: YouTubeClient): Promise<ApiResponse> {
-    const request = innertube.actions.execute('/player', {
+  private async getOnesieConfig(): Promise<OnesieHotConfig | null> {
+    if (!this.onesieConfigPromise) {
+      this.onesieConfigPromise = fetchOnesieHotConfig();
+    }
+    return this.onesieConfigPromise;
+  }
+
+  private async fetchPlayerInfo(
+    innertube: Innertube,
+    client: YouTubeClient,
+    reloadContext?: ReloadPlaybackContext,
+  ): Promise<ApiResponse> {
+    const requestParams: Record<string, unknown> = {
       videoId: this.videoId,
       contentCheckOk: true,
       racyCheckOk: true,
-      client,
       playbackContext: {
         contentPlaybackContext: {
           signatureTimestamp: innertube.session.player?.signature_timestamp,
         },
       },
-    });
-    return timeout(request, PLAYER_REQUEST_TIMEOUT_MS, 'InnerTube ' + client);
+    };
+    if (reloadContext) {
+      (requestParams.playbackContext as Record<string, unknown>).reloadPlaybackContext = reloadContext;
+    }
+
+    const request = (async () => {
+      // Onesie is the primary WEB player-request path. If its config is expired,
+      // unavailable or the request fails, fall back to normal InnerTube on the
+      // same client before the client ladder moves to its next rung.
+      if (client === 'WEB') {
+        const clientConfig = await this.getOnesieConfig();
+        if (clientConfig) {
+          try {
+            return await makePlayerRequest({
+              clientConfig,
+              innertubeRequest: {
+                context: innertube.session.context,
+                ...requestParams,
+              },
+            });
+          } catch (error) {
+            console.warn('[TodoTube] Onesie request failed; falling back to InnerTube:', error);
+            this.onesieConfigPromise = null;
+          }
+        }
+      }
+
+      return innertube.actions.execute('/player', {
+        ...requestParams,
+        client,
+        parse: false,
+      });
+    })();
+
+    return timeout(request, PLAYER_REQUEST_TIMEOUT_MS, 'InnerTube/Onesie ' + client);
   }
 
   private async buildCandidates(
@@ -406,7 +452,7 @@ export class YouTubeSabrRuntime {
     });
 
     adapter.onReloadPlayerResponse(async (reloadContext) => {
-      const refreshed = await this.fetchPlayerInfoWithReload(innertube, client, reloadContext);
+      const refreshed = await this.fetchPlayerInfo(innertube, client, reloadContext as ReloadPlaybackContext);
       const refreshedInfo = new YT.VideoInfo([refreshed], innertube.actions, Utils.generateRandomString(16));
       const streamingUrl = refreshedInfo.streaming_data?.server_abr_streaming_url;
       if (!streamingUrl) throw new Error('YouTube no devolvió una URL SABR de renovación.');
@@ -426,26 +472,6 @@ export class YouTubeSabrRuntime {
     );
     adapter.setServerAbrFormats(info.streaming_data?.adaptive_formats?.map(buildSabrFormat) ?? []);
     this.sabrAdapter = adapter;
-  }
-
-  private async fetchPlayerInfoWithReload(
-    innertube: Innertube,
-    client: YouTubeClient,
-    reloadContext: unknown,
-  ): Promise<ApiResponse> {
-    const request = innertube.actions.execute('/player', {
-      videoId: this.videoId,
-      contentCheckOk: true,
-      racyCheckOk: true,
-      client,
-      playbackContext: {
-        contentPlaybackContext: {
-          signatureTimestamp: innertube.session.player?.signature_timestamp,
-        },
-        reloadPlaybackContext: reloadContext,
-      },
-    });
-    return timeout(request, PLAYER_REQUEST_TIMEOUT_MS, 'InnerTube ' + client + ' refresh');
   }
 
   private async mintPlaybackToken(): Promise<void> {
