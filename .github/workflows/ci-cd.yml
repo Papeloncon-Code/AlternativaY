@@ -95,6 +95,28 @@ jobs:
         with: { gradle-version: '8.11.1' }
       - name: Compile, test and package the JVM resolver
         run: gradle --no-daemon clean test shadowJar
+      - name: Smoke test NewPipe against a real public YouTube video
+        env:
+          RESOLVER_API_KEY: todotube-ci-resolver-key-0123456789abcdef0123456789
+          PORT: '18080'
+        run: |
+          java -jar build/libs/todotube-newpipe-resolver-0.1.0-all.jar > /tmp/todotube-newpipe.log 2>&1 &
+          resolver_pid=$!
+          trap 'kill "$resolver_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:18080/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:18080/health
+          response="$(curl --retry 2 --retry-delay 2 --max-time 45 -fsS \
+            -H "Authorization: Bearer $RESOLVER_API_KEY" \
+            http://127.0.0.1:18080/v1/resolve/jNQXAC9IVRw)"
+          echo "$response" | jq '{videoId, title, resolution, mimeType, provider}'
+          stream_url="$(echo "$response" | jq -er '.streamUrl | select(startswith("https://"))')"
+          test "$(echo "$response" | jq -r '.videoId')" = 'jNQXAC9IVRw'
+          http_status="$(curl -L --max-time 30 --range 0-1023 -sS -o /dev/null -w '%{http_code}' "$stream_url")"
+          echo "Resolved video byte-range response: HTTP $http_status"
+          test "$http_status" = '200' -o "$http_status" = '206'
 
   gateway:
     name: Media Gateway · pruebas unitarias
