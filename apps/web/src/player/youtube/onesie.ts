@@ -67,7 +67,7 @@ export function encodeOnesieRequestEnvelope(args: {
 
 async function prepareOnesieRequest(args: OnesieRequestArgs) {
   const { innertubeRequest, clientConfig } = args;
-  const { baseUrl, clientKeyData, encryptedClientKey, onesieUstreamerConfig } = clientConfig;
+  const { baseUrl, clientKeyData } = clientConfig;
 
   const headers = [
     { name: 'Content-Type', value: 'application/json' },
