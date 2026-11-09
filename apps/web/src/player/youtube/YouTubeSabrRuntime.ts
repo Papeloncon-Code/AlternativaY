@@ -1,5 +1,5 @@
 import shaka from 'shaka-player/dist/shaka-player.ui';
-import type { Types } from 'youtubei.js/web';
+import type { ApiResponse, Types } from 'youtubei.js/web';
 import { Constants, Innertube, Platform, UniversalCache, Utils, YT } from 'youtubei.js/web';
 import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
 import { buildSabrFormat } from 'googlevideo/utils';
@@ -162,7 +162,7 @@ export class YouTubeSabrRuntime {
     return timeout(request, PLAYER_REQUEST_TIMEOUT_MS, 'InnerTube ' + client);
   }
 
-  private async buildCandidates(response: Types.ApiResponse, client: YouTubeClient): Promise<SourceCandidate[]> {
+  private async buildCandidates(response: ApiResponse, client: YouTubeClient): Promise<SourceCandidate[]> {
     if (!this.innertube) return [];
     const info = new YT.VideoInfo([response], this.innertube.actions, Utils.generateRandomString(16));
     const streaming = info.streaming_data;
