@@ -153,7 +153,35 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
 
   const proxyFetch = getInjectedProxyFunction();
   if (!proxyFetch) throw new Error('TodoTube Bridge no está instalado o no está activo en este sitio.');
-  return proxyFetch(url.toString(), requestInit);
+
+  const response = await proxyFetch(url.toString(), requestInit);
+  if (url.pathname.includes('/youtubei/v1/player') && !response.ok) {
+    const responseBody = await response.text().catch(() => '');
+    const requestHeaders = new Headers(requestInit.headers);
+    const body = requestInit.body;
+    const bodyBytes = body instanceof ArrayBuffer
+      ? body.byteLength
+      : body instanceof Uint8Array
+        ? body.byteLength
+        : typeof body === 'string'
+          ? new TextEncoder().encode(body).byteLength
+          : 0;
+    console.error('[TodoTube] InnerTube /player diagnostic', JSON.stringify({
+      status: response.status,
+      method: requestInit.method ?? 'GET',
+      bodyBytes,
+      requestHeaderNames: Array.from(requestHeaders.keys()).sort(),
+      responseBody: responseBody.slice(0, 1600),
+    }));
+    const responseHeaders = new Headers(response.headers);
+    responseHeaders.delete('content-length');
+    return new Response(responseBody, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+    });
+  }
+  return response;
 }
 
 export function asMap<K, V>(object: Record<string, V>): Map<K, V> {
