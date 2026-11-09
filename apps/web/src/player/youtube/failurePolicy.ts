@@ -1,12 +1,17 @@
 export class InnerTubePlayerHttpError extends Error {
   readonly status: number;
-  readonly responseBody: string;
+  declare readonly responseBody: string;
 
   constructor(status: number, responseBody: string) {
     super('YouTube rejected the player request with HTTP ' + status + '.');
     this.name = 'InnerTubePlayerHttpError';
     this.status = status;
-    this.responseBody = responseBody.slice(0, 1600);
+    Object.defineProperty(this, 'responseBody', {
+      value: responseBody.slice(0, 1600),
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    });
   }
 }
 
