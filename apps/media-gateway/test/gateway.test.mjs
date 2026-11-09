@@ -2,6 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../src/index.js';
 
+// Cloudflare's FixedLengthStream is not available in Node's test runtime.
+// This compatible identity stream exercises its exact byte-count contract.
+class TestFixedLengthStream extends TransformStream {
+  constructor(length) {
+    let actual = 0;
+    super({
+      transform(chunk, controller) {
+        const size = chunk instanceof Uint8Array ? chunk.byteLength : new Uint8Array(chunk).byteLength;
+        actual += size;
+        if (actual > length) throw new Error('FixedLengthStream received too many bytes');
+        controller.enqueue(chunk);
+      },
+      flush() {
+        if (actual !== length) throw new Error('FixedLengthStream received too few bytes');
+      },
+    });
+  }
+}
+globalThis.FixedLengthStream = TestFixedLengthStream;
+
 class MemoryR2 {
   objects = new Map();
   failHead = false;
