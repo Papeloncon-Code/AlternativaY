@@ -80,6 +80,20 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  newpipe:
+    name: NewPipe Resolver · Java 17 build and tests
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/newpipe-resolver } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Compile, test and package the JVM resolver
+        run: gradle --no-daemon clean test shadowJar
+
   gateway:
     name: Media Gateway · pruebas unitarias
     runs-on: ubuntu-latest
@@ -93,7 +107,7 @@ jobs:
 
   desplegar:
     name: Despliegue en Cloudflare y humo en producción
-    needs: [avisos, web, gateway]
+    needs: [avisos, web, gateway, newpipe]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: produccion
