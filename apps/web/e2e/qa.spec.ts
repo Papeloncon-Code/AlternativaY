@@ -55,12 +55,14 @@ test('#4 un Short de fuera de tus canales se puede ver', async ({ page }) => {
   await expect(page.getByText('no está entre los de tus canales')).toHaveCount(0);
 });
 
-test('Shorts nunca carga el reproductor oficial de YouTube', async ({ page }) => {
+test('Shorts usa el reproductor propio y no ofrece enlaces externos', async ({ page }) => {
   await page.goto('/shorts');
-  await expect(page.locator('.short-player .own-player')).toBeVisible();
+  const player = page.locator('.short-player .youtube-sabr-player');
+  await expect(player).toBeVisible({ timeout: 15_000 });
+  await expect(player.locator('video[aria-label="Reproductor TodoTube"]')).toHaveCount(1);
   await expect(page.locator('.short-player iframe')).toHaveCount(0);
-  await expect(page.locator('.own-player-error')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Abrir origen' })).toBeVisible();
+  await expect(page.locator('.short-player a[href^="https://www.youtube.com/"]')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Abrir origen' })).toHaveCount(0);
 });
 
 test('#19 ↓ en el buscador no cambia de Short; #20 «Atrás» vuelve al Short anterior', async ({ page }) => {
