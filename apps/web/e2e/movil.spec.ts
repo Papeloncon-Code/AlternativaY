@@ -25,8 +25,11 @@ test('Shorts móvil: usa el reproductor TodoTube y navega sin iframe externo', a
   await page.goto('/shorts');
   await expect(page).toHaveURL(/\/shorts\/[\w-]{11}/);
   const u1 = page.url();
-  await expect(page.locator('.short-player .own-player')).toBeVisible();
+  const player = page.locator('.short-player .youtube-sabr-player');
+  await expect(player).toBeVisible();
+  await expect(player.locator('video[aria-label="Reproductor TodoTube"]')).toHaveCount(1);
   await expect(page.locator('.short-player iframe')).toHaveCount(0);
+  await expect(page.locator('.short-player a[href^="https://www.youtube.com/"]')).toHaveCount(0);
   await expect(page.locator('.short-nav')).toBeVisible();
   await page.locator('.short-nav button[aria-label="Short siguiente"]').click();
   await expect(page).not.toHaveURL(u1);
@@ -64,7 +67,8 @@ test('minirreproductor móvil: conserva el estado de reproducción y no crea ifr
   await page.locator('.logo-link').click();
   await expect(page.locator('.player-dock')).toHaveClass(/mini/);
   await expect(page.locator('.player-dock .gateway-error')).toBeVisible();
-  await expect(page.locator('.player-dock .mini-source')).toBeVisible();
+  await expect(page.locator('.player-dock .mini-source')).toHaveCount(0);
+  await expect(page.locator('.player-dock a[href^="https://www.youtube.com/"]')).toHaveCount(0);
   await expect(page.locator('.mini-cover')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
