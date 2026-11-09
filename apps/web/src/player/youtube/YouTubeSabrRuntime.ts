@@ -284,7 +284,10 @@ export class YouTubeSabrRuntime {
     console.warn('[TodoTube] Playback stalled; attempting recovery', this.stallRecoveryAttempts);
 
     try {
-      await this.switchToNextSource('El vídeo dejó de avanzar. TodoTube está recuperando la reproducción…');
+      const recovered = await this.switchToNextSource(
+        'El vídeo dejó de avanzar. TodoTube está recuperando la reproducción…',
+      );
+      if (!recovered) this.stallRecoveryExhausted = true;
     } finally {
       this.stallRecoveryInProgress = false;
       this.stallWatchdogLastTime = this.video?.currentTime ?? 0;
@@ -650,6 +653,7 @@ export class YouTubeSabrRuntime {
   }
 
   private reportRestrictedFailure(): false {
+    this.stallRecoveryExhausted = true;
     const error = new Error('La fuente no autorizó esta reproducción. TodoTube no intentará otras rutas de YouTube.');
     this.lastError = error.message;
     this.callbacks.onStatus?.('error', error.message);
