@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import type { RequestInit } from 'undici';
 import {
   activateWithFallback,
   PlaybackBroker,
@@ -98,13 +97,13 @@ test('un aborto del usuario no se confunde con un fallo del proveedor', async ()
 test('preserva método POST, body y cabeceras de un Request al reenviarlo por Bridge', async ({ page }) => {
   await page.goto('/');
   const forwarded = await page.evaluate(async () => {
-    let captured: { url: string; method: string | undefined; body: string; contentType: string | null } | null = null;
+    const capture: { value?: { url: string; method: string | undefined; body: string; contentType: string | null } } = {};
     window.ytcBridge = { installed: true };
     window.proxyFetch = async (url: string, init?: RequestInit) => {
       const body = init?.body instanceof ArrayBuffer
         ? new TextDecoder().decode(init.body)
         : String(init?.body ?? '');
-      captured = {
+      capture.value = {
         url,
         method: init?.method,
         body,
@@ -112,7 +111,7 @@ test('preserva método POST, body y cabeceras de un Request al reenviarlo por Br
       };
       return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } });
     };
-    const { fetchFunction } = await import('../src/player/youtube/helpers');
+    const { fetchFunction } = await import('/src/player/youtube/helpers.ts');
     const payload = JSON.stringify({ videoId: 'dQw4w9WgXcQ', context: { client: { clientName: 'WEB' } } });
     const request = new Request('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
       method: 'POST',
@@ -120,7 +119,7 @@ test('preserva método POST, body y cabeceras de un Request al reenviarlo por Br
       body: payload,
     });
     await fetchFunction(request);
-    return captured;
+    return capture.value ?? null;
   });
 
   expect(forwarded).not.toBeNull();
