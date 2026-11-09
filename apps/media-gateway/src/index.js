@@ -377,22 +377,19 @@ async function upload(req, env, id) {
     withTimeout(bucket.put(key, transfers[index].body, options), writeTimeout(env))
   ));
   const written = writes.filter((result) => result.status === 'fulfilled').length;
-  if (written !== origins.length) transfers.forEach((transfer) => transfer.controller.abort());
-  const pumps = await Promise.allSettled(transfers.map((transfer) => transfer.pump));
-  const streamsComplete = pumps.every((result) => result.status === 'fulfilled');
-  if (!streamsComplete || written !== origins.length) {
+  if (written !== origins.length) {
     // A public media ID must never be left visible from only one origin.
-    // FixedLengthStream rejects over/under-sized bodies; rollback any partial write.
+    // FixedLengthStream makes R2 enforce the exact byte count; abort unused
+    // upload branches and rollback any partial write if an origin rejects it.
+    transfers.forEach((transfer) => transfer.controller.abort());
     const cleanup = await Promise.allSettled(origins.map((bucket) => withTimeout(bucket.delete(key), originTimeout(env))));
     const cleanupComplete = cleanup.every((result) => result.status === 'fulfilled');
     return json(req, env, {
-      error: !streamsComplete
-        ? 'El tamaño real del archivo no coincide con el tamaño declarado; se canceló la carga'
-        : 'No se pudo replicar el archivo en todos los orígenes; se canceló la publicación',
+      error: 'No se pudo completar la carga en todos los orígenes. Comprueba el tamaño del archivo y la conexión; se revirtió cualquier escritura parcial.',
       written,
       configured: origins.length,
       cleanupComplete,
-    }, !streamsComplete ? 400 : 503);
+    }, 503);
   }
   return json(req, env, {
     ok: true, id, visibility,
