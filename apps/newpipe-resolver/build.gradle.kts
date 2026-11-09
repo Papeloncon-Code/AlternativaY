@@ -17,7 +17,7 @@ repositories {
 }
 
 dependencies {
-    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.27.0")
+    implementation("com.github.teamnewpipe:NewPipeExtractor:v0.27.0")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
