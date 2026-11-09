@@ -1,19 +1,38 @@
 import shaka from 'shaka-player/dist/shaka-player.ui';
 import type { ApiResponse, Types } from 'youtubei.js/web';
-import { Constants, Innertube, Platform, UniversalCache, Utils, YT } from 'youtubei.js/web';
+import {
+  ClientType,
+  Constants,
+  Innertube,
+  Platform,
+  UniversalCache,
+  Utils,
+  YT,
+} from 'youtubei.js/web';
 import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
 import { buildSabrFormat } from 'googlevideo/utils';
 import { checkExtension, fetchFunction } from './helpers';
 import { botguardService } from './BotguardService';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
 
-type YouTubeClient = 'VISIONOS' | 'WEB' | 'ANDROID_VR';
+type YouTubeClient =
+  | 'VISIONOS'
+  | 'MWEB'
+  | 'WEB'
+  | 'TV'
+  | 'TV_EMBEDDED'
+  | 'WEB_EMBEDDED'
+  | 'ANDROID_VR'
+  | 'ANDROID_CREATOR'
+  | 'ANDROID';
+
 type SourceMode = 'sabr-dash' | 'dash' | 'hls' | 'direct';
 
 type SourceCandidate = {
   mode: SourceMode;
   uri: string;
   info: InstanceType<typeof YT.VideoInfo>;
+  innertube: Innertube;
   client: YouTubeClient;
   isLive: boolean;
 };
@@ -24,8 +43,36 @@ type RuntimeCallbacks = {
   onSource?: (mode: SourceMode, client: YouTubeClient) => void;
 };
 
-const CLIENT_FALLBACK_ORDER: YouTubeClient[] = ['VISIONOS', 'WEB', 'ANDROID_VR'];
-const PLAYER_REQUEST_TIMEOUT_MS = 7_000;
+const CLIENT_TYPES: Record<YouTubeClient, ClientType> = {
+  VISIONOS: ClientType.VISIONOS,
+  MWEB: ClientType.MWEB,
+  WEB: ClientType.WEB,
+  TV: ClientType.TV,
+  TV_EMBEDDED: ClientType.TV_EMBEDDED,
+  WEB_EMBEDDED: ClientType.WEB_EMBEDDED,
+  ANDROID_VR: ClientType.ANDROID_VR,
+  ANDROID_CREATOR: ClientType.ANDROID_CREATOR,
+  ANDROID: ClientType.ANDROID,
+};
+
+/**
+ * Ordered after Flow Desktop's current native client strategy:
+ * visionOS direct first, then mobile/web SABR clients, TV fallbacks, and
+ * Android profiles as later rungs. Every rung has its own Innertube session.
+ */
+const CLIENT_FALLBACK_ORDER: YouTubeClient[] = [
+  'VISIONOS',
+  'MWEB',
+  'WEB',
+  'TV',
+  'TV_EMBEDDED',
+  'WEB_EMBEDDED',
+  'ANDROID_VR',
+  'ANDROID_CREATOR',
+  'ANDROID',
+];
+
+const PLAYER_REQUEST_TIMEOUT_MS = 10_000;
 
 function timeout<T>(promise: Promise<T>, milliseconds: number, label: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -46,22 +93,27 @@ function toDataUri(xml: string): string {
   return 'data:application/dash+xml;base64,' + btoa(binary);
 }
 
+function isWebClient(client: YouTubeClient): boolean {
+  return client === 'MWEB' || client === 'WEB';
+}
+
 /**
- * Browser-side YouTube playback runtime based on the MIT-licensed
- * googlevideo + Shaka integration demonstrated by Kira.
+ * One TodoTube player, one source broker, several independent InnerTube
+ * client sessions and several media transports. Switching a source reloads
+ * Shaka with the last observed playback position instead of replacing the UI.
  *
- * This runtime never sends media through the TodoTube Cloudflare Worker.
- * The browser bridge handles InnerTube/CORS requests; Shaka fetches media
- * segments from their returned source URLs in the browser.
+ * No TodoTube Cloudflare Worker is used to relay YouTube media.
  */
 export class YouTubeSabrRuntime {
-  private innertube: Innertube | null = null;
+  private readonly sessions = new Map<YouTubeClient, Promise<Innertube>>();
   private player: shaka.Player | null = null;
   private sabrAdapter: SabrStreamingAdapter | null = null;
   private video: HTMLVideoElement | null = null;
   private candidates: SourceCandidate[] = [];
   private candidateIndex = -1;
   private nextClientIndex = 0;
+  private refreshedClients = new Set<YouTubeClient>();
+  private currentClient: YouTubeClient | null = null;
   private videoId = '';
   private playbackToken = '';
   private coldStartToken = '';
@@ -74,6 +126,24 @@ export class YouTubeSabrRuntime {
 
   constructor(callbacks: RuntimeCallbacks = {}) {
     this.callbacks = callbacks;
+  }
+
+  private async getClientSession(client: YouTubeClient): Promise<Innertube> {
+    const cached = this.sessions.get(client);
+    if (cached) return cached;
+
+    const pending = Innertube.create({
+      cache: new UniversalCache(true),
+      fetch: fetchFunction,
+      client_type: CLIENT_TYPES[client],
+    });
+    this.sessions.set(client, pending);
+    try {
+      return await pending;
+    } catch (error) {
+      this.sessions.delete(client);
+      throw error;
+    }
   }
 
   async attach(video: HTMLVideoElement): Promise<void> {
@@ -90,17 +160,6 @@ export class YouTubeSabrRuntime {
     if (!shaka.Player.isBrowserSupported()) {
       throw new Error('Este navegador no es compatible con Shaka Player.');
     }
-
-    this.innertube = await Innertube.create({
-      cache: new UniversalCache(true),
-      fetch: fetchFunction,
-    });
-
-    // Token setup is deliberately started in the background. Playback resolution
-    // is attempted first and the adapter waits for it only when the stream needs it.
-    void botguardService.init().catch((error) => {
-      console.warn('[TodoTube] No se pudo inicializar el servicio de integridad:', error);
-    });
 
     const player = new shaka.Player();
     player.configure({
@@ -120,10 +179,15 @@ export class YouTubeSabrRuntime {
     await player.attach(video);
     player.addEventListener('error', this.handlePlayerError);
     this.player = player;
+
+    // Start BotGuard in parallel. Only MWEB/WEB SABR sessions request a WebPO token.
+    void botguardService.init().catch((error) => {
+      console.warn('[TodoTube] No se pudo inicializar el servicio de integridad:', error);
+    });
   }
 
   async load(videoId: string, startAt = 0, autoplay = true): Promise<void> {
-    if (!this.player || !this.innertube || !this.video) {
+    if (!this.player || !this.video) {
       throw new Error('El runtime de reproducción no está inicializado.');
     }
     if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
@@ -137,34 +201,38 @@ export class YouTubeSabrRuntime {
     this.candidates = [];
     this.candidateIndex = -1;
     this.nextClientIndex = 0;
+    this.refreshedClients.clear();
+    this.currentClient = null;
     this.lastError = '';
-    this.callbacks.onStatus?.('loading', 'Resolviendo proveedores de reproducción…');
+    this.callbacks.onStatus?.('loading', 'Iniciando la cadena redundante de clientes…');
 
     const found = await this.loadNextClient(startAt, autoplay);
     if (!found) {
-      throw new Error(this.lastError || 'Ninguna de las rutas de reproducción disponibles pudo entregar este vídeo.');
+      throw new Error(this.lastError || 'Ninguno de los clientes y transportes disponibles pudo entregar este vídeo.');
     }
   }
 
-  private async fetchPlayerInfo(client: YouTubeClient) {
-    if (!this.innertube) throw new Error('InnerTube no está inicializado.');
-    const request = this.innertube.actions.execute('/player', {
+  private async fetchPlayerInfo(innertube: Innertube, client: YouTubeClient): Promise<ApiResponse> {
+    const request = innertube.actions.execute('/player', {
       videoId: this.videoId,
       contentCheckOk: true,
       racyCheckOk: true,
       client,
       playbackContext: {
         contentPlaybackContext: {
-          signatureTimestamp: this.innertube.session.player?.signature_timestamp,
+          signatureTimestamp: innertube.session.player?.signature_timestamp,
         },
       },
     });
     return timeout(request, PLAYER_REQUEST_TIMEOUT_MS, 'InnerTube ' + client);
   }
 
-  private async buildCandidates(response: ApiResponse, client: YouTubeClient): Promise<SourceCandidate[]> {
-    if (!this.innertube) return [];
-    const info = new YT.VideoInfo([response], this.innertube.actions, Utils.generateRandomString(16));
+  private async buildCandidates(
+    response: ApiResponse,
+    client: YouTubeClient,
+    innertube: Innertube,
+  ): Promise<SourceCandidate[]> {
+    const info = new YT.VideoInfo([response], innertube.actions, Utils.generateRandomString(16));
     const streaming = info.streaming_data;
     if (!streaming) return [];
 
@@ -173,8 +241,9 @@ export class YouTubeSabrRuntime {
       (info.basic_info.is_live_content && !!(streaming.dash_manifest_url || streaming.hls_manifest_url));
     const candidates: SourceCandidate[] = [];
 
-    // Primary: SABR/UMP delivered to Shaka through googlevideo's streaming adapter.
-    if (!isLive && !isPostLiveDvr && streaming.server_abr_streaming_url &&
+    // Primary transport when the selected client exposes the server ABR session.
+    if (!isLive && !isPostLiveDvr &&
+        streaming.server_abr_streaming_url &&
         streaming.adaptive_formats?.length &&
         info.player_config?.media_common_config?.media_ustreamer_request_config?.video_playback_ustreamer_config) {
       const manifest = await info.toDash({
@@ -188,17 +257,19 @@ export class YouTubeSabrRuntime {
         mode: 'sabr-dash',
         uri: toDataUri(manifest),
         info,
+        innertube,
         client,
         isLive,
       });
     }
 
-    // Independent transport fallbacks from the same player response.
+    // DASH/HLS are independent transports from the same client response.
     if (streaming.dash_manifest_url) {
       candidates.push({
         mode: 'dash',
         uri: isLive ? streaming.dash_manifest_url + '/mpd_version/7' : streaming.dash_manifest_url,
         info,
+        innertube,
         client,
         isLive,
       });
@@ -208,13 +279,14 @@ export class YouTubeSabrRuntime {
         mode: 'hls',
         uri: streaming.hls_manifest_url,
         info,
+        innertube,
         client,
         isLive,
       });
     }
 
-    // Direct progressive is a last-resort path. Only formats that already
-    // contain a concrete URL are used; no DRM licence path is attempted.
+    // Progressive direct URLs are a last-resort mode. Cipher-only entries
+    // are ignored instead of pretending they are playable.
     const formats = (streaming.formats ?? []) as Array<{
       url?: string;
       mime_type?: string;
@@ -233,13 +305,14 @@ export class YouTubeSabrRuntime {
         mode: 'direct',
         uri: format.url!,
         info,
+        innertube,
         client,
         isLive,
       });
     }
 
-    // Some clients return adaptive video/audio formats but no server DASH URL.
-    // VideoInfo builds a regular DASH manifest from the exposed format URLs.
+    // A client without a dedicated DASH URL may still expose valid adaptive
+    // URLs that youtubei.js can put into an ordinary DASH manifest.
     if (!isLive && !isPostLiveDvr && streaming.adaptive_formats?.length) {
       try {
         const manifest = await info.toDash({
@@ -253,6 +326,7 @@ export class YouTubeSabrRuntime {
           mode: 'dash',
           uri: toDataUri(manifest),
           info,
+          innertube,
           client,
           isLive,
         });
@@ -267,17 +341,18 @@ export class YouTubeSabrRuntime {
   private async loadNextClient(resumeAt: number, autoplay: boolean): Promise<boolean> {
     while (this.nextClientIndex < CLIENT_FALLBACK_ORDER.length && !this.destroyed) {
       const client = CLIENT_FALLBACK_ORDER[this.nextClientIndex++];
-      this.callbacks.onStatus?.('switching', 'Probando ruta ' + client + '…');
+      this.callbacks.onStatus?.('switching', 'Probando cliente ' + client + '…');
 
       try {
-        const response = await this.fetchPlayerInfo(client);
-        const info = new YT.VideoInfo([response], this.innertube!.actions, Utils.generateRandomString(16));
+        const innertube = await this.getClientSession(client);
+        const response = await this.fetchPlayerInfo(innertube, client);
+        const info = new YT.VideoInfo([response], innertube.actions, Utils.generateRandomString(16));
         if (info.playability_status?.status !== 'OK') {
           this.lastError = info.playability_status?.reason || ('YouTube rechazó el cliente ' + client + '.');
           continue;
         }
 
-        const candidates = await this.buildCandidates(response, client);
+        const candidates = await this.buildCandidates(response, client, innertube);
         if (!candidates.length) {
           this.lastError = 'El cliente ' + client + ' no devolvió ningún transporte reproducible.';
           continue;
@@ -285,6 +360,7 @@ export class YouTubeSabrRuntime {
 
         this.candidates = candidates;
         this.candidateIndex = -1;
+        this.currentClient = client;
 
         for (let index = 0; index < candidates.length && !this.destroyed; index++) {
           try {
@@ -297,71 +373,79 @@ export class YouTubeSabrRuntime {
         }
       } catch (error) {
         this.lastError = error instanceof Error ? error.message : String(error);
-        console.warn('[TodoTube] Falló la resolución con ' + client + ':', error);
+        console.warn('[TodoTube] Falló el cliente ' + client + ':', error);
       }
     }
     return false;
   }
 
-  private async attachSabr(info: InstanceType<typeof YT.VideoInfo>, client: YouTubeClient): Promise<void> {
-    if (!this.player || !this.innertube) throw new Error('El reproductor no está disponible.');
+  private async attachSabr(candidate: SourceCandidate): Promise<void> {
+    if (!this.player) throw new Error('El reproductor no está disponible.');
     this.sabrAdapter?.dispose();
 
+    const { innertube, info, client } = candidate;
     const adapter = new SabrStreamingAdapter({
       playerAdapter: new ShakaPlayerAdapter(),
       clientInfo: {
-        osName: this.innertube.session.context.client.osName,
-        osVersion: this.innertube.session.context.client.osVersion,
+        osName: innertube.session.context.client.osName,
+        osVersion: innertube.session.context.client.osVersion,
         clientName: parseInt(Constants.CLIENT_NAME_IDS[
-          this.innertube.session.context.client.clientName as keyof typeof Constants.CLIENT_NAME_IDS
+          innertube.session.context.client.clientName as keyof typeof Constants.CLIENT_NAME_IDS
         ]),
-        clientVersion: this.innertube.session.context.client.clientVersion,
+        clientVersion: innertube.session.context.client.clientVersion,
       },
     });
 
     adapter.onMintPoToken(async () => {
+      if (!isWebClient(client)) return '';
       if (!this.playbackToken && !this.tokenLock) {
-        if (info.basic_info.is_live) {
-          await this.mintPlaybackToken();
-        } else {
-          void this.mintPlaybackToken();
-        }
+        if (info.basic_info.is_live) await this.mintPlaybackToken();
+        else void this.mintPlaybackToken();
       }
       return this.playbackToken || this.coldStartToken || '';
     });
 
     adapter.onReloadPlayerResponse(async (reloadContext) => {
-      if (!this.innertube) return;
-      const refreshed = await this.innertube.actions.execute('/player', {
-        videoId: this.videoId,
-        contentCheckOk: true,
-        racyCheckOk: true,
-        client,
-        playbackContext: {
-          contentPlaybackContext: {
-            signatureTimestamp: this.innertube.session.player?.signature_timestamp,
-          },
-          reloadPlaybackContext: reloadContext,
-        },
-      });
-      const refreshedInfo = new YT.VideoInfo([refreshed], this.innertube.actions, Utils.generateRandomString(16));
-      adapter.setStreamingURL(await this.innertube.session.player!.decipher(
-        refreshedInfo.streaming_data?.server_abr_streaming_url,
-      ));
+      const refreshed = await this.fetchPlayerInfoWithReload(innertube, client, reloadContext);
+      const refreshedInfo = new YT.VideoInfo([refreshed], innertube.actions, Utils.generateRandomString(16));
+      const streamingUrl = refreshedInfo.streaming_data?.server_abr_streaming_url;
+      if (!streamingUrl) throw new Error('YouTube no devolvió una URL SABR de renovación.');
+      adapter.setStreamingURL(await innertube.session.player!.decipher(streamingUrl));
       adapter.setUstreamerConfig(
         refreshedInfo.player_config?.media_common_config?.media_ustreamer_request_config?.video_playback_ustreamer_config,
       );
     });
 
     adapter.attach(this.player);
-    adapter.setStreamingURL(await this.innertube.session.player!.decipher(
-      info.streaming_data?.server_abr_streaming_url,
-    ));
+
+    const serverUrl = info.streaming_data?.server_abr_streaming_url;
+    if (!serverUrl) throw new Error('El cliente ya no ofrece un endpoint SABR.');
+    adapter.setStreamingURL(await innertube.session.player!.decipher(serverUrl));
     adapter.setUstreamerConfig(
       info.player_config?.media_common_config?.media_ustreamer_request_config?.video_playback_ustreamer_config,
     );
     adapter.setServerAbrFormats(info.streaming_data?.adaptive_formats?.map(buildSabrFormat) ?? []);
     this.sabrAdapter = adapter;
+  }
+
+  private async fetchPlayerInfoWithReload(
+    innertube: Innertube,
+    client: YouTubeClient,
+    reloadContext: unknown,
+  ): Promise<ApiResponse> {
+    const request = innertube.actions.execute('/player', {
+      videoId: this.videoId,
+      contentCheckOk: true,
+      racyCheckOk: true,
+      client,
+      playbackContext: {
+        contentPlaybackContext: {
+          signatureTimestamp: innertube.session.player?.signature_timestamp,
+        },
+        reloadPlaybackContext: reloadContext,
+      },
+    });
+    return timeout(request, PLAYER_REQUEST_TIMEOUT_MS, 'InnerTube ' + client + ' refresh');
   }
 
   private async mintPlaybackToken(): Promise<void> {
@@ -374,7 +458,7 @@ export class YouTubeSabrRuntime {
         this.playbackToken = await botguardService.integrityTokenBasedMinter.mintAsWebsafeString(this.videoId);
       }
     } catch (error) {
-      console.warn('[TodoTube] No se pudo obtener el token de reproducción:', error);
+      console.warn('[TodoTube] No se pudo obtener el token web de reproducción:', error);
     } finally {
       this.tokenLock = false;
     }
@@ -393,7 +477,7 @@ export class YouTubeSabrRuntime {
     try {
       await this.player.unload();
       if (candidate.mode === 'sabr-dash') {
-        await this.attachSabr(candidate.info, candidate.client);
+        await this.attachSabr(candidate);
       } else {
         this.sabrAdapter?.dispose();
         this.sabrAdapter = null;
@@ -401,6 +485,7 @@ export class YouTubeSabrRuntime {
 
       await this.player.load(candidate.uri, candidate.isLive ? undefined : Math.max(0, resumeAt));
       this.candidateIndex = index;
+      this.currentClient = candidate.client;
       this.lastError = '';
       this.callbacks.onSource?.(candidate.mode, candidate.client);
       this.callbacks.onStatus?.('playing', candidate.mode + ' · ' + candidate.client);
@@ -428,7 +513,7 @@ export class YouTubeSabrRuntime {
     this.switching = true;
     const resumeAt = Number.isFinite(this.video.currentTime) ? this.video.currentTime : 0;
     const autoplay = !this.video.paused && !this.video.ended;
-    this.callbacks.onStatus?.('switching', reason + ' Probando una ruta alternativa…');
+    this.callbacks.onStatus?.('switching', reason + ' Probando otra ruta…');
 
     try {
       for (let index = this.candidateIndex + 1; index < this.candidates.length; index++) {
@@ -440,10 +525,37 @@ export class YouTubeSabrRuntime {
         }
       }
 
+      // Renew the current client's signed URLs once before moving to the next
+      // client. This handles expiring URLs and transient failures mid-stream.
+      if (this.currentClient && !this.refreshedClients.has(this.currentClient)) {
+        const client = this.currentClient;
+        this.refreshedClients.add(client);
+        try {
+          const innertube = await this.getClientSession(client);
+          const response = await this.fetchPlayerInfo(innertube, client);
+          const info = new YT.VideoInfo([response], innertube.actions, Utils.generateRandomString(16));
+          if (info.playability_status?.status === 'OK') {
+            const refreshedCandidates = await this.buildCandidates(response, client, innertube);
+            this.candidates = refreshedCandidates;
+            this.candidateIndex = -1;
+            for (let index = 0; index < refreshedCandidates.length; index++) {
+              try {
+                await this.activateCandidate(refreshedCandidates[index], index, resumeAt, autoplay);
+                return true;
+              } catch (error) {
+                this.lastError = error instanceof Error ? error.message : String(error);
+              }
+            }
+          }
+        } catch (error) {
+          this.lastError = error instanceof Error ? error.message : String(error);
+        }
+      }
+
       const found = await this.loadNextClient(resumeAt, autoplay);
       if (found) return true;
 
-      const error = new Error(this.lastError || 'Se agotaron las rutas de reproducción.');
+      const error = new Error(this.lastError || 'Se agotaron los clientes y transportes de reproducción.');
       this.callbacks.onStatus?.('error', error.message);
       this.callbacks.onFatal?.(error);
       return false;
@@ -465,9 +577,10 @@ export class YouTubeSabrRuntime {
       await this.player.destroy();
       this.player = null;
     }
-    this.innertube = null;
+    this.sessions.clear();
     this.video = null;
     this.candidates = [];
+    this.currentClient = null;
     botguardService.dispose();
   }
 }
