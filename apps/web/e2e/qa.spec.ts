@@ -109,6 +109,9 @@ test('#21 «Atrás» recupera el filtro elegido', async ({ page }) => {
 test('#23 la pestaña lleva el título del vídeo; #24 vídeo por enlace con su título real', async ({ page }) => {
   await page.goto('/ver/dQw4w9WgXcQ');
   await expect(page.locator('.watch-title')).not.toHaveText('Vídeo', { timeout: 15_000 });
+  await expect(page.locator('.watch-channel')).toBeVisible();
+  await expect(page.locator('.player-dock iframe')).toHaveCount(0);
+  await expect(page.locator('.player-dock a[href^="https://www.youtube.com/"]')).toHaveCount(0);
   await expect(page).toHaveTitle(/ - TodoTube$/);
 });
 
