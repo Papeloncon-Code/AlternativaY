@@ -73,3 +73,8 @@ La evidencia de E4 debe añadirse a un registro versionado con fecha, commit des
 ### Verificación de la ruta SABR
 
 Cuando la fuente activa es SABR, el registro de staging debe mostrar que la misma sesión WEB/MWEB completó `ENGAGEMENT_TYPE_UNBOUND`, que UMP entregó progreso/segmentos y que la búsqueda temporal funciona. Ante `StreamProtectionStatus=3`, comprobar que se ejecuta como máximo una renovación simultánea de attestation y WebPO mediante el minter local, con cooldown, sin cambiar de cliente/IP ni usar un proxy. La presencia del callback o una respuesta HTTP satisfactoria no sustituye la evidencia E4 de imagen y sonido.
+### Registro de fallo E4 del 2026-11-09
+
+Primer smoke desplegado: se abrió `/ver/dQw4w9WgXcQ` en Chromium con Bridge, pero terminó sin metadata (`readyState=0`, `videoWidth=0`, `videoHeight=0`, `duration=null`). `/youtubei/v1/player` del perfil ANDROID devolvió HTTP 400 `FAILED_PRECONDITION`; la app mostró error propio y no creó iframe. Resultado: **E4 FALLIDO**, no aceptación.
+
+La siguiente iteración usa el `/player` WEB normal para construir SABR, no una respuesta Onesie parcial, y amplía el registro de warnings runtime redactados. El nuevo smoke debe producir una captura de éxito con `currentTime` avanzando y seek, o una captura de fallo con la causa. La denegación explícita sigue siendo una prueba de seguridad separada.
