@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { prepareBridgeRequest } from '../src/player/youtube/bridgeRequest';
 import {
   activateWithFallback,
   PlaybackBroker,
@@ -93,6 +94,22 @@ test('un aborto del usuario no se confunde con un fallo del proveedor', async ()
   await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
 });
 
+
+test('preserva método POST, body y cabeceras de un Request al prepararlo para Bridge', async () => {
+  const payload = JSON.stringify({ videoId: 'dQw4w9WgXcQ', context: { client: { clientName: 'WEB' } } });
+  const request = new Request('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: payload,
+  });
+
+  const forwarded = await prepareBridgeRequest(request);
+  expect(forwarded.init.method).toBe('POST');
+  expect(forwarded.init.body).toBeInstanceOf(ArrayBuffer);
+  expect(new TextDecoder().decode(forwarded.init.body as ArrayBuffer)).toBe(payload);
+  expect(new Headers(forwarded.init.headers).get('content-type')).toBe('application/json');
+  expect(forwarded.url.pathname).toBe('/youtubei/v1/player');
+});
 
 test('mantiene vídeo y controles SABR dentro del dock en página y minirreproductor', async ({ page }) => {
   await page.goto('/');

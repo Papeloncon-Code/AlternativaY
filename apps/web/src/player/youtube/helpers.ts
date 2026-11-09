@@ -1,4 +1,5 @@
 import shaka from 'shaka-player/dist/shaka-player.ui';
+import { prepareBridgeRequest } from './bridgeRequest';
 
 declare global {
   interface Window {
@@ -138,9 +139,10 @@ export function getInjectedProxyFunction() {
 
 /** InnerTube requests use the browser bridge; googlevideo media requests stay in Shaka's normal fetch path. */
 export async function fetchFunction(input: string | Request | URL, init?: RequestInit): Promise<Response> {
-  const url = input instanceof URL ? input : new URL(typeof input === 'string' ? input : input.url);
-  const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-  const requestInit = { ...init, headers };
+  const prepared = await prepareBridgeRequest(input, init);
+  const { url } = prepared;
+  const requestInit = prepared.init;
+
 
   if (url.pathname.includes('/v1/player')) {
     url.searchParams.set('$fields', 'playerConfig,storyboards,captions,playabilityStatus,streamingData,responseContext.mainAppWebResponseContext.datasyncId,videoDetails.isLive,videoDetails.isLiveContent,videoDetails.title,videoDetails.author,videoDetails.thumbnail');
