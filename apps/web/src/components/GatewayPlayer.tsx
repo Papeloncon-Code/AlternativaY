@@ -15,6 +15,8 @@ const MAX_AUTOMATIC_RECOVERIES = 1;
 export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) {
   const wrap = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const metaRef = useRef(meta);
+  metaRef.current = meta;
   const lastSaveRef = useRef(0);
   const retryCountRef = useRef(0);
   const recoveryInFlightRef = useRef(false);
@@ -39,7 +41,7 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
     const save = () => {
       if (video.duration && Date.now() - lastSaveRef.current > 4000) {
         lastSaveRef.current = Date.now();
-        actions.saveProgress(meta, video.currentTime, video.duration);
+        actions.saveProgress(metaRef.current, video.currentTime, video.duration);
       }
     };
     const finishRecovery = () => {
@@ -92,8 +94,17 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
     const onTime = () => { setCurrent(video.currentTime); save(); };
     const onPlay = () => { setPlaying(true); };
     const onPause = () => { setPlaying(false); save(); };
-    const onHistory = () => actions.addHistory(meta);
-    const onError = () => recover(video.error?.message || 'El navegador no pudo leer el archivo multimedia.');
+    const onHistory = () => actions.addHistory(metaRef.current);
+    const onError = () => {
+      const message = video.error?.message || 'El navegador no pudo leer el archivo multimedia.';
+      if (recoveryInFlightRef.current) {
+        recoveryInFlightRef.current = false;
+        setRecovering(false);
+        setError(message);
+        return;
+      }
+      recover(message);
+    };
     const onStalled = () => scheduleStallRecovery();
     const onProgress = () => clearStallTimer();
     const onPlaying = () => { finishRecovery(); clearStallTimer(); };
@@ -120,7 +131,7 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
       video.removeEventListener('stalled', onStalled);
       video.removeEventListener('progress', onProgress);
     };
-  }, [id, meta]);
+  }, [id]);
 
   function togglePlay() {
     const video = videoRef.current!;
