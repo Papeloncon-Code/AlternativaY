@@ -55,7 +55,7 @@ export default function PlayerHost() {
   const original = 'https://www.youtube.com/watch?v=' + encodeURIComponent(s.id) + (s.startAt > 0 ? '&t=' + Math.floor(s.startAt) + 's' : '');
 
   return (
-    <div ref={box} className={'player-dock' + (onPage ? ' on-page' : ' mini') + (s.vertical ? ' vertical' : '')} style={style}>
+    <div ref={box} className={'player-dock' + (onPage ? ' on-page' : ' mini') + (s.vertical ? ' vertical' : '') + (gatewayCheck?.id === s.id && gatewayCheck.status === 'gateway' ? ' gateway' : '')} style={style}>
       <div className="player-dock-video">
         {gatewayCheck?.id === s.id && gatewayCheck.status === 'gateway'
           ? <GatewayPlayer key={s.id} id={s.id} meta={s.meta} startAt={s.startAt} compact={!onPage} />
