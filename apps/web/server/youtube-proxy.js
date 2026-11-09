@@ -176,9 +176,11 @@ export async function handleYouTubeProxy(request, fetchImpl = fetch) {
   let method = request.method;
   let requestBody = body;
   const headers = selectUpstreamHeaders(request.headers);
-  const upstreamUserAgent = request.headers.get('x-todotube-upstream-user-agent');
-  if (upstreamUserAgent && upstreamUserAgent.length <= 512 && !/[\\r\\n]/.test(upstreamUserAgent)) {
-    headers.set('user-agent', upstreamUserAgent);
+  // Forward only the actual browser User-Agent that arrived at our same-origin
+  // endpoint; page code cannot choose a different client identity here.
+  const browserUserAgent = request.headers.get('user-agent');
+  if (browserUserAgent && browserUserAgent.length <= 512 && !/[\\r\\n]/.test(browserUserAgent)) {
+    headers.set('user-agent', browserUserAgent);
   }
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
