@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useFeed } from '../data';
 import { actions, useStore, type Meta } from '../store';
-import OwnPlayer from '../components/OwnPlayer';
+import YouTubeSabrPlayer from '../components/YouTubeSabrPlayer';
 import Avatar from '../components/Avatar';
 import Icon from '../components/Icon';
 import { shareVideo, toast } from '../toast';
@@ -85,7 +85,7 @@ export default function ShortsPlayer() {
     <div className="shorts-stage">
       <div className="short-wrap">
         <div className="short-player">
-          {cur && <OwnPlayer key={id} id={id} kind="short" />}
+          {cur && <YouTubeSabrPlayer key={id} id={id} meta={meta} />}
           <div className="short-caption">
             {meta.channelId ? <Link to={`/canal/${meta.channelId}`} className="short-chan"><Avatar name={meta.channel || 'Canal'} id={meta.channelId} size={32} /><b>{meta.channel}</b></Link> : <span className="short-chan"><Avatar name={meta.channel || 'Canal'} id={id} size={32} /><b>{meta.channel || 'Canal externo'}</b></span>}
             <p>{meta.title}</p>
