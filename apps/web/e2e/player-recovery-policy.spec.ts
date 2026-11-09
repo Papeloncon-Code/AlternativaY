@@ -34,6 +34,14 @@ test('HTTP 400 blocks client rotation; permission and throttling errors block so
   const badRequest = new InnerTubePlayerHttpError(400, 'Bad request');
   expect(shouldStopClientFallback(badRequest)).toBe(true);
   expect(shouldStopSourceFallback(badRequest)).toBe(false);
+  expect(JSON.stringify(badRequest)).not.toContain('Bad request');
+
+  const failedPrecondition = new InnerTubePlayerHttpError(
+    400,
+    'FAILED_PRECONDITION: Precondition check failed.',
+  );
+  expect(shouldStopClientFallback(failedPrecondition)).toBe(true);
+  expect(shouldStopSourceFallback(failedPrecondition)).toBe(true);
 
   for (const status of [401, 403, 407, 429]) {
     const error = new InnerTubePlayerHttpError(status, 'Request rejected');
