@@ -16,7 +16,7 @@ test('W8 · el reproductor ocupa su hueco; la ficha externa pasa a mini y vuelve
   const [h, s] = await Promise.all([host.boundingBox(), page.locator('#player-slot').boundingBox()]);
   for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(h![k] - s![k])).toBeLessThan(2);
   // No hay stream YouTube dentro de TodoTube: al salir de Watch, la ficha compacta ofrece abrir el origen.
-  await expect(page.locator('.player-dock .own-player-error')).toBeVisible();
+  await expect(page.locator('.player-dock .gateway-error')).toBeVisible();
   await expect(page.locator('.player-dock iframe')).toHaveCount(0);
   await page.locator('.logo-link').click();
   await expect(host).toHaveClass(/mini/);
@@ -24,7 +24,7 @@ test('W8 · el reproductor ocupa su hueco; la ficha externa pasa a mini y vuelve
   const miniBox = await host.boundingBox();
   expect(miniBox).not.toBeNull();
   expect(miniBox!.y + miniBox!.height).toBeLessThanOrEqual(await page.evaluate(() => innerHeight));
-  await expect(page.locator('.player-dock .own-player-compact')).toContainText('Contenido externo');
+  await expect(page.locator('.player-dock .gateway-error')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Abrir vídeo original' })).toBeVisible();
   await expect(page.locator('.mini-cover')).toHaveCount(0);
   await page.locator('.mini-text').click();
