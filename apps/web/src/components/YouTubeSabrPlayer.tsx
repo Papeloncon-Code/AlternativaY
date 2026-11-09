@@ -6,6 +6,8 @@ type Props = {
   startAt?: number;
   compact?: boolean;
   autoplay?: boolean;
+  initialVolume?: number;
+  initialPlaybackRate?: number;
 };
 
 function timeLabel(seconds: number) {
@@ -19,6 +21,8 @@ export default function YouTubeSabrPlayer({
   startAt = 0,
   compact = false,
   autoplay = true,
+  initialVolume = 1,
+  initialPlaybackRate = 1,
 }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -28,8 +32,8 @@ export default function YouTubeSabrPlayer({
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(Math.max(0, startAt));
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [rate, setRate] = useState(1);
+  const [volume, setVolume] = useState(initialVolume);
+  const [rate, setRate] = useState(initialPlaybackRate);
   const [retry, setRetry] = useState(0);
 
   useEffect(() => {
@@ -49,6 +53,10 @@ export default function YouTubeSabrPlayer({
       },
     });
     runtimeRef.current = runtime;
+    video.volume = initialVolume;
+    video.playbackRate = initialPlaybackRate;
+    setVolume(initialVolume);
+    setRate(initialPlaybackRate);
     setStatus('loading');
     setDetail('Conectando con los proveedores de reproducción…');
     setCurrent(Math.max(0, startAt));
@@ -67,7 +75,7 @@ export default function YouTubeSabrPlayer({
       runtimeRef.current = null;
       void runtime.dispose();
     };
-  }, [id, startAt, autoplay, retry]);
+  }, [id, startAt, autoplay, initialVolume, initialPlaybackRate, retry]);
 
   useEffect(() => {
     const video = videoRef.current;
