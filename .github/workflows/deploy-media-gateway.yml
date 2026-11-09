@@ -43,3 +43,8 @@ jobs:
       - name: Publicar Gateway multimedia
         working-directory: apps/web
         run: npx wrangler deploy --config ../media-gateway/wrangler.toml
+      - name: Verificar salud del Gateway en producción
+        run: |
+          set -euo pipefail
+          response="$(curl --fail-with-body --silent --show-error https://todotube-media-gateway.papelon.workers.dev/health)"
+          echo "$response" | jq -e '.ok == true and .originsConfigured == 2 and .originsAvailable == 2 and .degraded == false'
