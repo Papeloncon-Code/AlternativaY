@@ -38,6 +38,7 @@ export async function uploadGatewayMedia(input: GatewayUploadInput): Promise<Gat
     'X-Media-Creator': input.creator.trim(),
     'X-Media-License': input.license,
     'X-Media-Visibility': input.visibility,
+    'X-Media-Size': String(input.file.size),
   });
   if (input.license === 'licensed' && input.licenseReference?.trim()) {
     headers.set('X-Media-License-Reference', input.licenseReference.trim());
