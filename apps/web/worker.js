@@ -60,7 +60,33 @@ const FALLBACK = { 'x-todotube-fuente': 'respaldo-rss' };
 
 const forget = (prefix) => { for (const k of memo.keys()) if (k.startsWith(prefix)) memo.delete(k); };
 
+
 async function api(request, env, url) {
+  // El navegador solo habla con el Worker de TodoTube. La clave del resolvedor JVM
+  // permanece en un secreto del Worker y nunca llega al cliente.
+  const youtubeResolve = url.pathname.match(/^\\/api\\/youtube\\/resolve\\/([A-Za-z0-9_-]{11})$/);
+  if (youtubeResolve && request.method === 'GET') {
+    const base = String(env.NEWPIPE_RESOLVER_URL || '').trim();
+    const token = String(env.NEWPIPE_RESOLVER_TOKEN || '');
+    if (!base || token.length < 32) {
+      return json({ error: 'El servicio NewPipe no está configurado en TodoTube.' }, 503, { 'cache-control': 'no-store' });
+    }
+    try {
+      const target = new URL('/v1/resolve/' + youtubeResolve[1], base);
+      if (target.protocol !== 'https:') {
+        return json({ error: 'El resolvedor NewPipe debe publicarse con HTTPS.' }, 503, { 'cache-control': 'no-store' });
+      }
+      const upstream = await fetch(target, {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
+        signal: AbortSignal.timeout(28000),
+      });
+      const payload = await upstream.json().catch(() => ({ error: 'Respuesta inválida del servicio NewPipe.' }));
+      return json(payload, upstream.status, { 'cache-control': 'no-store' });
+    } catch {
+      return json({ error: 'El servicio NewPipe no respondió. Comprueba que esté desplegado y accesible.' }, 502, { 'cache-control': 'no-store' });
+    }
+  }
   // Cualquier cambio (seguir, dejar de seguir, campanita, foto) invalida la copia en memoria de este aislado.
   if (request.method !== 'GET' && request.method !== 'HEAD') { forget('channels'); forget('feed'); }
   // Búsqueda en todo YouTube sin Puente: el servidor lee la página pública de resultados (ADR-006, enmienda 6).
