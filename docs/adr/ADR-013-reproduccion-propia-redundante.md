@@ -38,7 +38,7 @@ TodoTube UI / PlayerHost (un solo reproductor)
 
 1. **Proveedor de contenido:** R2 de TodoTube para una copia propia/licenciada del mismo vídeo; runtime YouTube en el dispositivo cuando no existe esa copia.
 2. **Resolución del player:** Onesie como primera ruta del cliente WEB; petición InnerTube normal como alternativa inmediata para el mismo cliente.
-3. **Cadena de clientes:** perfiles independientes de InnerTube. La primera versión sigue el orden técnico de Flow: VISIONOS, MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_VR, ANDROID_CREATOR y ANDROID. La disponibilidad real de cada perfil se mide; no se asume que todos funcionen para todos los vídeos.
+3. **Cadena de clientes:** perfiles independientes de InnerTube. La implementación actual está fijada a `youtubei.js@16.0.0` y solo compila con MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID. VISIONOS y ANDROID_VR quedan diferidos hasta actualizar la dependencia y validar el nuevo contrato. La presencia en la cadena no implica que un perfil resuelva o reproduzca cada vídeo.
 4. **Transportes:** SABR/UMP, DASH, HLS y URL progresiva directa cuando el resultado contenga un recurso utilizable. No se considera candidata una respuesta sin medio reproducible.
 5. **Recuperación en reproducción:** renovar una vez los datos/URL del cliente actual; si falla, avanzar por el resto de candidatos y clientes. R2 puede revalidarse después de una caída del runtime web.
 6. **Conmutación:** guardar timestamp, play/pause, volumen y velocidad; cargar la siguiente fuente desde el timestamp guardado. Nunca cambiar a otro vídeo por similitud de título.
@@ -48,7 +48,7 @@ TodoTube UI / PlayerHost (un solo reproductor)
 - **PlayerHost:** dueño único del dock, navegación y selección de fuente.
 - **PlaybackBroker:** prioridades, timeouts, salud, cuarentena temporal y política de failover.
 - **YouTubeSabrRuntime:** runtime de extracción y reproducción en el navegador; mantiene una instancia Shaka por sesión.
-- **TodoTube Bridge:** extensión local del navegador para el puente de peticiones y compatibilidad CORS. Solo se inyecta en TodoTube y solo acepta los dominios necesarios del proveedor.
+- **TodoTube Bridge:** extensión local Manifest V3, actualmente compilada para Chrome/Edge. Es requisito para el runtime SABR web porque habilita las peticiones que el navegador bloquea por CORS. Solo se inyecta en TodoTube/localhost y solo acepta los dominios declarados. Sin Bridge, el player comunica la limitación y no finge reproducción.
 - **Media Gateway R2:** almacén y entrega de archivos propios/licenciados. No es un proxy de YouTube ni un requisito para el runtime SABR.
 - **Android/Desktop:** futuros adaptadores nativos implementarán el mismo contrato del broker, sin duplicar la UI web ni mezclar sus dependencias con el runtime web.
 
@@ -89,4 +89,4 @@ TodoTube UI / PlayerHost (un solo reproductor)
 
 ## Estado actual de implementación
 
-La PR #37 integra una primera versión funcional a nivel de código: broker, Bridge MV3, Onesie/InnerTube, Shaka/SABR, clientes alternativos, transportes alternativos y handoff R2. Falta cerrar CI, instalar el Bridge en un navegador real y ejecutar la matriz manual de reproducción completa. La integración no se ha fusionado ni desplegado a producción.
+PR #37 integra la primera versión a nivel de código. En el commit `1528993e1ac1a0f6185adbe18e7f8c706d3c537b`, CI #467 terminó con build, TypeScript, Bridge, Gateway, avisos y 86/86 pruebas Playwright en verde; CodeQL #106 también pasó. La PR permanece en borrador y no está desplegada. Aún faltan instalación del Bridge en navegador real y evidencia de reproducción de audio/vídeo, seek y failover con contenido real. Por tanto, playback no se declara completo.
