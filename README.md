@@ -1,6 +1,6 @@
 # TodoTube
 
-> Estado de código: 9 de noviembre de 2026. PR #37 tiene CI y CodeQL en verde (86 pruebas Playwright); sigue sin fusionar ni desplegar. La compilación no sustituye la prueba manual de reproducción real.
+> Estado de código: 9 de noviembre de 2026. PR #37 está fusionada en `main` y las correcciones de transporte/diagnóstico de PR #39–#43 también están integradas. La última prueba smoke de producción aún recibe HTTP 400 en `/youtubei/v1/player`; la reproducción audiovisual real sigue sin quedar demostrada. CI y Playwright con fixtures no sustituyen esa prueba.
 
 TodoTube es una aplicación web para descubrir vídeos y canales, organizar una biblioteca personal y reproducir vídeos dentro de un reproductor propio con controles y continuidad propios.
 
@@ -16,13 +16,13 @@ TodoTube es una aplicación web para descubrir vídeos y canales, organizar una 
 
 La dirección del producto es un solo reproductor TodoTube, no un iframe oficial ni un fallback externo. El PlayerHost utiliza un broker que prioriza una copia propia/licenciada en R2 cuando existe y, en ausencia de ella o cuando falla, usa el runtime web client-side de YouTube.
 
-El runtime integra Shaka Player, youtubei.js, googlevideo/SABR y una cadena de perfiles InnerTube alternativos. Para el perfil WEB intenta Onesie primero y conserva InnerTube estándar como respaldo. De cada respuesta prueba transportes SABR/UMP, DASH, HLS y progresivo cuando estén disponibles. El Bridge MV3 de TodoTube habilita las peticiones necesarias desde el navegador y está limitado a TodoTube/localhost y a una lista de hosts permitidos.
+El runtime integra Shaka Player, youtubei.js, googlevideo/SABR y una cadena de perfiles InnerTube alternativos (MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID en la versión fijada actual). Para el perfil WEB intenta Onesie primero y conserva InnerTube estándar como respaldo. De cada respuesta prueba transportes SABR/UMP, DASH, HLS y progresivo cuando estén disponibles. El Bridge MV3 de TodoTube habilita las peticiones necesarias desde el navegador y está limitado a TodoTube/localhost y a una lista de hosts permitidos.
 
 El cambio automático de fuente conserva posición, play/pause, volumen y velocidad. La redundancia de clientes/modos dentro de YouTube aumenta tolerancia a fallos del proveedor, pero no equivale a una CDN independiente; la redundancia de dominio se logra con copias propias/licenciadas o un origin autorizado del creador.
 
 **Requisito del navegador:** la reproducción SABR web requiere instalar y habilitar TodoTube Bridge en Chrome o Edge (Manifest V3). Sin la extensión, la web muestra un error recuperable y no inserta un iframe. La web por sí sola todavía no ofrece playback universal en una instalación limpia; Firefox, Safari y navegadores móviles no están validados.
 
-**Estado de implementación:** PR #37 integra PlayerHost, Playback Broker, Shaka/SABR/Onesie, transportes y clientes alternativos y Bridge MV3. La rama compila y pasa 86 pruebas Playwright y CodeQL, pero aún no está fusionada ni desplegada. CI valida contratos/UI con fixtures, no demuestra reproducción audiovisual desde YouTube.
+**Estado de implementación:** PR #37 integró PlayerHost, Playback Broker, Shaka/SABR/Onesie, transportes, clientes alternativos y Bridge MV3 en `main`. PR #39–#43 corrigieron el transporte del Bridge, solicitudes BotGuard y el diagnóstico del rechazo de `/youtubei/v1/player`. La prueba real de producción del 2026-11-09 registró dos rechazos distintos en `/youtubei/v1/player`: una página HTML de Google que informa de consultas automatizadas y un JSON `400 FAILED_PRECONDITION` (`Precondition check failed`). El smoke no alcanzó metadatos de vídeo decodificados. El navegador Chromium de esa prueba se ejecutó en un runner Ubuntu de GitHub Actions; las peticiones a Google salieron desde la red/IP del runner, no desde el dispositivo ni la conexión doméstica del usuario. Por ello, el aviso de consultas automatizadas puede describir la reputación o el límite de esa red de CI y no demuestra que todos los usuarios reciban el mismo rechazo. El log original no registró `clientName`/`clientVersion`, por lo que aún no identifica qué perfil produjo cada respuesta. PR #46 añade telemetría acotada de esos campos sin registrar tokens ni cuerpos de solicitud; requiere aprobación, despliegue y un nuevo smoke para aportar evidencia. No se debe declarar reproducción real completada hasta confirmar audio, vídeo, seek y continuidad en navegador.
 
 ## Media Gateway R2
 

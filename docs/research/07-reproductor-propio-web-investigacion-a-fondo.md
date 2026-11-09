@@ -28,7 +28,7 @@ La referencia actual de Flow ha cambiado: Flow Desktop utiliza su propio cliente
 - [Kira](https://github.com/LuanRT/kira): MIT. Se han adaptado partes de BotguardService, ShakaPlayerAdapter, helpers y lógica Onesie/SABR; ver el archivo THIRD_PARTY_NOTICES.md dentro del runtime web.
 - [ytc-bridge](https://github.com/LuanRT/ytc-bridge): MIT. El Bridge de TodoTube adapta permisos, orígenes y validación de destinos; conserva su LICENSE.
 - [googlevideo](https://github.com/LuanRT/googlevideo): dependencia MIT de transporte SABR/UMP.
-- [Flow Android](https://github.com/Flow-YouTube/Flow) y [Flow Desktop](https://github.com/Flow-YouTube/Flow-Desktop): referencia de arquitectura y comportamiento; sus implementaciones GPL no se copian dentro de TodoTube.
+- [Flow Android](https://github.com/Flow-Tube/Flow) y [Flow Desktop](https://github.com/Flow-Tube/Flow-Desktop): referencia de arquitectura y comportamiento; sus implementaciones GPL no se copian dentro de TodoTube.
 
 ## Qué no se debe volver a afirmar
 
@@ -39,7 +39,7 @@ La referencia actual de Flow ha cambiado: Flow Desktop utiliza su propio cliente
 
 ## Estado real de integración
 
-La PR #37 pasó CI #467: build, TypeScript, Bridge, Gateway, avisos y 86/86 pruebas Playwright; CodeQL #106 pasó. La PR sigue sin fusionar ni publicar. Playwright utiliza API/fixtures locales: no prueba que YouTube entregue audio y vídeo reales ni que el Bridge funcione instalado en Chrome/Edge. Esa validación manual sigue pendiente.
+La PR #37 está fusionada en `main` (merge commit `d98fda20437e38ad7e47fee55943315e0641db88`). PR #39–#43 añadieron correcciones al Bridge/BotGuard y diagnóstico de respuestas. La última prueba smoke todavía recibe HTTP 400 en `/youtubei/v1/player`. Playwright utiliza API/fixtures locales: no demuestra que YouTube entregue audio y vídeo reales ni que el Bridge funcione correctamente en Chrome/Edge. Esa validación sigue pendiente.
 
 ## Pendiente de prueba
 

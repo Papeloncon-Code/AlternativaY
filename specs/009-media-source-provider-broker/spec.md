@@ -1,6 +1,6 @@
 # Especificación 009 · Media Source Provider Broker
 
-- **Estado:** Implementación inicial en PR #37; ampliar con adaptadores nativos y pruebas de reproducción real.
+- **Estado:** implementación inicial integrada en `main` mediante PR #37; PR #39–#43 añadieron correcciones del Bridge/BotGuard y diagnóstico. La reproducción audiovisual real sigue pendiente: la última prueba smoke recibe HTTP 400 en `/youtubei/v1/player`.
 - **Decisión rectora:** ADR-013.
 - **Objetivo:** separar descubrimiento, resolución de medios, selección de fuente y presentación. Mantener una sola UI de TodoTube con varios proveedores y conmutación automática.
 

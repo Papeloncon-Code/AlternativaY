@@ -1,6 +1,6 @@
 # Source Provider Broker · arquitectura de reproducción
 
-**Estado:** implementación inicial en PR #37; dirección rectora ADR-013.
+**Estado:** implementación inicial fusionada en `main` mediante PR #37; las correcciones de transporte/diagnóstico de PR #39–#43 también están integradas. La última prueba smoke aún recibe HTTP 400 en `/youtubei/v1/player`; falta validar reproducción audiovisual real.
 
 ## Objetivo
 
@@ -18,7 +18,7 @@ Un solo reproductor TodoTube y varios proveedores/rutas detrás de un contrato c
 
 | Provider | Función | Estado |
 |---|---|---|
-| YouTube browser runtime | Resuelve mediante InnerTube/Onesie y reproduce por SABR/DASH/HLS/progresivo | Primera integración en PR #37; falta matriz manual |
+| YouTube browser runtime | Resuelve mediante InnerTube/Onesie y reproduce por SABR/DASH/HLS/progresivo | Integrado en `main`; smoke actual con HTTP 400 pendiente de resolver y matriz real pendiente |
 | TodoTube R2 | Copia propia/licenciada del mismo asset, Range y réplica | Worker implementado; operación real por verificar |
 | Creator-origin | HLS/DASH/URL firmada entregada por el titular | Siguiente adaptador a implementar |
 | Native Android/Desktop | Runtime nativo detrás del mismo contrato | Fase posterior |
@@ -27,7 +27,7 @@ Un solo reproductor TodoTube y varios proveedores/rutas detrás de un contrato c
 
 - Onesie player request como primera ruta para WEB.
 - InnerTube estándar como respaldo en el mismo perfil.
-- Perfiles alternativos: VISIONOS, MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_VR, ANDROID_CREATOR y ANDROID.
+- Perfiles incluidos en el código actual (`youtubei.js@16.0.0`): MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID. VISIONOS y ANDROID_VR no están actualmente en el tipo, mapa ni orden de fallback; no se deben contar como rutas disponibles.
 - Para cada respuesta, construir candidatos SABR, DASH, HLS y progresivos válidos.
 - Si el flujo falla, renovar player response/URLs una vez y avanzar al siguiente candidato y perfil.
 - El broker registra éxito/fallo y aplica cooldown.
@@ -72,4 +72,4 @@ El runtime recibe resumeAt y wasPlaying. El player conserva posición, volumen, 
 - Confirmar audio y vídeo completos, seek, buffering y fullscreen en navegadores objetivo.
 - Medir TTFF, tasa de buffer y tiempo de failover.
 
-El código presente en PR #37 es una primera integración. No se certifica playback completo hasta ejecutar pruebas reales de navegador y medios.
+El código de PR #37 ya está integrado en `main`; PR #39–#43 añadieron correcciones posteriores. El smoke real del 2026-11-09 recibió una respuesta HTML de Google con aviso de consultas automatizadas y otra respuesta JSON `400 FAILED_PRECONDITION`; no llegó a decodificar metadatos de vídeo. El navegador Chromium de esa prueba se ejecutó en un runner Ubuntu de GitHub Actions; las peticiones a Google salieron desde la red/IP del runner, no desde el dispositivo ni la conexión doméstica del usuario. Por ello, el aviso de consultas automatizadas puede describir la reputación o el límite de esa red de CI y no demuestra que todos los usuarios reciban el mismo rechazo. El log de ese intento no identifica el perfil de cliente responsable. PR #46 añade telemetría segura de `clientName` y `clientVersion` para una próxima ejecución, sin modificar payload ni comportamiento de reproducción. No se certifica playback completo mientras el endpoint siga rechazando las peticiones y no exista evidencia real de audio/vídeo, seek y failover.

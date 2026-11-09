@@ -25,8 +25,8 @@ La web sin extensión/bridge no dispone por sí sola de los permisos de origen n
 | [Kira](https://github.com/LuanRT/kira) | Shaka + googlevideo/SABR + youtubei.js + BgUtils + Bridge | Implementación web de referencia; código adaptado con atribución MIT |
 | [googlevideo](https://github.com/LuanRT/googlevideo) | Adaptador SABR/UMP para Shaka | Dependencia de transporte |
 | [youtubei.js](https://github.com/LuanRT/YouTube.js) | Sesiones y clientes InnerTube | Resolución de vídeo |
-| [Flow Android](https://github.com/Flow-YouTube/Flow) | Cadena de clientes nativa y recuperación de playback | Referencia de resiliencia; no se copia implementación GPL |
-| [Flow Desktop](https://github.com/Flow-YouTube/Flow-Desktop) | SABR, manifiestos, revalidación y proxy local | Referencia arquitectónica; no se copia implementación GPL |
+| [Flow Android](https://github.com/Flow-Tube/Flow) | Cadena de clientes nativa y recuperación de playback | Referencia de resiliencia; no se copia implementación GPL |
+| [Flow Desktop](https://github.com/Flow-Tube/Flow-Desktop) | SABR, manifiestos, revalidación y proxy local | Referencia arquitectónica; no se copia implementación GPL |
 
 ## Límites conocidos de la primera versión
 
