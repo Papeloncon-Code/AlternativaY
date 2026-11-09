@@ -3,7 +3,7 @@
 - **Estado:** Aceptado por el propietario del producto el 2026-11-08; arquitectura rectora de playback.
 - **Sustituye:** ADR-011 como dirección de reproducción de YouTube; deja sin vigencia las prohibiciones técnicas de la Constitución v3.
 - **Conserva:** los límites de seguridad sobre DRM, datos privados y almacenamiento autorizado.
-- **Referencias técnicas:** Flow Android/Desktop (cadena de clientes y recuperación), Kira (SABR/Onesie en navegador), youtubei.js, googlevideo y Shaka Player.
+- **Referencias técnicas:** youtubei.js, googlevideo/SABR, Onesie y Shaka Player.
 - **Implementación inicial:** PR #37, rama `feat/todotube-unified-playback`.
 
 ## Objetivo de producto
@@ -89,4 +89,4 @@ TodoTube UI / PlayerHost (un solo reproductor)
 
 ## Estado actual de implementación
 
-PR #37 está fusionada en `main` (merge commit `d98fda20437e38ad7e47fee55943315e0641db88`). Después se fusionaron PR #39–#43 para corregir el transporte del Bridge, las solicitudes BotGuard y el diagnóstico de `/youtubei/v1/player`. La prueba smoke más reciente todavía recibe HTTP 400 en ese endpoint; PR #43 añade el cuerpo de respuesta acotado al diagnóstico para identificar el campo rechazado. La integración está en `main`, pero la reproducción audiovisual real no se declara completa hasta confirmar audio, vídeo, seek y recuperación en navegador.
+PR #37 está fusionada en `main` (merge commit `d98fda20437e38ad7e47fee55943315e0641db88`). Después se fusionaron PR #39–#43 para corregir el transporte del Bridge, las solicitudes BotGuard y el diagnóstico de `/youtubei/v1/player`. La prueba real de producción del 2026-11-09 todavía recibe HTTP 400 en ese endpoint: una respuesta fue una página HTML de Google que informa de consultas automatizadas y otra devolvió JSON `FAILED_PRECONDITION`. El smoke no obtuvo metadatos de vídeo decodificados. El registro de PR #43 no conserva el `clientName`/`clientVersion` que originó cada respuesta; PR #46 añade esos datos de forma acotada, sin guardar credenciales ni cuerpos de solicitud, pero aún necesita aprobación y despliegue para producir nueva evidencia. La integración está en `main`, pero la reproducción audiovisual real no se declara completa hasta confirmar audio, vídeo, seek y recuperación en navegador.
