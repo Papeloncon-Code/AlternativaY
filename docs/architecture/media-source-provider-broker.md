@@ -30,7 +30,7 @@ Un solo reproductor TodoTube y varios proveedores/rutas detrás de un contrato c
 - Perfiles actualmente incluidos con `youtubei.js@16.0.0`: MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID. VISIONOS y ANDROID_VR no están en el tipo ni en la cadena de fallback del build actual.
 - Para cada respuesta, construir candidatos SABR, DASH, HLS y progresivos válidos.
 - Si el flujo falla por timeout, red, 5xx o estancamiento, renovar una vez cuando proceda y avanzar al siguiente candidato/perfil.
-- Una respuesta 400 detiene la rotación de perfiles; 401/403/407/429 y restricciones explícitas detienen el failover a otras rutas de YouTube. No se intenta sortearlas cambiando identidad.
+- Una respuesta HTTP 400 detiene la rotación a otro perfil. Si `FAILED_PRECONDITION` aparece solo como mensaje genérico en Onesie, se permite únicamente probar InnerTube normal con el mismo perfil WEB; si el 400 se repite, la cadena termina. Una denegación explícita (login, edad, geo, consentimiento, anti-bot/tráfico automatizado) o 401/403/407/429 detiene todas las rutas YouTube. Nunca se cambia identidad ni backend para eludir la denegación.
 - El watchdog detecta más de 2 s sin avance y sin buffer útil (0,25 s), muestrea cada segundo, ignora pausa/seek/ended/oculto/offline y limita la recuperación a tres intentos. El umbral sigue el criterio de la incidencia #27; Materialious usa 12 s para su watchdog general, pero TodoTube conserva su aceptación más estricta.
 - El broker registra éxito/fallo y aplica cooldown.
 - El runtime solo cuenta una fuente como funcional cuando Shaka carga y empieza a entregar datos.
@@ -67,6 +67,7 @@ El runtime recibe resumeAt y wasPlaying. El player conserva posición, volumen, 
 - Onesie falla -> InnerTube normal.
 - Timeout/red/5xx en perfil -> siguiente perfil.
 - HTTP 400 -> no cambiar de perfil.
+- `FAILED_PRECONDITION` genérico en Onesie -> probar una sola vez InnerTube estándar con el mismo perfil WEB; si falla, terminar la cadena.
 - 401/403/407/429/restricción explícita -> detener rutas YouTube.
 - SABR falla -> DASH/HLS/directo si la respuesta provee candidatos válidos.
 - URL vencida -> renovación y después failover.
