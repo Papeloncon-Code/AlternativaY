@@ -1,6 +1,6 @@
 # TodoTube
 
-> Estado de código: 9 de noviembre de 2026. PR #37 tiene CI y CodeQL en verde (86 pruebas Playwright); sigue sin fusionar ni desplegar. La compilación no sustituye la prueba manual de reproducción real.
+> Estado de código: 9 de noviembre de 2026. PR #37 está fusionada en `main` y las correcciones de transporte/diagnóstico de PR #39–#43 también están integradas. La última prueba smoke de producción aún recibe HTTP 400 en `/youtubei/v1/player`; la reproducción audiovisual real sigue sin quedar demostrada. CI y Playwright con fixtures no sustituyen esa prueba.
 
 TodoTube es una aplicación web para descubrir vídeos y canales, organizar una biblioteca personal y reproducir vídeos dentro de un reproductor propio con controles y continuidad propios.
 
@@ -22,7 +22,7 @@ El cambio automático de fuente conserva posición, play/pause, volumen y veloci
 
 **Requisito del navegador:** la reproducción SABR web requiere instalar y habilitar TodoTube Bridge en Chrome o Edge (Manifest V3). Sin la extensión, la web muestra un error recuperable y no inserta un iframe. La web por sí sola todavía no ofrece playback universal en una instalación limpia; Firefox, Safari y navegadores móviles no están validados.
 
-**Estado de implementación:** PR #37 integra PlayerHost, Playback Broker, Shaka/SABR/Onesie, transportes y clientes alternativos y Bridge MV3. La rama compila y pasa 86 pruebas Playwright y CodeQL, pero aún no está fusionada ni desplegada. CI valida contratos/UI con fixtures, no demuestra reproducción audiovisual desde YouTube.
+**Estado de implementación:** PR #37 integró PlayerHost, Playback Broker, Shaka/SABR/Onesie, transportes, clientes alternativos y Bridge MV3 en `main`. PR #39–#43 corrigieron el transporte del Bridge, solicitudes BotGuard y el diagnóstico del rechazo de `/youtubei/v1/player`. La última prueba smoke sigue encontrando HTTP 400; no se debe declarar reproducción real completada hasta confirmar audio, vídeo, seek y continuidad en navegador.
 
 ## Media Gateway R2
 
