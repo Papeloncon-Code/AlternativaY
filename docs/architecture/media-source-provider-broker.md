@@ -31,7 +31,7 @@ Un solo reproductor TodoTube y varios proveedores/rutas detrás de un contrato c
 - Para cada respuesta, construir candidatos SABR, DASH, HLS y progresivos válidos.
 - Si el flujo falla por timeout, red, 5xx o estancamiento, renovar una vez cuando proceda y avanzar al siguiente candidato/perfil.
 - Una respuesta 400 detiene la rotación de perfiles; 401/403/407/429 y restricciones explícitas detienen el failover a otras rutas de YouTube. No se intenta sortearlas cambiando identidad.
-- El watchdog detecta más de 12 s sin avance y sin buffer útil (0,25 s), muestrea cada segundo, ignora pausa/seek/ended/oculto/offline y limita la recuperación a tres intentos.
+- El watchdog detecta más de 2 s sin avance y sin buffer útil (0,25 s), muestrea cada segundo, ignora pausa/seek/ended/oculto/offline y limita la recuperación a tres intentos. El umbral sigue el criterio de la incidencia #27; Materialious usa 12 s para su watchdog general, pero TodoTube conserva su aceptación más estricta.
 - El broker registra éxito/fallo y aplica cooldown.
 - El runtime solo cuenta una fuente como funcional cuando Shaka carga y empieza a entregar datos.
 
