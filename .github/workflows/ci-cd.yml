@@ -46,6 +46,7 @@ jobs:
           npx --yes prettier --parser yaml ../../.github/workflows/live-media-gateway-e2e.yml > /dev/null
           node --check scripts/live-e2e-worker.mjs
           node --check scripts/live-media-gateway-smoke.mjs
+          node --check scripts/live-youtube-playback-smoke.mjs
       - run: npm run build
       - run: npx tsc -b
       - run: npx playwright install --with-deps chromium
@@ -152,3 +153,27 @@ jobs:
         working-directory: apps/web
         env: { BASE_URL: '${{ env.PROD_URL }}' }
         run: node scripts/smoke.mjs
+      - name: Instalar Chromium para la prueba de reproducción real
+        if: steps.secretos.outputs.ok == 'true'
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+      - name: Comprobar reproducción real de YouTube con TodoTube Bridge
+        if: steps.secretos.outputs.ok == 'true'
+        working-directory: apps/web
+        env:
+          BASE_URL: ${{ env.PROD_URL }}
+          BRIDGE_EXTENSION_DIR: ${{ runner.temp }}/todotube-bridge
+          PLAYBACK_SMOKE_OUTPUT: playback-smoke-artifacts
+          PLAYBACK_SMOKE_VIDEO_ID: dQw4w9WgXcQ
+        run: |
+          mkdir -p "$BRIDGE_EXTENSION_DIR"
+          unzip -q public/todotube-browser-bridge.zip -d "$BRIDGE_EXTENSION_DIR"
+          xvfb-run -a node scripts/live-youtube-playback-smoke.mjs
+      - name: Guardar evidencia de reproducción real
+        if: always() && steps.secretos.outputs.ok == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: todotube-live-playback-${{ github.sha }}
+          path: apps/web/playback-smoke-artifacts
+          retention-days: 30
+          if-no-files-found: ignore
