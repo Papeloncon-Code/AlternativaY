@@ -36,7 +36,8 @@
 2. runtime de YouTube client-side.
    - Onesie como player request principal de WEB cuando esté disponible.
    - InnerTube estándar como fallback inmediato.
-   - cadena de clientes: VISIONOS, MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_VR, ANDROID_CREATOR, ANDROID.
+   - cadena implementada con `youtubei.js@16.0.0`: MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID.
+   - VISIONOS (incorporado en youtubei.js 18) y ANDROID_VR (17) están diferidos; no forman parte del build fijado actual.
    - candidatos de transporte: SABR/UMP, DASH, HLS, progresivo.
 3. Revalidar R2 si el runtime web agota sus rutas.
 
