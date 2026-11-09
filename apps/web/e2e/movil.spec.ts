@@ -70,14 +70,16 @@ test('minirreproductor móvil: conserva el estado de reproducción y no crea ifr
 });
 
 
-test('error de reproducción móvil: reintento y origen quedan dentro del reproductor', async ({ page }) => {
+test('error de reproducción móvil sin Bridge: una descarga e instrucciones quedan dentro del reproductor', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ver/dQw4w9WgXcQ');
   await expect(page.locator('.gateway-error')).toBeVisible();
-  await expect(page.locator('.gateway-error').getByRole('link', { name: 'Abrir vídeo original' })).toBeVisible();
-  await expect(page.locator('.gateway-error').getByRole('button', { name: 'Reintentar proveedores' })).toBeVisible();
   await expect(page.locator('.gateway-error').getByRole('link', { name: 'Descargar TodoTube Bridge' })).toHaveAttribute('download', 'todotube-browser-bridge.zip');
-  await expect(page.locator('.gateway-error').getByRole('link', { name: 'Ver instrucciones de instalación' })).toBeVisible();
+  await expect(page.locator('.gateway-bridge-install-note')).toContainText('chrome://extensions');
+  await expect(page.locator('.gateway-bridge-install-note')).toContainText('Cargar descomprimida');
+  await expect(page.locator('.gateway-error').getByRole('link', { name: 'Abrir vídeo original' })).toHaveCount(0);
+  await expect(page.locator('.gateway-error').getByRole('button', { name: 'Reintentar proveedores' })).toHaveCount(0);
+  await expect(page.locator('.gateway-bridge-actions a')).toHaveCount(1);
   const bridgePackage = await page.request.get('/todotube-browser-bridge.zip');
   expect(bridgePackage.ok()).toBe(true);
   expect(bridgePackage.headers()['content-type']).toContain('application/zip');
