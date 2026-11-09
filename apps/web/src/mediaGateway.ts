@@ -33,6 +33,7 @@ export async function uploadGatewayMedia(input: GatewayUploadInput): Promise<Gat
   const headers = new Headers({
     Authorization: 'Bearer ' + input.token.trim(),
     'Content-Type': input.file.type,
+    'X-Media-Size': String(input.file.size),
     'X-Media-Title': input.title.trim(),
     'X-Media-Creator': input.creator.trim(),
     'X-Media-License': input.license,
