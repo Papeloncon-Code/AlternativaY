@@ -80,3 +80,17 @@ El runtime recibe resumeAt y wasPlaying. El player conserva posición, volumen, 
 La investigación comparativa y las decisiones de adaptación se detallan en `docs/research/12-comparativa-materialious-chrupipe-invidious.md` y `docs/research/13-adaptacion-materialious-chrupipe-invidious-a-todotube.md`. La recuperación nueva deriva del patrón de watchdog de Materialious; ChruPipe aporta recuperación HLS/progresivo y el modelo de formatos; Invidious aporta un contrato alternativo de extracción/formatos que queda como provider futuro, no activado. No se encontró un warm standby independiente en esos proyectos.
 
 El código presente en PR #37 es una primera integración. La recuperación segura está en la rama/PR de adaptación y requiere CI más pruebas de navegador real. No se certifica playback completo hasta ejecutar pruebas reales de navegador y medios.
+
+## Hallazgo Materialious: fallback local y alcance por plataforma
+
+La fuente `materialious/src/lib/api/index.ts` elige `getVideoYTjs()` en vez de `getVideoInvidious()` si el backend YouTube está activo, si `useEngineFallback('Video')` lo ordena o si se fuerza YT.js en un entorno no restringido. `docs/DEV.md` define cuatro configuraciones distintas: SPA web estática, full web con Node backend, Desktop/Electron y Android. `isUnrestrictedPlatform()` es verdadero con full backend o app nativa; no se debe atribuir ese fallback a la SPA estática por defecto.
+
+En Materialious issue #869 el mantenedor dijo que Invidious estaba siendo bloqueado por Google y recomendó el fallback local en Android/Desktop. Es evidencia de una recuperación concreta en esos entornos, no de que cualquier web client o un Invidious remoto vaya a reproducir. TodoTube es hoy una SPA servida por Cloudflare Worker con runtime de navegador y Bridge MV3; no tiene el Node local de Android ni el full backend de Materialious.
+
+La adaptación razonable es separar la selección de motor del PlayerHost y hacer una prueba de compatibilidad del runtime local ya existente (`youtubei.js`) antes de elegir un backend adicional. Un backend remoto/Invidious no se activa como respuesta a un rechazo anti-bot, PoToken/BotGuard, IP/región o acceso. Cambiar la red de salida para superar esa respuesta no cuenta como failover permitido.
+
+Fuentes: [selector de Materialious](https://raw.githubusercontent.com/Materialious/Materialious/main/materialious/src/lib/api/index.ts), [DEV.md: tipos de build y plataformas](https://github.com/Materialious/Materialious/blob/main/docs/DEV.md), [issue #869](https://github.com/Materialious/Materialious/issues/869).
+
+## Puerta de aceptación final E4
+
+La aceptación de playback exige una sesión E4 real en el TodoTube desplegado: metadata, primer frame, dimensiones válidas, imagen en movimiento, audio audible y sincronizado, `currentTime` avanzando, seek en ambos sentidos, controles propios y recuperación de una interrupción transitoria en staging. Las denegaciones deben detener la cadena y mostrar un error real. Una prueba con fixtures o un HTTP 200 no cierra la incidencia. Ver `docs/testing/real-playback-release-gate.md`.
