@@ -81,7 +81,7 @@ test('error de reproducción móvil: reintento y origen quedan dentro del reprod
   const bridgePackage = await page.request.get('/todotube-browser-bridge.zip');
   expect(bridgePackage.ok()).toBe(true);
   expect(bridgePackage.headers()['content-type']).toContain('application/zip');
-  expect(Number(bridgePackage.headers()['content-length'] || 0)).toBeGreaterThan(0);
+  expect((await bridgePackage.body()).length).toBeGreaterThan(0);
   const [frame, message] = await Promise.all([
     page.locator('#player-slot').boundingBox(),
     page.locator('.gateway-error').boundingBox(),
