@@ -129,7 +129,7 @@ Fuentes de código:
 
 ## Evidencia nueva de producción: 2026-11-09
 
-El smoke real de GitHub Actions (run [42560039714](https://github.com/Papeloncon-Code/AlternativaY/actions/runs/42560039714), artefacto [de reproducción](https://github.com/Papeloncon-Code/AlternativaY/actions/runs/42560039714/artifacts/13649460430)) probó el vídeo público de control y no llegó a decodificar sus metadatos: `readyState=0`, ancho/alto cero y duración nula. El paso que espera metadatos de vídeo falló antes de poder verificar reproducción, seek o continuidad.
+El smoke real de GitHub Actions (run [42560039714](https://github.com/Papeloncon-Code/AlternativaY/actions/runs/42560039714), artefacto [de reproducción](https://github.com/Papeloncon-Code/AlternativaY/actions/runs/42560039714/artifacts/13649460430)) probó el vídeo público de control y no llegó a decodificar sus metadatos: `readyState=0`, ancho/alto cero y duración nula. El paso que espera metadatos de vídeo falló antes de poder verificar reproducción, seek o continuidad. El navegador Chromium se ejecutó en un runner Ubuntu de GitHub Actions; las peticiones de YouTube salieron desde la red/IP de CI, no desde la conexión doméstica de un usuario. El rechazo por consultas automatizadas puede deberse a la reputación o al límite de esa red compartida y no prueba que el mismo usuario falle desde su equipo.
 
 El log capturó dos respuestas en `/youtubei/v1/player`:
 - HTTP 400 con HTML de Google que dice que la red o el equipo podrían estar generando consultas automatizadas. Es un rechazo a nivel de Google; el texto no permite atribuirlo con certeza a un campo mal formado.
