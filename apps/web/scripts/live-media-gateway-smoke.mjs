@@ -131,7 +131,7 @@ async function checkBrowserPlayer() {
       hasNativeControls: element.controls,
     }));
     assert.ok(initial.currentSrc.startsWith(url), 'The page player must use the production Gateway URL');
-    assert.ok(initial.duration >= 5, 'The browser must read the test video's real duration');
+    assert.ok(initial.duration >= 5, "The browser must read the test video's real duration");
     assert.equal(initial.hasNativeControls, false, 'The page must use TodoTube custom controls, not browser-native controls');
     assert.equal(await page.locator('iframe').count(), 0, 'The media page must not embed a third-party iframe');
     check(true, 'production /medios page loads an HTML5 video from the Gateway with TodoTube controls');
