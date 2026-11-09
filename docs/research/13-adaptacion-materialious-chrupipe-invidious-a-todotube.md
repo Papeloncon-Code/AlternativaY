@@ -26,9 +26,9 @@ No se encontró en ninguno de los tres un segundo origen independiente con segme
 
 **Invidious:** su servidor Crystal construye `/api/v1/videos/:id` y serializa metadatos, `formatStreams`, `adaptiveFormats`, `hlsUrl` y `dashUrl`. Es una segunda implementación de extracción, pero las respuestas y medios siguen dependiendo de YouTube/InnerTube. Su API puede devolver errores; no crea una fuente de vídeo independiente.
 
-**Adaptación aplicada:** TodoTube clasifica errores de resolución antes de decidir si continúa por la cadena de clientes. Los fallos transitorios (timeout, red y 5xx) siguen siendo recuperables. Un 400/401/403/429, `FAILED_PRECONDITION` o una respuesta explícita de login, edad, región o verificación deja de provocar un cambio automático a otra identidad de cliente. La instrumentación conserva el estado HTTP para que un rechazo no se convierta en un error genérico.
+**Adaptación aplicada:** TodoTube clasifica errores de resolución antes de decidir si continúa por la cadena de clientes. Los fallos transitorios (timeout, red y 5xx) siguen siendo recuperables. Un HTTP 400 detiene la rotación a otra identidad de cliente. Si `FAILED_PRECONDITION` aparece solo como texto genérico en la respuesta Onesie, se permite un único fallback al endpoint InnerTube estándar del mismo perfil WEB; si también devuelve 400, termina la cadena. Un 401/403/407/429 o una razón explícita de login, edad, región, consentimiento, anti-bot o tráfico automatizado detiene todas las rutas YouTube. La instrumentación conserva el estado HTTP para clasificar el rechazo sin inventar su causa.
 
-**Lo que no se adapta:** no se añade una rotación de IP, un extractor/proxy para esquivar un bloqueo ni un bypass de BotGuard/PoToken. La política del broker del repositorio exige tratar 401/403 como denegación, no como una invitación a probar otra identidad.
+**Lo que no se adapta:** no se añade una rotación de IP, un extractor/proxy para esquivar un bloqueo ni un bypass de BotGuard/PoToken. La política del broker exige tratar 401/403 como denegación, no como una invitación a probar otra identidad. Un `FAILED_PRECONDITION` sin explicación sigue siendo indeterminado: solo permite probar el endpoint estándar con la misma identidad, no cambiar de cliente ni salir por otro backend.
 
 ### 2. Reproducción que se congela o deja de recibir segmentos
 
