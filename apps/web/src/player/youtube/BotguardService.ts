@@ -79,17 +79,23 @@ export class BotguardService {
         headers: {
           'content-type': 'application/json+protobuf',
           'x-goog-api-key': GOOG_API_KEY,
-          'x-user-agent': 'grpc-web-javacript/0.1'
+          'x-user-agent': 'grpc-web-javascript/0.1'
         },
         body: JSON.stringify([ this.waaRequestKey, botguardResponse ])
       });
 
+      if (!integrityTokenResponse.ok) {
+        const responseBody = (await integrityTokenResponse.text()).slice(0, 500);
+        throw new Error('BotGuard GenerateIT failed with HTTP ' + integrityTokenResponse.status + ': ' + responseBody);
+      }
+
       const integrityTokenResponseData = await integrityTokenResponse.json();
-      const integrityToken = integrityTokenResponseData[0] as string | undefined;
+      const integrityToken = Array.isArray(integrityTokenResponseData)
+        ? integrityTokenResponseData[0] as string | undefined
+        : undefined;
 
       if (!integrityToken) {
-        console.error('[BotguardService]', 'Could not get integrity token. Interpreter Hash:', this.bgChallenge.interpreterHash);
-        return;
+        throw new Error('BotGuard GenerateIT response did not include an integrity token.');
       }
 
       this.integrityTokenBasedMinter = await BG.WebPoMinter.create({ integrityToken }, webPoSignalOutput);
