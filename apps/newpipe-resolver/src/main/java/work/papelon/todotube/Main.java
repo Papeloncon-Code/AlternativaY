@@ -9,6 +9,7 @@ import org.schabi.newpipe.extractor.downloader.Downloader;
 import org.schabi.newpipe.extractor.downloader.Request;
 import org.schabi.newpipe.extractor.downloader.Response;
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException;
+import org.schabi.newpipe.extractor.exceptions.ExtractionException;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
@@ -116,7 +117,7 @@ public final class Main {
         }
     }
 
-    private static Map<String, Object> extract(String id) throws IOException, ReCaptchaException {
+    private static Map<String, Object> extract(String id) throws IOException, ReCaptchaException, ExtractionException {
         String watchUrl = "https://www.youtube.com/watch?v=" + id;
         StreamInfo info = StreamInfo.getInfo(watchUrl);
 
