@@ -51,11 +51,6 @@ export async function fetchYouTubeProxy(
     }
   });
 
-  // User-Agent is a forbidden browser request header. Carry the extractor's
-  // expected value in a TodoTube-only header; the Worker validates and maps it.
-  const upstreamUserAgent = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get('user-agent');
-  if (upstreamUserAgent) headers.set('x-todotube-upstream-user-agent', upstreamUserAgent);
-
   const method = request.method.toUpperCase();
   const body = method === 'GET' || method === 'HEAD' ? undefined : await request.arrayBuffer();
   return fetch(proxyUrl.toString(), {
