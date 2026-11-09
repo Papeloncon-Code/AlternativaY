@@ -1,4 +1,5 @@
 import shaka from 'shaka-player/dist/shaka-player.ui';
+import { prepareBridgeRequest } from './bridgeRequest';
 
 declare global {
   interface Window {
@@ -138,18 +139,10 @@ export function getInjectedProxyFunction() {
 
 /** InnerTube requests use the browser bridge; googlevideo media requests stay in Shaka's normal fetch path. */
 export async function fetchFunction(input: string | Request | URL, init?: RequestInit): Promise<Response> {
-  const request = input instanceof Request ? input : undefined;
-  const url = input instanceof URL ? input : new URL(typeof input === 'string' ? input : input.url);
-  const method = (init?.method ?? request?.method ?? 'GET').toUpperCase();
-  const headers = new Headers(init?.headers ?? request?.headers);
-  const requestInit: RequestInit = { ...init, method, headers };
+  const prepared = await prepareBridgeRequest(input, init);
+  const { url } = prepared;
+  const requestInit = prepared.init;
 
-  // youtubei.js may pass a Request object instead of (URL, init). Preserve
-  // its POST method and body when forwarding it through the extension bridge.
-  // Request bodies are streams, so copy them into a transferable ArrayBuffer.
-  if (init?.body === undefined && request && method !== 'GET' && method !== 'HEAD' && request.body) {
-    requestInit.body = await request.clone().arrayBuffer();
-  }
 
   if (url.pathname.includes('/v1/player')) {
     url.searchParams.set('$fields', 'playerConfig,storyboards,captions,playabilityStatus,streamingData,responseContext.mainAppWebResponseContext.datasyncId,videoDetails.isLive,videoDetails.isLiveContent,videoDetails.title,videoDetails.author,videoDetails.thumbnail');
