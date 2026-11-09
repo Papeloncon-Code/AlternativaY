@@ -27,6 +27,8 @@ function proxyRequest(
 test('solo acepta HTTPS en hosts de YouTube/Google Video/Google APIs', () => {
   expect(isAllowedYouTubeTarget('https://www.youtube.com/youtubei/v1/player')).toBe(true);
   expect(isAllowedYouTubeTarget('https://rr3---sn.googlevideo.com/videoplayback')).toBe(true);
+  expect(isAllowedYouTubeTarget('https://manifest.googlevideo.com/api/manifest/dash/expire')).toBe(true);
+  expect(isAllowedYouTubeTarget('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toBe(false);
   expect(isAllowedYouTubeTarget('https://jnn-pa.googleapis.com/$rpc/google.internal.waa.v1.Waa/Create')).toBe(true);
   expect(isAllowedYouTubeTarget('http://www.youtube.com/')).toBe(false);
   expect(isAllowedYouTubeTarget('https://youtube.com.attacker.invalid/')).toBe(false);
@@ -40,18 +42,25 @@ test('reenvía POST de InnerTube sin credenciales y conserva el cuerpo', async (
   let observedMethod = '';
   let observedBody = '';
   let observedCredentials = '';
+  let observedHeaders = new Headers();
 
   const response = await handleYouTubeProxy(
     proxyRequest('https://www.youtube.com/youtubei/v1/player', {
       method: 'POST',
       body: JSON.stringify({ videoId: 'dQw4w9WgXcQ' }),
-      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json',
+        cookie: 'session=must-not-forward',
+        authorization: 'Bearer must-not-forward',
+      },
     }),
     async (input, init) => {
       observedUrl = String(input);
       observedMethod = String(init?.method);
       observedBody = await new Response(init?.body).text();
       observedCredentials = String(init?.credentials);
+      observedHeaders = new Headers(init?.headers);
       return new Response('{"ok":true}', {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -64,6 +73,8 @@ test('reenvía POST de InnerTube sin credenciales y conserva el cuerpo', async (
   expect(observedMethod).toBe('POST');
   expect(observedBody).toBe(JSON.stringify({ videoId: 'dQw4w9WgXcQ' }));
   expect(observedCredentials).toBe('omit');
+  expect(observedHeaders.has('cookie')).toBe(false);
+  expect(observedHeaders.has('authorization')).toBe(false);
 });
 
 test('mantiene el streaming HTTP 206 y las cabeceras Range para seek', async () => {
@@ -106,6 +117,23 @@ test('una denegación 403 se devuelve sin reintentos ni cambio de host', async (
   expect(response.status).toBe(403);
   expect(await response.text()).toBe('Forbidden');
   expect(calls).toBe(1);
+});
+
+test('rechaza solicitudes sin una señal same-origin del navegador', async () => {
+  let calls = 0;
+  const response = await handleYouTubeProxy(
+    proxyRequest('https://www.youtube.com/', {
+      ip: '192.0.2.14',
+      headers: { 'sec-fetch-site': '' },
+    }),
+    async () => {
+      calls += 1;
+      return new Response('should not be called');
+    },
+  );
+
+  expect(response.status).toBe(403);
+  expect(calls).toBe(0);
 });
 
 test('solo sigue redirecciones hacia hosts permitidos', async () => {
