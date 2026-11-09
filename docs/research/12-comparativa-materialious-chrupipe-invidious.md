@@ -126,6 +126,19 @@ Fuentes de código:
 8. **No mostrar la marca ni enlaces externos de la plataforma en la UI del player.** Mantener los metadatos identificativos del vídeo; retirar botones de “abrir vídeo original” y superficies equivalentes. Los nombres de proveedores se quedan en diagnósticos internos, no en controles visibles.
 9. **Separar la redundancia de extracción de la independencia de origen.** Estos tres proyectos, igual que TodoTube, siguen obteniendo el medio final de YouTube. Dos extractores no crean por sí solos una CDN independiente.
 
+
+## Evidencia nueva de producción: 2026-11-09
+
+El smoke real de GitHub Actions (run [42560039714](https://github.com/Papeloncon-Code/AlternativaY/actions/runs/42560039714), artefacto [de reproducción](https://github.com/Papeloncon-Code/AlternativaY/actions/runs/42560039714/artifacts/13649460430)) probó el vídeo público de control y no llegó a decodificar sus metadatos: `readyState=0`, ancho/alto cero y duración nula. El paso que espera metadatos de vídeo falló antes de poder verificar reproducción, seek o continuidad.
+
+El log capturó dos respuestas en `/youtubei/v1/player`:
+- HTTP 400 con HTML de Google que dice que la red o el equipo podrían estar generando consultas automatizadas. Es un rechazo a nivel de Google; el texto no permite atribuirlo con certeza a un campo mal formado.
+- HTTP 400 con JSON `FAILED_PRECONDITION` y mensaje `Precondition check failed.`. Es una respuesta diferente y no revela qué precondición falló.
+
+**Límite de la evidencia:** PR #43 guardaba método, bytes, nombres de cabeceras y un fragmento de respuesta, pero no los valores de `context.client.clientName` y `clientVersion`. Por eso no se debe asignar todavía cada respuesta a MWEB, WEB o Android ni afirmar que una actualización de dependencia resolverá el problema.
+
+TodoTube fija `youtubei.js@16.0.0`, mientras Materialious declara `youtubei.js ^18.3.0`, `googlevideo ^5.0.1` y Shaka 5.2.x. La diferencia justifica un spike controlado de compatibilidad, pero no demuestra que el salto de versiones corrija este rechazo. PR #46 añade un resumen seguro de la petición fallida —perfil y versión del cliente, presencia del video ID, llaves de playback context y Content-Type— sin almacenar valores de tokens, cookies, visitor IDs, URL firmada ni cuerpo de solicitud. Se necesita aprobar y desplegar esa instrumentación para obtener un nuevo diagnóstico de producción.
+
 ## Estado y límites de la investigación
 
 La inspección fue de las rutas de extracción, endpoints, player y proxy citadas arriba; no es una auditoría formal de todos los archivos, pruebas, instancias desplegadas ni condiciones de servicio. Una ruta que compila o aparece en el README no demuestra que YouTube entregue actualmente streams para todos los vídeos. El smoke real de TodoTube sigue pendiente de resolver el HTTP 400 de `/youtubei/v1/player` documentado en PR #43.
