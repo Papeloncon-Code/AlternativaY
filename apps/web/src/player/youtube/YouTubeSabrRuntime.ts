@@ -17,6 +17,7 @@ import type { ReloadPlaybackContext } from 'googlevideo/protos';
 import { botguardService } from './BotguardService';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
 import { shouldStopClientFallback, shouldStopSourceFallback } from './failurePolicy';
+import { isSabrAttestationRefreshRequired, primeSabrAttestation } from './sabrAttestation';
 import {
   PLAYBACK_STALL_TIMEOUT_MS,
   shouldRecoverPlaybackStall,
@@ -119,6 +120,9 @@ export class YouTubeSabrRuntime {
   private playbackToken = '';
   private coldStartToken = '';
   private tokenLock = false;
+  private tokenPromise: Promise<void> | null = null;
+  private sabrRefreshPromise: Promise<void> | null = null;
+  private lastSabrRefreshAt = 0;
   private loading = false;
   private switching = false;
   private destroyed = false;
@@ -555,8 +559,19 @@ export class YouTubeSabrRuntime {
     this.sabrAdapter?.dispose();
 
     const { innertube, info, client } = candidate;
+    if (isWebClient(client)) {
+      await primeSabrAttestation(innertube);
+    }
+
+    const playerAdapter = new ShakaPlayerAdapter();
+    playerAdapter.setStreamProtectionHandler(async (status) => {
+      if (isWebClient(client) && isSabrAttestationRefreshRequired(status)) {
+        await this.refreshSabrAttestation(innertube);
+      }
+    });
+
     const adapter = new SabrStreamingAdapter({
-      playerAdapter: new ShakaPlayerAdapter(),
+      playerAdapter,
       clientInfo: {
         osName: innertube.session.context.client.osName,
         osVersion: innertube.session.context.client.osVersion,
@@ -569,7 +584,8 @@ export class YouTubeSabrRuntime {
 
     adapter.onMintPoToken(async () => {
       if (!isWebClient(client)) return '';
-      if (!this.playbackToken && !this.tokenLock) {
+      if (this.tokenPromise) await this.tokenPromise;
+      if (!this.playbackToken) {
         if (info.basic_info.is_live) await this.mintPlaybackToken();
         else void this.mintPlaybackToken();
       }
@@ -599,19 +615,64 @@ export class YouTubeSabrRuntime {
     this.sabrAdapter = adapter;
   }
 
-  private async mintPlaybackToken(): Promise<void> {
-    if (!this.videoId || this.tokenLock) return;
-    this.tokenLock = true;
-    try {
-      this.coldStartToken = botguardService.mintColdStartToken(this.videoId);
-      if (!botguardService.isInitialized()) await botguardService.reinit();
-      if (botguardService.integrityTokenBasedMinter) {
-        this.playbackToken = await botguardService.integrityTokenBasedMinter.mintAsWebsafeString(this.videoId);
+  private async mintPlaybackToken(forceReinit = false): Promise<void> {
+    if (!this.videoId) return;
+    if (this.tokenPromise) {
+      if (!forceReinit) return this.tokenPromise;
+      await this.tokenPromise.catch(() => undefined);
+    }
+
+    const targetVideoId = this.videoId;
+    const pending = (async () => {
+      this.tokenLock = true;
+      try {
+        const coldStartToken = botguardService.mintColdStartToken(targetVideoId);
+        if (this.videoId === targetVideoId) this.coldStartToken = coldStartToken;
+        if (forceReinit || !botguardService.isInitialized()) {
+          await botguardService.reinit();
+        }
+        if (botguardService.integrityTokenBasedMinter) {
+          const playbackToken = await botguardService.integrityTokenBasedMinter.mintAsWebsafeString(targetVideoId);
+          if (this.videoId === targetVideoId) this.playbackToken = playbackToken;
+        }
+        if (forceReinit && this.videoId === targetVideoId && !this.playbackToken) {
+          throw new Error('No se pudo renovar el token de reproducción tras StreamProtectionStatus=3.');
+        }
+      } catch (error) {
+        console.warn('[TodoTube] No se pudo obtener el token web de reproducción:', error);
+        if (forceReinit) throw error;
+      } finally {
+        this.tokenLock = false;
       }
-    } catch (error) {
-      console.warn('[TodoTube] No se pudo obtener el token web de reproducción:', error);
+    })();
+
+    this.tokenPromise = pending;
+    try {
+      await pending;
     } finally {
-      this.tokenLock = false;
+      if (this.tokenPromise === pending) this.tokenPromise = null;
+    }
+  }
+
+  private async refreshSabrAttestation(innertube: Innertube): Promise<void> {
+    if (this.sabrRefreshPromise) return this.sabrRefreshPromise;
+    if (Date.now() - this.lastSabrRefreshAt < 15_000) return;
+
+    const targetVideoId = this.videoId;
+    const pending = (async () => {
+      await primeSabrAttestation(innertube);
+      if (this.videoId !== targetVideoId) return;
+
+      this.playbackToken = '';
+      await this.mintPlaybackToken(true);
+      this.lastSabrRefreshAt = Date.now();
+    })();
+
+    this.sabrRefreshPromise = pending;
+    try {
+      await pending;
+    } finally {
+      if (this.sabrRefreshPromise === pending) this.sabrRefreshPromise = null;
     }
   }
 
