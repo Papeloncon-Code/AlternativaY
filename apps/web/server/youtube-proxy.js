@@ -1,8 +1,6 @@
-const ALLOWED_HOST_SUFFIXES = [
-  'youtube.com',
-  'googlevideo.com',
-  'googleapis.com',
-];
+const YOUTUBE_HOST_SUFFIXES = ['youtube.com'];
+const GOOGLEVIDEO_HOST_SUFFIXES = ['googlevideo.com'];
+const GOOGLE_API_HOSTS = new Set(['youtubei.googleapis.com', 'jnn-pa.googleapis.com']);
 
 const PROXY_PATH = '/api/youtube/proxy';
 const MAX_REQUEST_BODY_BYTES = 2 * 1024 * 1024;
@@ -40,14 +38,31 @@ const FORWARDED_RESPONSE_HEADERS = [
 export function isAllowedYouTubeTarget(value) {
   try {
     const target = new URL(value);
+    const youtubeHost = YOUTUBE_HOST_SUFFIXES.some((suffix) =>
+      target.hostname === suffix || target.hostname.endsWith('.' + suffix),
+    );
+    const googleVideoHost = GOOGLEVIDEO_HOST_SUFFIXES.some((suffix) =>
+      target.hostname === suffix || target.hostname.endsWith('.' + suffix),
+    );
+    const youtubePath = target.pathname === '/' ||
+      target.pathname === '/tv_config' ||
+      target.pathname.startsWith('/youtubei/') ||
+      target.pathname.startsWith('/s/player/') ||
+      target.pathname === '/api/timedtext';
+    const googleVideoPath = target.pathname === '/initplayback' ||
+      target.pathname === '/videoplayback' ||
+      target.pathname.startsWith('/videoplayback/');
+    const googleApiPath = GOOGLE_API_HOSTS.has(target.hostname) &&
+      (target.pathname.startsWith('/youtubei/') || target.pathname.startsWith('/$rpc/'));
+
     return target.protocol === 'https:' &&
       !target.username &&
       !target.password &&
       (!target.port || target.port === '443') &&
-      ALLOWED_HOST_SUFFIXES.some((suffix) =>
-        target.hostname === suffix || target.hostname.endsWith('.' + suffix),
-      ) &&
-      target.hostname.length <= 253;
+      target.hostname.length <= 253 &&
+      ((youtubeHost && youtubePath) ||
+        (googleVideoHost && googleVideoPath) ||
+        googleApiPath);
   } catch {
     return false;
   }
@@ -197,11 +212,14 @@ export async function handleYouTubeProxy(request, fetchImpl = fetch) {
     try {
       nextTarget = new URL(location, target);
     } catch {
+      await upstream.body?.cancel().catch(() => undefined);
       return new Response('Invalid upstream redirect', { status: 502 });
     }
     if (!isAllowedYouTubeTarget(nextTarget.toString())) {
+      await upstream.body?.cancel().catch(() => undefined);
       return new Response('Upstream redirect target is not allowed', { status: 502 });
     }
+    await upstream.body?.cancel().catch(() => undefined);
 
     if (upstream.status === 303 ||
       ((upstream.status === 301 || upstream.status === 302) && method === 'POST')) {
