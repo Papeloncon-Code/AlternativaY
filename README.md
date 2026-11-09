@@ -1,6 +1,6 @@
 # TodoTube
 
-> Estado de código: 9 de noviembre de 2026. PR #37 y PR #39–#43 están integradas en `main`; PR #44–#47 siguen abiertas y sin fusionar. El smoke real del 2026-11-09 no decodificó metadata (`readyState=0`, dimensiones 0, duración nula) y recibió respuestas HTTP 400 distintas. Playback sigue **pendiente de validación real E4**.
+> Estado de código: 9 de noviembre de 2026. `main` ya integra PR #37, #39–#43, #46, #47, #49, #50 y #51. El smoke real con Bridge del 2026-11-09 no decodificó metadata (`readyState=0`, dimensiones 0, duración nula). La rama `fix/web-playback-without-bridge-2026-11-09` implementa un relay same-origin y una nueva prueba sin extensión; está pendiente de CI y del smoke de producción E4. Playback sigue **sin aceptación real**.
 
 TodoTube es una aplicación web para descubrir vídeos y canales, organizar una biblioteca personal y reproducir vídeos dentro de un reproductor propio con controles y continuidad propios.
 
@@ -16,17 +16,17 @@ TodoTube es una aplicación web para descubrir vídeos y canales, organizar una 
 
 La dirección del producto es un solo reproductor TodoTube, no un iframe oficial ni un fallback externo. El PlayerHost utiliza un broker que prioriza una copia propia/licenciada en R2 cuando existe y, en ausencia de ella o cuando falla, usa el runtime web client-side de YouTube.
 
-El runtime integra Shaka Player, youtubei.js, googlevideo/SABR y una cadena de perfiles InnerTube alternativos. Para el perfil WEB intenta Onesie primero y conserva InnerTube estándar como respaldo. De cada respuesta prueba transportes SABR/UMP, DASH, HLS y progresivo cuando estén disponibles. El Bridge MV3 de TodoTube habilita las peticiones necesarias desde el navegador y está limitado a TodoTube/localhost y a una lista de hosts permitidos.
+El runtime integra Shaka Player, youtubei.js, googlevideo/SABR y una cadena de perfiles InnerTube alternativos. Para WEB usa el endpoint `/player` normal y prueba SABR/UMP, DASH, HLS y progresivo cuando existan. La rama experimental elimina la extensión y envía las peticiones de control y segmentos por `/api/youtube/proxy`, un relay same-origin con allowlist HTTPS, redirecciones validadas, límite de cuerpo/frecuencia, streaming y soporte Range.
 
 El cambio automático de fuente conserva posición, play/pause, volumen y velocidad. La redundancia de clientes/modos dentro de YouTube aumenta tolerancia a fallos del proveedor, pero no equivale a una CDN independiente; la redundancia de dominio se logra con copias propias/licenciadas o un origin autorizado del creador.
 
-**Requisito del navegador:** la reproducción SABR web requiere instalar y habilitar TodoTube Bridge en Chrome o Edge (Manifest V3). Sin la extensión, la web muestra un error recuperable y no inserta un iframe. La web por sí sola todavía no ofrece playback universal en una instalación limpia; Firefox, Safari y navegadores móviles no están validados.
+**Requisito del navegador en la variante nueva:** no se necesita instalar una extensión. La extracción, el parseo de scripts y BotGuard siguen en el navegador; el Worker actúa únicamente como transporte HTTP same-origin. La compatibilidad de Chrome/Edge y otros navegadores y la reproducción real siguen pendientes de E4. Mientras la rama no se integre y despliegue, el sitio publicado aún conserva la versión de `main` que exige Bridge.
 
-**Estado de implementación:** PR #37 integra PlayerHost, Playback Broker, Shaka/SABR/Onesie, transportes y clientes alternativos y Bridge MV3. La rama compila y pasa 86 pruebas Playwright y CodeQL, pero aún no está fusionada ni desplegada. CI valida contratos/UI con fixtures, no demuestra reproducción audiovisual desde YouTube.
+**Estado de implementación:** PlayerHost, Playback Broker, Shaka/SABR y clientes alternativos ya están en `main`; PR #51 actualizó el stack de youtubei.js/BotGuard. La rama sin extensión añade el relay same-origin, seguridad/streaming tests y un smoke E4 que exige que no haya `ytcBridge`. Todavía no hay resultado CI ni producción para esa variante. Los tests con fixtures no prueban por sí solos reproducción audiovisual.
 
 ### Diagnóstico y recuperación SABR
 
-La ruta SABR utiliza ahora la attestation oficial de YouTube.js en la misma sesión WEB/MWEB antes de adjuntar el adaptador. El adaptador comunica `StreamProtectionStatus`; si informa estado `3`, el runtime actualiza attestation y renueva el WebPO con el `BotguardService` local, con deduplicación/cooldown. Onesie no envía `sendVideoPlaybackConfig=false`. Estos cambios están en PR #47 y siguen pendientes de prueba E4 real. No añaden proxy, egress alternativo ni servidor externo de tokens.
+La ruta SABR utiliza la attestation oficial de YouTube.js en la misma sesión WEB/MWEB. El adaptador comunica `StreamProtectionStatus`; para estado `3`, el runtime actualiza attestation y renueva WebPO con el `BotguardService` local. PR #47 y PR #51 están integradas. La rama nueva añade un relay same-origin como transporte principal para resolver CORS; no lo usa como segundo intento tras una denegación y no rota IP, identidad ni tokens mediante un tercero.
 
 ### Criterio definitivo de aceptación
 
@@ -34,10 +34,10 @@ La reproducción solo se considera terminada cuando un vídeo real reproduce ima
 
 ### Investigación de alternativas aplicada
 
-- **Materialious:** además del watchdog ya adaptado en PR #47, su hallazgo más útil es el fallback de Invidious a `youtubei.js` local cuando el entorno lo permite. Su código y documentación aclaran que la SPA web estática no equivale a Android/Desktop o al full web backend. No desplegaremos un backend ni moveremos solicitudes a otra IP para superar un bloqueo anti-bot.
+- **Materialious:** además del watchdog ya adaptado en PR #47, su hallazgo más útil es el fallback de Invidious a `youtubei.js` local cuando el entorno lo permite. Su código y documentación aclaran que la SPA web estática no equivale a Android/Desktop o al full web backend. No usaremos Invidious ni otro backend como fallback después de un bloqueo ni moveremos solicitudes a otra IP para superarlo. El Worker Relay de la rama experimental solo cambia el transporte principal para resolver CORS; una denegación del upstream detiene la cadena.
 - **ChruPipe:** su HLS → progresivo y conservación de posición sirven como referencia; su NewPipeExtractor 0.26.4 no es un extractor independiente del NewPipeExtractor 0.27.0 ya probado por TodoTube.
 - **Invidious:** su API de formatos es un resolver distinto, pero continúa obteniendo el medio de YouTube; ni su API ni su proxy constituyen una CDN independiente.
-- La siguiente investigación técnica es un spike controlado de compatibilidad de `youtubei.js`/Shaka y una prueba E4 real. No se modifican dependencias ni infraestructura de producción hasta que CI y la prueba real confirmen una mejora.
+- La siguiente puerta es CI y el smoke E4 real del Worker Relay. No se declarará una mejora hasta que la web publicada reproduzca y complete seek sin cargar una extensión.
 
 ## Media Gateway R2
 
@@ -72,12 +72,6 @@ Web:
     npm run build
     npx playwright test --trace off
 
-Browser Bridge:
-    cd apps/browser-bridge
-    npm ci
-    npm run type-check
-    npm run build
-
 Gateway:
     cd apps/media-gateway
     npm ci
@@ -88,6 +82,6 @@ Avisos:
     npm ci
     npm test
 
-CI/CD construye y empaqueta el Bridge. El artefacto de la extensión se publica en el workflow asociado a la PR.
+CI/CD ya no construye ni publica una extensión para la variante sin Bridge; el smoke de producción arranca Chromium limpio y falla si detecta `window.ytcBridge` o `window.proxyFetch`.
 
 No declares terminada una función solo porque compile o pase tests automatizados: playback exige evidencia E4 en el navegador y despliegue objetivo, con imagen, sonido audible, avance, seek, controles propios y recuperación segura. El Gateway requiere, por separado, prueba de producción con un archivo propio/licenciado; no sustituye la prueba de YouTube.
