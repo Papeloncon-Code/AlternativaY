@@ -64,7 +64,7 @@ const forget = (prefix) => { for (const k of memo.keys()) if (k.startsWith(prefi
 async function api(request, env, url) {
   // El navegador solo habla con el Worker de TodoTube. La clave del resolvedor JVM
   // permanece en un secreto del Worker y nunca llega al cliente.
-  const youtubeResolve = url.pathname.match(/^\\/api\\/youtube\\/resolve\\/([A-Za-z0-9_-]{11})$/);
+  const youtubeResolve = new RegExp('^/api/youtube/resolve/([A-Za-z0-9_-]{11})$').exec(url.pathname);
   if (youtubeResolve && request.method === 'GET') {
     const base = String(env.NEWPIPE_RESOLVER_URL || '').trim();
     const token = String(env.NEWPIPE_RESOLVER_TOKEN || '');
