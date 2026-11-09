@@ -31,10 +31,10 @@ try {
   page.on('console', (message) => {
     const text = message.text();
     const isRuntimeWarning = message.type() === 'warning' &&
-      /^\\[(TodoTube|ShakaPlayerAdapter|SABRPlayer|BotguardService)\\]/.test(text);
+      /^\[(TodoTube|ShakaPlayerAdapter|SABRPlayer|BotguardService)\]/.test(text);
     if (message.type() === 'error' || isRuntimeWarning) {
       const safeText = text
-        .replace(/https?:\\/\\/[^\\s\"'<>]+/g, (value) => {
+        .replace(/https?:\/\/[^\s"'<>]+/g, (value) => {
           try {
             const url = new URL(value);
             return url.origin + url.pathname;
@@ -42,9 +42,9 @@ try {
             return '[URL redactada]';
           }
         })
-        .replace(/((?:po.?token|visitor.?data|integrity.?token|client.?key|encrypted.?key)=)[^&\\s]+/gi, '$1[redactado]')
+        .replace(/((?:po.?token|visitor.?data|integrity.?token|client.?key|encrypted.?key)=)[^&\s]+/gi, '$1[redactado]')
         .slice(0, 1200);
-      process.stderr.write('[browser:' + message.type() + '] ' + safeText + '\\n');
+      process.stderr.write('[browser:' + message.type() + '] ' + safeText + '\n');
     }
   });
   page.on('pageerror', (error) => process.stderr.write('[pageerror] ' + error.message + '\n'));
