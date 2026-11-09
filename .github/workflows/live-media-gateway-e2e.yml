@@ -40,6 +40,10 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - name: Instalar dependencias
         run: npm ci
+      - name: Validar sintaxis de las pruebas E2E antes de desplegar
+        run: |
+          node --check scripts/live-e2e-worker.mjs
+          node --check scripts/live-media-gateway-smoke.mjs
       - name: Instalar FFmpeg y Chromium
         run: |
           sudo apt-get update
@@ -157,7 +161,7 @@ jobs:
           set -euo pipefail
           curl --fail-with-body --silent --show-error --max-time 30 \
             -X POST -H "Authorization: Bearer $MEDIA_TEST_TOKEN" \
-            "$WORKER_URL/cleanup/$MEDIA_ID" | tee "$RUNNER_TEMP/todotube-live-e2e/cleanup.json"
+            "$WORKER_URL/cleanup/$MEDIA_ID" | tee "$RUNNER_TEMP/todotube-live-e2e/cleanup.json" | jq -e '.ok == true and .deleted == 2'
       - name: Eliminar el Worker temporal y su secreto
         if: always() && steps.fixture.outputs.worker_name != ''
         env:
