@@ -51,6 +51,7 @@ export async function uploadGatewayMedia(input: GatewayUploadInput): Promise<Gat
   if (!response.ok) {
     const message = result.error || (
       response.status === 401 ? 'El token de carga es incorrecto o no está configurado en el Gateway.' :
+      response.status === 409 ? 'Ya existe un medio con ese ID. Usa otro ID; no se sobrescriben archivos existentes.' :
       response.status === 413 ? 'El archivo supera el límite de 90 MiB.' :
       response.status === 415 ? 'Formato no admitido. Usa MP4, WebM u Ogg.' :
       'El Gateway respondió HTTP ' + response.status + '.'
