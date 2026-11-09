@@ -40,7 +40,7 @@ No se encontró en ninguno de los tres un segundo origen independiente con segme
 
 **TodoTube hoy:** el runtime reacciona al evento de error de Shaka y tiene candidatos de transporte/fallback, pero no tenía un watchdog propio que detectara un vídeo congelado sin error explícito.
 
-**Adaptación aplicada:** watchdog de 1 segundo con umbral de 12 segundos sin avance y sin buffer cercano. No dispara recuperación si el usuario pausó, está buscando, el vídeo terminó, la pestaña no está visible o el navegador está offline. Cuando dispara, llama al failover que ya existe, captura el timestamp actual y mantiene play/pause. No crea un segundo reproductor ni reproduce audio duplicado.
+**Adaptación aplicada:** watchdog de 1 segundo con umbral de 2 segundos sin avance y sin buffer cercano, porque el criterio de la incidencia #27 de TodoTube es más estricto que los 12 segundos del watchdog general de Materialious. No dispara recuperación si el usuario pausó, está buscando, el vídeo terminó, la pestaña no está visible o el navegador está offline. Cuando dispara, llama al failover que ya existe, captura el timestamp actual y mantiene play/pause. No crea un segundo reproductor ni reproduce audio duplicado.
 
 **Límite deliberado:** el watchdog no re-minta tokens ni cambia de perfil para responder a una denegación de acceso. La recuperación SABR específica de attestation requiere revisión separada de protocolo/política y no se debe copiar automáticamente por ser usada por otro reproductor.
 
@@ -88,7 +88,7 @@ Como el propietario no tiene un catálogo propio/licenciado que sirva actualment
 
 | Patrón observado | ¿Adaptar? | Decisión de TodoTube |
 |---|---|---|
-| Materialious: watchdog de estancamiento | Sí | Integrado: 12 s sin progreso, control de visibilidad/red, recuperación por el broker |
+| Materialious: watchdog de estancamiento | Sí | Patrón adaptado: 2 s sin progreso (exigencia de TodoTube), control de visibilidad/red, recuperación por el broker |
 | Materialious: selección/fallback entre motores | Parcial | Contrato de provider separado; no activar un motor alternativo para sortear una denegación |
 | Materialious: refresh de attestation/PoToken | No automáticamente | Requiere revisión separada; el cambio actual no genera tokens adicionales |
 | ChruPipe: HLS con recuperación y fallback progresivo | Ya cubierto parcialmente | Conservar candidatos HLS/directo, posición y reintentos internos de Shaka |
@@ -135,6 +135,6 @@ Esta adaptación toma patrones de arquitectura y comportamiento, no copia códig
 La aceptación de esta fase exige:
 - Build y TypeScript.
 - Playwright: la política permite recuperación en timeout/5xx, pero no cambia de perfil ante 400/401/403/429 o restricciones explícitas.
-- Playwright: watchdog recupera únicamente tras 12 segundos sin progreso y sin buffer; no se dispara por pausa, seek, pestaña oculta, offline o buffer suficiente.
+- Playwright: watchdog recupera únicamente tras 2 segundos sin progreso y sin buffer; no se dispara por pausa, seek, pestaña oculta, offline o buffer suficiente.
 - En navegador real, comprobar que una interrupción transitoria conserva posición y que una denegación no produce intentos con otros perfiles.
 - Mantener como pendiente separado la reproducción real en producción: el smoke de GitHub Actions no prueba el comportamiento desde la red doméstica del usuario.
