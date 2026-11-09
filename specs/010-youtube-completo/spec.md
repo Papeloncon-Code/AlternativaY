@@ -1,30 +1,48 @@
-# YouTube completo: especificación
+# YouTube completo · especificación de reproducción y cliente
 
 | Campo | Valor |
 |---|---|
-| Estado | Borrador (reorganizado el 2026-11-07 desde `002-mvp/spec.md`) |
-| Requisitos | RF-034, RF-036, RF-037 |
-| Decisiones | ADR-005 |
-| Plataformas | Android `full` |
-| Plan técnico | [plan.md](plan.md) |
-| Tareas | [tasks.md](tasks.md) |
+| Estado | Implementación web inicial en PR #37; matriz real de vídeo/audio pendiente |
+| Decisión rectora | ADR-013 |
+| Broker | Especificación 009 |
+| Plataformas | Web Chrome/Edge (Bridge MV3); Android/Desktop vía providers nativos futuros |
+| Player | Shaka + controles TodoTube propios |
 
 ## Objetivo
-Reproducir YouTube sin anuncios, en segundo plano, con PiP, descargas y SponsorBlock, extrayendo solo en el dispositivo.
 
-## Historias y criterios de aceptación
-### H10. YouTube completo (RF-034, RF-036, RF-037)
-- **CA10.1:** buscar en YouTube devuelve vídeos, canales y listas. Abrir un vídeo empieza a reproducir en < 2 s (p75, wifi) sin anuncios.
-- **CA10.2:** segundo plano, PiP, cola, velocidad, subtítulos, capítulos y calidad (hasta la máxima disponible; AV1/VP9 si el dispositivo lo decodifica) funcionan igual que en el resto de fuentes (H3).
-- **CA10.3:** se puede descargar vídeo o audio, y el elemento descargado se reproduce sin red.
-- **CA10.4:** SponsorBlock salta los segmentos de las categorías elegidas y lo muestra con un aviso. DeArrow y RYD se pueden activar por separado.
-- **CA10.5:** importar el CSV de suscripciones de Google Takeout y las exportaciones de NewPipe y PipePipe crea todas las suscripciones de YouTube compatibles. Informa de las que no se pudieron importar.
-- **CA10.6:** ante un error de extracción repetido, la app muestra un estado único (“YouTube cambió algo”) y busca una actualización. El hotfix firmado se instala desde la app.
-- **CA10.7:** contenido con DRM o de pago: se muestra “No disponible en esta app” y no se intenta reproducir.
-- **CA10.8:** un test de CI garantiza que la build `play` no contiene el módulo `:connector:youtube`.
+Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con una única interfaz, distintas rutas de extracción/transporte y failover automático conservando el estado. No se marca como terminado por resolver metadatos o un URL: debe reproducir el contenido completo.
 
-## Aclaraciones pendientes ([NECESITA ACLARACIÓN])
-Resolver antes de cerrar el plan (paso *clarify*):
-- [ ] ¿Qué versión de NewPipeExtractor y con qué estrategia de actualización (dependencia directa o vendorizada)?
-- [ ] Licencia de los datos de SponsorBlock (CC BY-NC-SA, sin verificar): ¿afecta a un plan de pago?
-- [x] ¿Shorts dentro del feed o aparte? → **Aparte, nunca mezclados con los vídeos** (decisión del propietario, 2026-11-07). Ver ADR-006 §Enmienda para cómo se detectan.
+## Flujo implementado en web
+
+1. PlayerHost consulta si existe una copia autorizada en R2.
+2. Si existe, reproduce en GatewayPlayer. Si R2 no está disponible, usa YouTubeSabrPlayer.
+3. TodoTube Bridge habilita el acceso del navegador a las solicitudes necesarias desde el origen TodoTube.
+4. YouTubeSabrRuntime crea sesiones InnerTube independientes para los perfiles soportados.
+5. WEB intenta Onesie primero y cae a InnerTube estándar en el mismo perfil.
+6. Cada respuesta puede producir candidatos SABR, DASH, HLS o progresivo. Solo se intenta una fuente que exponga datos utilizables.
+7. Si el transporte activo falla, se intenta renovar el player response y luego el candidato/perfil siguiente.
+8. R2 y runtime web pueden entregarse el control conservando posición, estado, volumen y velocidad.
+
+## Criterios de aceptación
+
+- CA10.1: reproducción completa con audio/vídeo real dentro de controles TodoTube en Chrome y Edge.
+- CA10.2: el arranque no queda bloqueado por un único cliente; cada resolución tiene timeout y la cadena tiene presupuesto total medido.
+- CA10.3: audio y vídeo sincronizados en progressive y adaptive; seek usable y calidad adaptativa donde esté disponible.
+- CA10.4: si Onesie falla, InnerTube normal se intenta antes de abandonar el cliente WEB.
+- CA10.5: se recorren perfiles alternativos y se registra cuál entrega playback real.
+- CA10.6: ante fallo midstream, se obtienen enlaces nuevos y se reanuda donde se interrumpió.
+- CA10.7: cambio R2/runtime y runtime/R2 conserva timestamp, play/pause, volumen y velocidad.
+- CA10.8: no hay iframe oficial como fallback de la interfaz TodoTube.
+- CA10.9: el contenido DRM/de pago no se desbloquea ni se fuerza; se informa de su indisponibilidad.
+- CA10.10: bridge se inyecta solo en TodoTube/localhost y bloquea hosts no permitidos.
+- CA10.11: UI propia incluye play/pause, seek, volumen, velocidad y pantalla completa; controles visibles también en modo mini.
+- CA10.12: telemetría de diagnóstico excluye credenciales, tokens de integridad y URLs firmadas completas.
+
+## Validación pendiente para cerrar
+
+- Instalar la extensión TodoTube Bridge compilada por CI.
+- Reproducir un vídeo público corto, un vídeo largo (>1 h), un vídeo con audio adaptativo, un Short y un directo cuando la fuente entregue una ruta compatible.
+- Forzar fallo de Onesie, perfil WEB, SABR y R2 para demostrar failover.
+- Verificar audio, seek, reanudación y ausencia de audio duplicado.
+- Medir TTFF p50/p75, buffer ratio y tiempo de conmutación.
+- Validar Firefox/Android por separado; Manifest V3 inicial cubre Chrome/Edge, no implica compatibilidad universal.
