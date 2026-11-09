@@ -179,8 +179,6 @@ export default function YouTubeSabrPlayer({
     setRetry((value) => value + 1);
   }
 
-  const original = 'https://www.youtube.com/watch?v=' + encodeURIComponent(id) +
-    (startAt > 0 ? '&t=' + Math.floor(startAt) + 's' : '');
   const bridgeMissing = detail.includes('Falta TodoTube Bridge');
 
   return (
@@ -193,12 +191,16 @@ export default function YouTubeSabrPlayer({
         aria-label="Reproductor TodoTube"
       />
       {(status === 'loading' || status === 'switching') && (
-        <div className="gateway-recovering" role="status" aria-live="polite">{detail}</div>
+        <div className="gateway-recovering" role="status" aria-live="polite">
+          {status === 'switching' ? 'Buscando otra ruta de reproducción…' : 'Preparando la reproducción…'}
+        </div>
       )}
       {status === 'error' && (
         <div className="gateway-error" role="alert">
-          <b>No se pudo iniciar la reproducción propia</b>
-          <p>{detail}</p>
+          <b>{bridgeMissing ? 'Hay que habilitar la reproducción en este navegador' : 'No se pudo reproducir este vídeo'}</b>
+          <p>{bridgeMissing
+            ? 'Activa TodoTube Bridge para permitir la reproducción y vuelve a cargar la página.'
+            : 'TodoTube no pudo iniciar el vídeo con las rutas disponibles. Puedes volver a intentarlo.'}</p>
           {bridgeMissing ? (
             <div className="gateway-bridge-actions">
               <a className="btn primary" href="/todotube-browser-bridge.zip" download="todotube-browser-bridge.zip">Descargar TodoTube Bridge</a>
@@ -209,8 +211,7 @@ export default function YouTubeSabrPlayer({
             </div>
           ) : (
             <div className="player-message-actions">
-              <button type="button" className="btn primary" onClick={retryPlayback}>Reintentar proveedores</button>
-              <a className="btn" href={original} target="_blank" rel="noreferrer">Abrir vídeo original</a>
+              <button type="button" className="btn primary" onClick={retryPlayback}>Reintentar reproducción</button>
             </div>
           )}
         </div>
@@ -249,7 +250,7 @@ export default function YouTubeSabrPlayer({
         </label>
         <button type="button" onClick={toggleFullscreen} aria-label="Pantalla completa">Pantalla</button>
       </div>
-      <span className="youtube-sabr-source" aria-live="polite">{status === 'playing' ? detail : ''}</span>
+      <span className="youtube-sabr-source" aria-live="polite">{status === 'playing' ? 'Reproducción activa' : ''}</span>
     </div>
   );
 }
