@@ -160,6 +160,10 @@ export async function handleYouTubeProxy(request, fetchImpl = fetch) {
   let method = request.method;
   let requestBody = body;
   const headers = selectUpstreamHeaders(request.headers);
+  const upstreamUserAgent = request.headers.get('x-todotube-upstream-user-agent');
+  if (upstreamUserAgent && upstreamUserAgent.length <= 512 && !/[\\r\\n]/.test(upstreamUserAgent)) {
+    headers.set('user-agent', upstreamUserAgent);
+  }
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     let upstream;
