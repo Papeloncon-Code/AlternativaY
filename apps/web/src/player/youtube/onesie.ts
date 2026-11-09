@@ -29,6 +29,42 @@ type OnesieRequestArgs = {
 
 type PartHandler = (part: Part) => void;
 
+export function encodeOnesieRequestEnvelope(args: {
+  innertubeRequest: Record<string, any>;
+  clientConfig: OnesieHotConfig;
+  encrypted: { encrypted: Uint8Array; hmac: Uint8Array; iv: Uint8Array };
+}): Uint8Array {
+  const { innertubeRequest, clientConfig, encrypted } = args;
+  return OnesieRequest.encode({
+    urls: [],
+    innertubeRequest: {
+      iv: encrypted.iv,
+      hmac: encrypted.hmac,
+      enableCompression: true,
+      encryptedClientKey: clientConfig.encryptedClientKey,
+      encryptedOnesieInnertubeRequest: encrypted.encrypted,
+      serializeResponseAsJson: true,
+      // Leave UstreamerFlags unset: explicitly disabling
+      // sendVideoPlaybackConfig can suppress SABR playback configuration.
+    },
+    streamerContext: {
+      sabrContexts: [],
+      unsentSabrContexts: [],
+      clientInfo: {
+        clientName: parseInt(
+          Constants.CLIENT_NAME_IDS[
+            innertubeRequest.context.client.clientName as keyof typeof Constants.CLIENT_NAME_IDS
+          ],
+        ),
+        clientVersion: innertubeRequest.context.client.clientVersion,
+      },
+    },
+    reloadPlaybackParams: innertubeRequest.playbackContext?.reloadPlaybackContext,
+    bufferedRanges: [],
+    onesieUstreamerConfig: clientConfig.onesieUstreamerConfig,
+  }).finish();
+}
+
 async function prepareOnesieRequest(args: OnesieRequestArgs) {
   const { innertubeRequest, clientConfig } = args;
   const { baseUrl, clientKeyData, encryptedClientKey, onesieUstreamerConfig } = clientConfig;
@@ -53,33 +89,11 @@ async function prepareOnesieRequest(args: OnesieRequestArgs) {
   }).finish();
 
   const { encrypted, hmac, iv } = await encryptRequest(clientKeyData, onesieInnertubeRequest);
-  const body = OnesieRequest.encode({
-    urls: [],
-    innertubeRequest: {
-      iv,
-      hmac,
-      enableCompression: true,
-      encryptedClientKey,
-      encryptedOnesieInnertubeRequest: encrypted,
-      serializeResponseAsJson: true,
-      ustreamerFlags: { sendVideoPlaybackConfig: false },
-    },
-    streamerContext: {
-      sabrContexts: [],
-      unsentSabrContexts: [],
-      clientInfo: {
-        clientName: parseInt(
-          Constants.CLIENT_NAME_IDS[
-            innertubeRequest.context.client.clientName as keyof typeof Constants.CLIENT_NAME_IDS
-          ],
-        ),
-        clientVersion: innertubeRequest.context.client.clientVersion,
-      },
-    },
-    reloadPlaybackParams: innertubeRequest.playbackContext?.reloadPlaybackContext,
-    bufferedRanges: [],
-    onesieUstreamerConfig,
-  }).finish();
+  const body = encodeOnesieRequestEnvelope({
+    innertubeRequest,
+    clientConfig,
+    encrypted: { encrypted, hmac, iv },
+  });
 
   const encodedVideoId = Array.from(base64ToU8(innertubeRequest.videoId))
     .map((byte) => byte.toString(16).padStart(2, '0'))
