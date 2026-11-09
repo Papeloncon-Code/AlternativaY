@@ -29,7 +29,7 @@ La carga de reproducción continúa por separado: `getWatchPlayer()` llama a `co
 - Permitir que un proveedor de metadatos y un proveedor de streams sean distintos.
 - Conservar una única instancia de reproductor y una única UI de TodoTube.
 - Tratar Invidious y YT.js como resolutores alternativos, no como reproductores diferentes.
-- Estudiar la evolución de dependencias: Materialious declara `youtubei.js ^18.3.0`, `googlevideo ^5.0.1` y `shaka-player ~5.2.16`. TodoTube declara versiones anteriores (`16.0.0`, `4.0.4` y `4.16.4), respectivamente. Esto justifica un spike de compatibilidad medido; no demuestra que actualizar por sí solo arregle el HTTP 400 actual.
+- Estudiar la evolución de dependencias: Materialious declara `youtubei.js ^18.3.0`, `googlevideo ^5.0.1` y `shaka-player ~5.2.16`. TodoTube declara versiones anteriores (`16.0.0`, `4.0.4` y `4.16.4`), respectivamente. Esto justifica un spike de compatibilidad medido; no demuestra que actualizar por sí solo arregle el HTTP 400 actual.
 
 ### Qué no resuelve automáticamente
 
