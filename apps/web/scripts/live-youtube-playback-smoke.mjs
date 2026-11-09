@@ -94,13 +94,16 @@ try {
   if (await play.getAttribute('aria-label') === 'Reproducir') await play.click();
   await page.waitForFunction(() => {
     const video = document.querySelector('.youtube-sabr-player video');
-    return !!video && !video.paused && video.currentTime > 2;
+    return !!video && !video.paused && video.currentTime > 2 &&
+      (video.getVideoPlaybackQuality?.().totalVideoFrames ?? 0) > 0;
   }, null, { timeout: 30_000 });
 
   const seek = page.locator('.youtube-sabr-player .gateway-seek');
   const seekTo = async (target) => {
     await seek.evaluate((slider, value) => {
-      slider.value = String(value);
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      if (!setter) throw new Error('Native range input setter is unavailable.');
+      setter.call(slider, String(value));
       slider.dispatchEvent(new Event('input', { bubbles: true }));
       slider.dispatchEvent(new Event('change', { bubbles: true }));
     }, target);
@@ -113,6 +116,32 @@ try {
   const seekForward = Math.min(15, Math.floor(initial.duration - 2));
   await seekTo(seekForward);
   await seekTo(5);
+
+  const audio = await page.locator('.youtube-sabr-player video').evaluate(async (element) => {
+    const video = element;
+    const AudioContextConstructor = window.AudioContext;
+    if (!AudioContextConstructor) throw new Error('Web Audio is unavailable for audio verification.');
+    const context = new AudioContextConstructor();
+    try {
+      const source = context.createMediaElementSource(video);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      analyser.connect(context.destination);
+      await context.resume();
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      const samples = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(samples);
+      let sumSquares = 0;
+      for (const sample of samples) {
+        const normalized = (sample - 128) / 128;
+        sumSquares += normalized * normalized;
+      }
+      return { rms: Math.sqrt(sumSquares / samples.length), state: context.state };
+    } finally {
+      await context.close();
+    }
+  });
 
   const final = await page.locator('.youtube-sabr-player video').evaluate((element) => {
     const video = element;
@@ -129,8 +158,10 @@ try {
       audioTrackCount: video.audioTracks?.length ?? null,
     };
   });
-  if (final.width <= 0 || final.decodedFrames === 0 || final.muted || final.volume <= 0) {
-    throw new Error('Video frames or audible playback state were not confirmed: ' + JSON.stringify(final));
+  if (final.width <= 0 || final.decodedFrames === null || final.decodedFrames <= 0 ||
+      final.muted || final.volume <= 0 || audio.rms < 0.001) {
+    throw new Error('Video frames or audible audio signal were not confirmed: ' +
+      JSON.stringify({ final, audio }));
   }
 
   await page.screenshot({ path: join(outputDir, 'youtube-playback-success.png'), fullPage: false });
@@ -141,6 +172,7 @@ try {
     proxyRequests,
     initial,
     final,
+    audio,
   }) + '\n');
 } finally {
   if (browser) await browser.close();
