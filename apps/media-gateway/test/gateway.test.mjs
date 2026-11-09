@@ -425,7 +425,7 @@ test('an upload whose actual bytes do not match its declared size is rolled back
       'X-Media-Visibility': 'public',
     },
   }), e);
-  assert.equal(r.status, 400);
+  assert.equal(r.status, 503);
   assert.equal((await r.json()).cleanupComplete, true);
   assert.equal(e.MEDIA_BUCKET.objects.has('media/size_mismatch'), false);
   assert.equal(replica.objects.has('media/size_mismatch'), false);
