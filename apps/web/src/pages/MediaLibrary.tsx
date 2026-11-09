@@ -6,7 +6,10 @@ import { Empty } from '../components/States';
 import Icon from '../components/Icon';
 import { useTitle } from '../title';
 
-const ALLOWED_TYPES = new Set(['video/mp4', 'video/webm', 'video/ogg']);
+const ALLOWED_TYPES = new Set([
+  'video/mp4', 'video/webm', 'video/ogg',
+  'audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/webm',
+]);
 const MAX_UPLOAD_BYTES = 90 * 1024 * 1024;
 
 function sizeLabel(bytes: number) {
@@ -25,6 +28,7 @@ export default function MediaLibrary() {
   const [token, setToken] = useState('');
   const [license, setLicense] = useState<'owned' | 'licensed'>('owned');
   const [licenseReference, setLicenseReference] = useState('');
+  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -50,16 +54,12 @@ export default function MediaLibrary() {
     event.preventDefault();
     setUploadError('');
     setUploadMessage('');
-
     const id = mediaId.trim();
     if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) {
       setUploadError('El ID solo puede contener letras, números, guiones y guiones bajos (máximo 80 caracteres).');
       return;
     }
-    if (!file) {
-      setUploadError('Selecciona un archivo multimedia.');
-      return;
-    }
+    if (!file) { setUploadError('Selecciona un archivo multimedia.'); return; }
     if (!ALLOWED_TYPES.has(file.type.toLowerCase())) {
       setUploadError('Formato no admitido o no reconocido. Usa MP4, WebM u Ogg.');
       return;
@@ -68,10 +68,7 @@ export default function MediaLibrary() {
       setUploadError('El archivo debe pesar más de 0 bytes y no superar 90 MiB.');
       return;
     }
-    if (!token.trim()) {
-      setUploadError('Introduce el token de carga del Gateway.');
-      return;
-    }
+    if (!token.trim()) { setUploadError('Introduce el token de carga del Gateway.'); return; }
     if (license === 'licensed' && !licenseReference.trim()) {
       setUploadError('Para contenido licenciado debes indicar la referencia del permiso o licencia.');
       return;
@@ -80,19 +77,14 @@ export default function MediaLibrary() {
     setUploading(true);
     try {
       const result = await uploadGatewayMedia({
-        id,
-        file,
-        token,
-        title,
-        creator,
-        license,
+        id, file, token, title, creator, license,
         licenseReference: license === 'licensed' ? licenseReference : undefined,
-        visibility: 'public',
+        visibility,
       });
       await reloadCatalog();
       setUploadMessage(result.replicas.degraded
-        ? 'El archivo quedó en un solo origen. No se considera publicado: revisa la réplica antes de usarlo.'
-        : 'Archivo cargado, verificado y replicado en los dos buckets.');
+        ? 'Archivo recibido, pero la réplica quedó incompleta. No lo consideres protegido hasta corregir la réplica.'
+        : 'Archivo cargado y confirmado en los dos buckets.');
       setToken('');
       setFile(null);
       if (fileInput.current) fileInput.current.value = '';
@@ -109,13 +101,13 @@ export default function MediaLibrary() {
 
     <section className="media-upload" aria-labelledby="media-upload-title">
       <div className="media-upload-head">
-        <div><h2 id="media-upload-title">Cargar un archivo</h2><p>MP4, WebM u Ogg · máximo 90 MiB · escritura verificada en ambos buckets.</p></div>
+        <div><h2 id="media-upload-title">Cargar un archivo</h2><p>MP4, WebM u Ogg · máximo 90 MiB · la carga se replica en R2.</p></div>
         <Icon name="upload" size={22} />
       </div>
       <form className="media-upload-form" onSubmit={submitUpload}>
         <label className="media-field media-field-wide">ID del medio
-          <input value={mediaId} onChange={(e) => setMediaId(e.target.value)} placeholder="ID del vídeo" maxLength={80} required disabled={uploading} />
-          <small>Para que una ficha existente use el reproductor propio, coloca exactamente el mismo ID de 11 caracteres que aparece en la URL /ver/ID. No se cambia el vídeo ni se busca otro parecido.</small>
+          <input value={mediaId} onChange={(e) => setMediaId(e.target.value)} placeholder="Ej. YTVideoId11 o mi-video-001" maxLength={80} required disabled={uploading} />
+          <small>Para asociar una copia autorizada a una ficha existente, usa exactamente su ID. Así la ficha /ver/ID podrá usar el reproductor de TodoTube.</small>
         </label>
         <label className="media-field">Título
           <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título del vídeo" maxLength={180} required disabled={uploading} />
@@ -129,29 +121,35 @@ export default function MediaLibrary() {
             <option value="licensed">Contenido licenciado</option>
           </select>
         </label>
+        <label className="media-field">Visibilidad
+          <select value={visibility} onChange={(e) => setVisibility(e.target.value as 'public' | 'private')} disabled={uploading}>
+            <option value="public">Público</option>
+            <option value="private">Privado</option>
+          </select>
+        </label>
         {license === 'licensed' && <label className="media-field media-field-wide">Referencia de licencia o permiso
           <input value={licenseReference} onChange={(e) => setLicenseReference(e.target.value)} placeholder="URL, contrato o referencia verificable" maxLength={300} required disabled={uploading} />
         </label>}
         <label className="media-field media-field-wide">Archivo
-          <input ref={fileInput} type="file" accept="video/mp4,video/webm,video/ogg" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required disabled={uploading} />
+          <input ref={fileInput} type="file" accept="video/mp4,video/webm,video/ogg,audio/mp4,audio/mpeg,audio/ogg,audio/webm" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required disabled={uploading} />
           {file && <small>{file.name} · {sizeLabel(file.size)}</small>}
         </label>
         <label className="media-field media-field-wide">Token de carga del Gateway
-          <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Token configurado en Cloudflare" required disabled={uploading} />
-          <small>Se transmite por HTTPS únicamente para autorizar esta carga; no se guarda en TodoTube ni se incorpora al código.</small>
+          <input type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="Se usa solo para esta solicitud; no se guarda" required disabled={uploading} />
+          <small>El token no se incluye en el código de la web ni se guarda en el navegador.</small>
         </label>
         {uploadError && <p className="media-upload-error" role="alert">{uploadError}</p>}
-        {uploadMessage && <p className="media-upload-success" role="status">{uploadMessage}</p>}
+        {uploadMessage && <p className={uploadMessage.startsWith('Archivo cargado') ? 'media-upload-success' : 'media-upload-error'} role="status">{uploadMessage}</p>}
         <div className="media-upload-actions">
-          <button className="btn primary" type="submit" disabled={uploading}>{uploading ? 'Cargando y replicando…' : 'Subir archivo'}</button>
-          <span>Solo se publica cuando ambas copias quedan escritas correctamente.</span>
+          <button className="btn primary" type="submit" disabled={uploading}>{uploading ? 'Cargando archivo…' : 'Subir y replicar'}</button>
+          <span>Se comprobará la escritura en ambos orígenes antes de confirmar.</span>
         </div>
       </form>
     </section>
 
     <div className="media-library-list-head"><h2>Biblioteca</h2><span>{items.length} {items.length === 1 ? 'archivo' : 'archivos'}</span></div>
     {loading && <p className="note">Conectando con el Gateway multimedia…</p>}
-    {error && <div className="media-state" role="status"><b>Gateway no disponible</b><p>{error}</p><button className="btn" type="button" onClick={() => { setLoading(true); reloadCatalog().catch((e) => setError(e instanceof Error ? e.message : String(e))).finally(() => setLoading(false)); }}>Reintentar</button></div>}
+    {error && <div className="media-state" role="status"><b>No se pudo consultar el Gateway</b><p>{error}</p><button className="btn" type="button" onClick={() => { setLoading(true); reloadCatalog().catch((e) => setError(e instanceof Error ? e.message : String(e))).finally(() => setLoading(false)); }}>Reintentar</button></div>}
     {!loading && !error && items.length === 0 && <Empty title="Todavía no hay medios publicados"><p>Cuando cargues un archivo propio o con licencia, aparecerá aquí.</p></Empty>}
     {items.length > 0 && <div className="media-list">{items.map((m) => <Link className="media-row" key={m.id} to={'/medios/' + encodeURIComponent(m.id)}>
       <span className="media-icon"><Icon name="play" size={28} /></span>
