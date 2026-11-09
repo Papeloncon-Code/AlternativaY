@@ -1,6 +1,7 @@
 import shaka from 'shaka-player/dist/shaka-player.ui';
 import { prepareBridgeRequest } from './bridgeRequest';
 import { summarizeInnerTubeRequest } from './diagnostics';
+import { InnerTubePlayerHttpError } from './failurePolicy';
 
 declare global {
   interface Window {
@@ -177,13 +178,7 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
       responseContentType: response.headers.get('content-type'),
       responseBody: responseBody.slice(0, 1600),
     }));
-    const responseHeaders = new Headers(response.headers);
-    responseHeaders.delete('content-length');
-    return new Response(responseBody, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: responseHeaders,
-    });
+    throw new InnerTubePlayerHttpError(response.status, responseBody);
   }
   return response;
 }
