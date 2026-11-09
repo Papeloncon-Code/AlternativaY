@@ -44,6 +44,7 @@ jobs:
       - name: Validar sintaxis YAML y JavaScript del E2E de producción
         run: |
           npx --yes prettier --parser yaml ../../.github/workflows/live-media-gateway-e2e.yml > /dev/null
+          node --check worker.js
           node --check scripts/live-e2e-worker.mjs
           node --check scripts/live-media-gateway-smoke.mjs
       - run: npm run build
