@@ -117,7 +117,6 @@ export class YouTubeSabrRuntime {
   private currentClient: YouTubeClient | null = null;
   private videoId = '';
   private playbackToken = '';
-  private coldStartToken = '';
   private tokenPromise: Promise<void> | null = null;
   private sabrRefreshPromise: Promise<void> | null = null;
   private lastSabrRefreshAt = 0;
@@ -307,7 +306,6 @@ export class YouTubeSabrRuntime {
 
     this.videoId = videoId;
     this.playbackToken = '';
-    this.coldStartToken = '';
     this.candidates = [];
     this.candidateIndex = -1;
     this.nextClientIndex = 0;
@@ -550,11 +548,11 @@ export class YouTubeSabrRuntime {
     adapter.onMintPoToken(async () => {
       if (!isWebClient(client)) return '';
       if (this.tokenPromise) await this.tokenPromise;
+      if (!this.playbackToken) await this.mintPlaybackToken();
       if (!this.playbackToken) {
-        if (info.basic_info.is_live) await this.mintPlaybackToken();
-        else void this.mintPlaybackToken();
+        throw new Error('No se pudo generar el PoToken requerido para SABR.');
       }
-      return this.playbackToken || this.coldStartToken || '';
+      return this.playbackToken;
     });
 
     adapter.onReloadPlayerResponse(async (reloadContext) => {
@@ -590,26 +588,17 @@ export class YouTubeSabrRuntime {
     const targetVideoId = this.videoId;
     const pending = (async () => {
       try {
-        const coldStartToken = botguardService.mintColdStartToken(targetVideoId);
-        if (this.videoId === targetVideoId) this.coldStartToken = coldStartToken;
-        if (forceReinit) {
-          const pendingInitialization = botguardService.initializationPromise;
-          if (pendingInitialization) await pendingInitialization;
-          await botguardService.reinit();
-        } else if (!botguardService.isInitialized()) {
-          await botguardService.reinit();
+        if (forceReinit) await botguardService.reinit();
+        else await botguardService.init();
+
+        const playbackToken = await botguardService.mintPlaybackToken(targetVideoId);
+        if (!playbackToken) {
+          throw new Error('BotGuard no generó un PoToken de reproducción.');
         }
-        if (botguardService.integrityTokenBasedMinter) {
-          const playbackToken = await botguardService.integrityTokenBasedMinter.mintAsWebsafeString(targetVideoId);
-          if (this.videoId === targetVideoId) this.playbackToken = playbackToken;
-        }
-        if (forceReinit && this.videoId === targetVideoId && !this.playbackToken) {
-          throw new Error('No se pudo renovar el token de reproducción tras StreamProtectionStatus=3.');
-        }
+        if (this.videoId === targetVideoId) this.playbackToken = playbackToken;
       } catch (error) {
         console.warn('[TodoTube] No se pudo obtener el token web de reproducción:', error);
-        if (forceReinit) throw error;
-      } finally {
+        throw error;
       }
     })();
 
