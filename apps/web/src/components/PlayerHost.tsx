@@ -1,6 +1,8 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import OwnPlayer from './OwnPlayer';
+import GatewayPlayer from './GatewayPlayer';
+import { hasPublicGatewayVideo } from '../mediaGateway';
 import Icon from './Icon';
 import { stop, useSession } from '../player/session';
 
@@ -14,6 +16,17 @@ export default function PlayerHost() {
   const navigate = useNavigate();
   const onPage = !!s && loc.pathname === '/ver/' + s.id;
   const [rect, setRect] = useState<CSSProperties | null>(null);
+  const [gatewayCheck, setGatewayCheck] = useState<{ id: string; status: 'checking' | 'gateway' | 'external' } | null>(null);
+
+  useEffect(() => {
+    if (!s) { setGatewayCheck(null); return; }
+    let active = true;
+    setGatewayCheck({ id: s.id, status: 'checking' });
+    hasPublicGatewayVideo(s.id).then((available) => {
+      if (active) setGatewayCheck({ id: s.id, status: available ? 'gateway' : 'external' });
+    });
+    return () => { active = false; };
+  }, [s?.id]);
   const box = useRef<HTMLDivElement>(null);
   hostEl.current = box.current;
 
@@ -44,7 +57,11 @@ export default function PlayerHost() {
   return (
     <div ref={box} className={'player-dock' + (onPage ? ' on-page' : ' mini') + (s.vertical ? ' vertical' : '')} style={style}>
       <div className="player-dock-video">
-        <OwnPlayer key={s.id} id={s.id} startAt={s.startAt} compact={!onPage} />
+        {gatewayCheck?.id === s.id && gatewayCheck.status === 'gateway'
+          ? <GatewayPlayer key={s.id} id={s.id} meta={s.meta} startAt={s.startAt} compact={!onPage} />
+          : gatewayCheck?.id === s.id && gatewayCheck.status === 'external'
+            ? <OwnPlayer key={s.id} id={s.id} startAt={s.startAt} compact={!onPage} />
+            : <div className="gateway-source-check" role="status">Comprobando si existe una copia autorizada…</div>}
       </div>
       {!onPage && (
         <div className="mini-bar">
