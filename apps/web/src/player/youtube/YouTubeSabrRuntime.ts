@@ -536,6 +536,7 @@ export class YouTubeSabrRuntime {
             await this.activateCandidate(candidates[index], index, resumeAt, autoplay);
             return true;
           } catch (error) {
+            if (shouldStopSourceFallback(error)) return this.reportRestrictedFailure();
             this.lastError = error instanceof Error ? error.message : String(error);
             console.warn('[TodoTube] Falló la ruta ' + client + '/' + candidates[index].mode + ':', error);
           }
