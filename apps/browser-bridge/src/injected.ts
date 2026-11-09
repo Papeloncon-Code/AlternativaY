@@ -5,6 +5,8 @@ Object.assign(window, { ytcBridge: { installed: true } });
 let requestId = 0;
 const pendingRequests = new Map<number, PendingRequest>();
 
+const BINARY_BODY_PREFIX = '__TODOTUBE_BINARY_BASE64__:';
+
 function toBase64(bytes: Uint8Array): string {
   let binary = '';
   const chunkSize = 0x8000;
@@ -27,8 +29,8 @@ function decodeBase64(value: string): ArrayBuffer {
     pendingRequests.set(id, { resolve, reject });
 
     const requestOptions: Record<string, unknown> = { ...options, signal: undefined };
-    if (options.body instanceof ArrayBuffer) requestOptions.body = toBase64(new Uint8Array(options.body));
-    else if (options.body instanceof Uint8Array) requestOptions.body = toBase64(options.body);
+    if (options.body instanceof ArrayBuffer) requestOptions.body = BINARY_BODY_PREFIX + toBase64(new Uint8Array(options.body));
+    else if (options.body instanceof Uint8Array) requestOptions.body = BINARY_BODY_PREFIX + toBase64(options.body);
 
     if (options.headers) {
       const headers: Record<string, string> = {};
