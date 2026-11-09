@@ -76,15 +76,20 @@ function isSameOriginRequest(request) {
   const referer = request.headers.get('referer');
 
   if (origin && origin !== ownOrigin) return false;
-  if (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none') return false;
+  if (fetchSite && fetchSite !== 'same-origin') return false;
+
+  let sameOriginReferer = false;
   if (referer) {
     try {
-      if (new URL(referer).origin !== ownOrigin) return false;
+      sameOriginReferer = new URL(referer).origin === ownOrigin;
     } catch {
       return false;
     }
   }
-  return true;
+
+  // Do not expose the relay as a general-purpose public proxy. Browser requests
+  // must carry at least one same-origin signal (Origin, Fetch Metadata or Referer).
+  return origin === ownOrigin || fetchSite === 'same-origin' || sameOriginReferer;
 }
 
 function consumeRateLimit(request, now = Date.now()) {
@@ -208,6 +213,7 @@ export async function handleYouTubeProxy(request, fetchImpl = fetch) {
     }
 
     if (redirectCount === MAX_REDIRECTS) {
+      await upstream.body?.cancel().catch(() => undefined);
       return new Response('Too many upstream redirects', { status: 502 });
     }
 
