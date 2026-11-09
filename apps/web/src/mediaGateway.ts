@@ -2,11 +2,12 @@ const BASE = (import.meta.env.VITE_MEDIA_GATEWAY_URL || 'https://todotube-media-
 export const gatewayUrl = (path: string) => BASE + (path.startsWith('/') ? path : '/' + path);
 export const gatewayMediaUrl = (id: string) => gatewayUrl('/v1/media/' + encodeURIComponent(id));
 
-export async function hasPublicGatewayVideo(id: string): Promise<boolean> {
+export async function hasPublicGatewayVideo(id: string, signal?: AbortSignal): Promise<boolean> {
   try {
-    const response = await fetch(gatewayMediaUrl(id), { method: 'HEAD' });
+    const response = await fetch(gatewayMediaUrl(id), { method: 'HEAD', signal });
     return response.ok && (response.headers.get('Content-Type') || '').toLowerCase().startsWith('video/');
-  } catch {
+  } catch (error) {
+    if (signal?.aborted) throw error;
     return false;
   }
 }

@@ -1,0 +1,12 @@
+# Product and architecture ownership
+* @Papeloncon-Code
+
+/.github/workflows/ @Papeloncon-Code
+/apps/web/src/player/ @Papeloncon-Code
+/apps/browser-bridge/ @Papeloncon-Code
+/apps/media-gateway/ @Papeloncon-Code
+/docs/adr/ @Papeloncon-Code
+/docs/architecture/ @Papeloncon-Code
+/specs/000-constitucion/ @Papeloncon-Code
+/specs/009-media-source-provider-broker/ @Papeloncon-Code
+/specs/010-youtube-completo/ @Papeloncon-Code

@@ -12,11 +12,29 @@ function timeLabel(seconds: number) {
 const STALL_RECOVERY_MS = 10000;
 const MAX_AUTOMATIC_RECOVERIES = 1;
 
-export default function GatewayPlayer({ id, meta, startAt = 0, compact = false }: { id: string; meta: Meta; startAt?: number; compact?: boolean }) {
+type GatewayFailure = {
+  position: number;
+  wasPlaying: boolean;
+  volume: number;
+  playbackRate: number;
+  error: string;
+};
+
+export default function GatewayPlayer({
+  id, meta, startAt = 0, compact = false, onPlaybackExhausted,
+}: {
+  id: string;
+  meta: Meta;
+  startAt?: number;
+  compact?: boolean;
+  onPlaybackExhausted?: (failure: GatewayFailure) => void;
+}) {
   const wrap = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const metaRef = useRef(meta);
   metaRef.current = meta;
+  const onPlaybackExhaustedRef = useRef(onPlaybackExhausted);
+  onPlaybackExhaustedRef.current = onPlaybackExhausted;
   const lastSaveRef = useRef(0);
   const retryCountRef = useRef(0);
   const recoveryInFlightRef = useRef(false);
@@ -45,6 +63,21 @@ export default function GatewayPlayer({ id, meta, startAt = 0, compact = false }
         actions.saveProgress(metaRef.current, video.currentTime, video.duration);
       }
     };
+    const exhaustSource = (reason: string) => {
+      const failure: GatewayFailure = {
+        position: Number.isFinite(video.currentTime) ? video.currentTime : 0,
+        wasPlaying: !video.paused && !video.ended,
+        volume: video.volume,
+        playbackRate: video.playbackRate,
+        error: reason,
+      };
+      save();
+      if (onPlaybackExhaustedRef.current) {
+        onPlaybackExhaustedRef.current(failure);
+      } else {
+        setError(reason);
+      }
+    };
     const finishRecovery = () => {
       retryCountRef.current = 0;
       recoveryInFlightRef.current = false;
@@ -55,7 +88,7 @@ export default function GatewayPlayer({ id, meta, startAt = 0, compact = false }
     const recover = (reason: string, manual = false) => {
       if (disposed || recoveryInFlightRef.current) return;
       if (!manual && retryCountRef.current >= MAX_AUTOMATIC_RECOVERIES) {
-        setError(reason);
+        exhaustSource(reason);
         return;
       }
       if (manual) retryCountRef.current = 0;
@@ -106,7 +139,7 @@ export default function GatewayPlayer({ id, meta, startAt = 0, compact = false }
       if (recoveryInFlightRef.current) {
         recoveryInFlightRef.current = false;
         setRecovering(false);
-        setError(message);
+        exhaustSource(message);
         return;
       }
       recover(message);

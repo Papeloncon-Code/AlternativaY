@@ -34,19 +34,28 @@ jobs:
 
   web:
     name: Web · compilación, tipos y pruebas de aceptación
+    needs: [bridge]
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: apps/web } }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: apps/web/package-lock.json }
+      - name: Incorporar ZIP del Bridge en el build web
+        uses: actions/download-artifact@v4
+        with:
+          name: todotube-browser-bridge-${{ github.sha }}
+          path: apps/web/public
       - run: npm ci
       - name: Validar sintaxis YAML y JavaScript del E2E de producción
         run: |
           npx --yes prettier --parser yaml ../../.github/workflows/live-media-gateway-e2e.yml > /dev/null
           node --check scripts/live-e2e-worker.mjs
           node --check scripts/live-media-gateway-smoke.mjs
+          node --check scripts/live-youtube-playback-smoke.mjs
       - run: npm run build
+      - name: Verificar que la web incluye el ZIP instalable del Bridge
+        run: test -s dist/todotube-browser-bridge.zip
       - run: npx tsc -b
       - run: npx playwright install --with-deps chromium
       - name: Iniciar API local determinista para Playwright
@@ -80,6 +89,25 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  bridge:
+    name: Browser Bridge · compilación, tipos y paquete
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/browser-bridge } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: apps/browser-bridge/package-lock.json }
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run build
+      - name: Empaquetar extensión TodoTube Bridge
+        run: zip -r todotube-browser-bridge.zip manifest.json rules.json dist README.md LICENSE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: todotube-browser-bridge-${{ github.sha }}
+          path: apps/browser-bridge/todotube-browser-bridge.zip
+          retention-days: 30
+
   gateway:
     name: Media Gateway · pruebas unitarias
     runs-on: ubuntu-latest
@@ -93,7 +121,7 @@ jobs:
 
   desplegar:
     name: Despliegue en Cloudflare y humo en producción
-    needs: [avisos, web, gateway]
+    needs: [avisos, web, gateway, bridge]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: produccion
@@ -113,6 +141,12 @@ jobs:
       - name: Avisar que el despliegue quedó desactivado
         if: steps.secretos.outputs.ok != 'true'
         run: echo "::notice::CI pasó, pero no hay credenciales Cloudflare. No se modificó producción."
+      - name: Publicar paquete TodoTube Bridge dentro de la web
+        if: steps.secretos.outputs.ok == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: todotube-browser-bridge-${{ github.sha }}
+          path: apps/web/public
       - name: Servidor de avisos
         if: steps.secretos.outputs.ok == 'true'
         working-directory: spikes/websub
@@ -127,3 +161,27 @@ jobs:
         working-directory: apps/web
         env: { BASE_URL: '${{ env.PROD_URL }}' }
         run: node scripts/smoke.mjs
+      - name: Instalar Chromium para la prueba de reproducción real
+        if: steps.secretos.outputs.ok == 'true'
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+      - name: Comprobar reproducción real de YouTube con TodoTube Bridge
+        if: steps.secretos.outputs.ok == 'true'
+        working-directory: apps/web
+        env:
+          BASE_URL: ${{ env.PROD_URL }}
+          BRIDGE_EXTENSION_DIR: ${{ runner.temp }}/todotube-bridge
+          PLAYBACK_SMOKE_OUTPUT: playback-smoke-artifacts
+          PLAYBACK_SMOKE_VIDEO_ID: dQw4w9WgXcQ
+        run: |
+          mkdir -p "$BRIDGE_EXTENSION_DIR"
+          unzip -q public/todotube-browser-bridge.zip -d "$BRIDGE_EXTENSION_DIR"
+          xvfb-run -a node scripts/live-youtube-playback-smoke.mjs
+      - name: Guardar evidencia de reproducción real
+        if: always() && steps.secretos.outputs.ok == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: todotube-live-playback-${{ github.sha }}
+          path: apps/web/playback-smoke-artifacts
+          retention-days: 30
+          if-no-files-found: ignore

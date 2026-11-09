@@ -55,30 +55,36 @@ test('#13 el reproductor ocupa todo el ancho; #16 el menu ⋮ no queda bajo la b
   expect(Math.round((await page.locator('#player-slot').boundingBox())!.width)).toBe(390);
 });
 
-test('minirreproductor móvil: conserva la ficha externa y no crea iframe', async ({ page }) => {
+test('minirreproductor móvil: conserva el estado de reproducción y no crea iframe', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.vcard .vthumb').first()).toBeVisible({ timeout: 15_000 });
   await page.locator('.vcard .vthumb').first().click();
-  await expect(page.locator('.player-dock .own-player-error')).toBeVisible();
+  await expect(page.locator('.player-dock .gateway-error')).toBeVisible();
   await expect(page.locator('.player-dock iframe')).toHaveCount(0);
   await page.locator('.logo-link').click();
   await expect(page.locator('.player-dock')).toHaveClass(/mini/);
-  await expect(page.locator('.player-dock .own-player-compact')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Abrir vídeo original' })).toBeVisible();
+  await expect(page.locator('.player-dock .gateway-error')).toBeVisible();
+  await expect(page.locator('.player-dock .mini-source')).toBeVisible();
   await expect(page.locator('.mini-cover')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 
-test('ficha externa móvil: mensaje y ambos CTA quedan dentro del reproductor', async ({ page }) => {
+test('error de reproducción móvil: reintento y origen quedan dentro del reproductor', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/ver/dQw4w9WgXcQ');
-  await expect(page.locator('.player-message')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Abrir origen' })).toBeVisible();
-  await expect(page.locator('.player-message').getByRole('link', { name: 'Medios propios' })).toBeVisible();
+  await expect(page.locator('.gateway-error')).toBeVisible();
+  await expect(page.locator('.gateway-error').getByRole('link', { name: 'Abrir vídeo original' })).toBeVisible();
+  await expect(page.locator('.gateway-error').getByRole('button', { name: 'Reintentar proveedores' })).toBeVisible();
+  await expect(page.locator('.gateway-error').getByRole('link', { name: 'Descargar TodoTube Bridge' })).toHaveAttribute('download', 'todotube-browser-bridge.zip');
+  await expect(page.locator('.gateway-error').getByRole('link', { name: 'Ver instrucciones de instalación' })).toBeVisible();
+  const bridgePackage = await page.request.get('/todotube-browser-bridge.zip');
+  expect(bridgePackage.ok()).toBe(true);
+  expect(bridgePackage.headers()['content-type']).toContain('application/zip');
+  expect((await bridgePackage.body()).length).toBeGreaterThan(0);
   const [frame, message] = await Promise.all([
     page.locator('#player-slot').boundingBox(),
-    page.locator('.player-message').boundingBox(),
+    page.locator('.gateway-error').boundingBox(),
   ]);
   expect(frame).not.toBeNull();
   expect(message).not.toBeNull();

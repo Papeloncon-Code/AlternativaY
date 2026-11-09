@@ -1,52 +1,24 @@
-# ADR-011 · Media Gateway R2 y retirada completa de TodoTube Puente
+# ADR-011 · Media Gateway R2 y retirada de TodoTube Puente
 
-- **Estado:** Aceptado como arquitectura vigente (2026-11-08).
-- **Sustituye:** ADR-005 para el transporte de reproducción de YouTube y la parte de transporte de ADR-010.
-- **Complementa:** ADR-009 como antecedente de la PoC, ADR-006 para metadatos públicos y especificación 008.
+- **Estado:** SUPERSEDIDO por ADR-013 (2026-11-08). Se conserva como antecedente histórico y ya no gobierna la reproducción de YouTube.
+- **Ámbito que permanece vigente:** Media Gateway R2 para archivos propios/licenciados y prohibición de proxy abierto o redistribución no autorizada.
+- **Documento rector actual:** [ADR-013 · Reproducción propia de YouTube con cadena redundante de proveedores](ADR-013-reproduccion-propia-redundante.md).
 
-## Contexto
+## Qué queda sustituido
 
-La PoC anterior demostraba transporte HTTP con fixtures propios, no una vía de acceso a streams YouTube. No se implementará extracción de YouTube a través de infraestructura propia mediante evasión anti-bot, falsificación de identidad, rotación de IP o traslado de tokens de integridad al servidor.
+Las decisiones 1, 2, 7 y 8 de esta ADR que retiraban el Bridge, impedían toda reproducción interna de YouTube y excluían el runtime client-side dejan de ser instrucciones vigentes. El propietario del producto ha autorizado implementar el objetivo de reproducción propia y redundante definido en ADR-013.
 
-## Decisión
+## Qué permanece vigente
 
-1. TodoTube Puente se retira del producto web: extensión, instalador, ZIP, ruta, prompt, empaquetador y dependencias.
-2. La interfaz de vídeo pertenece a TodoTube. No se inserta el iframe oficial de YouTube como fallback.
-3. Los archivos propios/licenciados se reproducen con HTML5 `video` y controles propios de TodoTube.
-4. El Gateway usa IDs opacos y accede únicamente al bucket R2 `todotube-media`. No recibe URLs arbitrarias ni hace fetch a terceros.
-5. Solo se almacenan medios distribuibles legalmente: `owned` o `licensed`; estos últimos requieren referencia interna de autorización.
-6. El catálogo público solo incluye objetos marcados `public`. Carga y borrado requieren secreto en Cloudflare.
-7. YouTube en feed, búsqueda, Shorts y páginas de canal son metadatos/enlaces. TodoTube muestra una ficha propia con enlace al origen; no retransmite segmentos.
-8. No se genera/falsifica BotGuard/PoToken, no se trasladan tokens de integridad, no se rotan IP ni se suplanta cliente.
+- El Media Gateway sirve únicamente medios propios/licenciados que puedan almacenarse y distribuirse.
+- El Gateway usa IDs opacos y objetos R2; no acepta destinos arbitrarios ni funciona como proxy abierto.
+- R2 no retransmite ni almacena streams de YouTube por defecto.
+- La carga/borrado de objetos se protege con credenciales de administración.
+- No se elude DRM ni se distribuye contenido de terceros sin derechos.
+- Las credenciales de usuarios no se guardan en infraestructura de TodoTube.
 
-## Arquitectura
+## Registro histórico
 
-TodoTube Web / HTML5 video con controles propios
-        |
-        | GET /v1/media/:id + Range
-        v
-Cloudflare Worker: todotube-media-gateway
-        |
-        | R2 binding MEDIA_BUCKET, key media/:id
-        v
-R2 bucket: todotube-media
+La ADR original respondió a una decisión de producto anterior que limitó TodoTube a metadatos de YouTube y archivos propios. La investigación posterior demostró una arquitectura web client-side de referencia con Shaka, googlevideo/SABR, youtubei.js y un bridge de navegador (Kira). El propietario sustituyó la decisión anterior para orientar el producto hacia un reproductor propio. Ver ADR-013 y PR #37.
 
-API pública: `/health`, `/v1/catalog` y `/v1/media/:id` (GET/HEAD). Administración: PUT/DELETE con Bearer token. No existe proxy remoto.
-
-## Estado de implementación
-
-- Worker: `apps/media-gateway/src/index.js`.
-- Tests unitarios: `apps/media-gateway/test/gateway.test.mjs`.
-- Biblioteca /medios y ficha /medios/:id: implementadas.
-- Player: HTML5 nativo con controles propios; no depende de Shaka.
-- Límite de carga: 90 MiB por objeto.
-- Retirada de Puente del código web: aplicada en main.
-- Bucket R2, secret MEDIA_UPLOAD_TOKEN, despliegue del Worker y prueba manual: pendientes.
-
-## Consecuencias y límites
-
-- TodoTube puede reproducir archivos propios/licenciados en R2 cuando el Gateway esté provisionado.
-- La iteración actual es reproducción progresiva; no declara DASH/HLS, ABR ni directos.
-- El Gateway no habilita reproducción interna de YouTube; requeriría una fuente que autorice expresamente la entrega al player propio.
-- No se declara terminado hasta verificar archivo real, seek, Range, cancelación y privacidad.
-- Los metadatos de licencia no sustituyen la comprobación de derechos.
+No copiar esta ADR histórica como base de nuevas tareas de reproducción.

@@ -1,30 +1,23 @@
 # ADR-010 · Interfaz de reproducción propia
 
-- **Estado:** Supersedido en transporte por ADR-011 (2026-11-08); se conserva como registro histórico.
-- **Decisión vigente de transporte:** ADR-011.
+- **Estado:** SUPERSEDIDO por ADR-013 (2026-11-08) en selección y transporte de fuentes. La interfaz propia y el único PlayerHost se conservan.
+- **Documento rector actual:** [ADR-013 · Reproducción propia de YouTube con cadena redundante de proveedores](ADR-013-reproduccion-propia-redundante.md).
 
-## Decisión que permanece
+## Decisión vigente
 
-1. La interfaz de reproducción pertenece a TodoTube.
-2. No se inserta el iframe ni los controles/branding del reproductor oficial de YouTube dentro de la interfaz.
-3. Los archivos propios/licenciados se reproducen con el elemento nativo HTML5 `video` y controles propios de TodoTube.
-4. El transporte de dichos archivos es el Media Gateway R2.
+1. La interfaz, controles, historial y continuidad de reproducción pertenecen a TodoTube.
+2. Existe un solo PlayerHost/Player UI por sesión. Los proveedores no montan interfaces paralelas.
+3. El PlayerHost utiliza un broker para escoger fuentes y mantener el estado al cambiar de proveedor.
+4. R2 sigue sirviendo medios propios/licenciados. No es un proxy remoto de YouTube.
+5. El runtime web usa el Bridge del navegador cuando está instalado y los proveedores client-side definidos en ADR-013.
 
-## Decisión sustituida
+## Registro histórico
 
-La versión anterior mantenía TodoTube Puente como transporte. El propietario decidió retirarlo. La extensión, sus paquetes, el instalador, el prompt y la ruta se han eliminado del producto web.
+La versión anterior retiró el Bridge y limitó YouTube a metadatos/enlaces. Esa limitación se revoca mediante ADR-013. No debe usarse como criterio de aceptación actual.
 
-## Estado real
+## Pendiente de operación
 
-- YouTube: metadatos y enlace al origen; no hay reproducción interna ni extracción de segmentos.
-- Medios propios/licenciados: HTML5 `video` + controles propios + Media Gateway R2.
-- Formatos actuales: MP4, WebM y Ogg progresivos. No se declara DASH/HLS ni ABR.
-- /medios muestra el catálogo R2; si el Gateway no responde, informa de su indisponibilidad.
-
-## Criterios de cierre operativo
-
-- Provisionar bucket R2 todotube-media.
-- Desplegar todotube-media-gateway.
-- Configurar secret MEDIA_UPLOAD_TOKEN en Cloudflare.
-- Subir archivo autorizado con referencia de titularidad.
-- Verificar GET, HEAD, Range/206, seek y privacidad en Chrome y Firefox.
+- Confirmar la configuración de R2/replica y el secret de carga.
+- Probar archivos propios/licenciados con GET, HEAD, Range/206, seek, privacidad y failover.
+- Probar vídeos YouTube con el runtime y Bridge en Chrome/Edge.
+- Publicar el paquete de extensión y sus instrucciones de instalación una vez CI y la matriz de reproducción estén verdes.

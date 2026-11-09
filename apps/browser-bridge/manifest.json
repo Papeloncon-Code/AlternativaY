@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "TodoTube Bridge",
+  "version": "0.1.0",
+  "description": "Puente local de navegador para el reproductor propio de TodoTube.",
+  "minimum_chrome_version": "111",
+  "permissions": [
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "https://youtube.com/*",
+    "https://*.youtube.com/*",
+    "https://*.googlevideo.com/*",
+    "https://*.googleapis.com/*",
+    "https://*.ytimg.com/*",
+    "https://*.ggpht.com/*"
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "todotube_rules",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "background": {
+    "service_worker": "dist/background.bundle.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://todotube.papelon.workers.dev/*",
+        "http://localhost/*",
+        "http://localhost:*/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:*/*"
+      ],
+      "js": [
+        "dist/content.bundle.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "dist/injected.bundle.js"
+      ],
+      "matches": [
+        "https://todotube.papelon.workers.dev/*",
+        "http://localhost/*",
+        "http://localhost:*/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:*/*"
+      ]
+    }
+  ]
+}
