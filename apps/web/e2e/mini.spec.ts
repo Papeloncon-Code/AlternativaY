@@ -30,7 +30,7 @@ test('W8 · el reproductor ocupa su hueco; la ficha externa pasa a mini y vuelve
   await page.locator('.mini-text').click();
   await expect(page).toHaveURL(href);
   await expect(host).toHaveClass(/on-page/);
-  await expect(page.locator('.player-dock .own-player-error')).toBeVisible();
+  await expect(page.locator('.player-dock .gateway-error')).toBeVisible();
   // Cerrar desde el mini reproductor
   await page.locator('.logo-link').click();
   await page.getByRole('button', { name: 'Cerrar el minirreproductor' }).click();
