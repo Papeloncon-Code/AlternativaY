@@ -171,7 +171,7 @@ export async function makePlayerRequest(args: OnesieRequestArgs): Promise<ApiRes
     throw new Error('Onesie proxy status is not OK.');
   }
   if (decoded.httpStatus !== 200 || !decoded.body) {
-    throw new InnerTubePlayerHttpError(decoded.httpStatus, 'Onesie player response was rejected.');
+    throw new InnerTubePlayerHttpError(decoded.httpStatus ?? 500, 'Onesie player response was rejected.');
   }
 
   return JSON.parse(new TextDecoder().decode(decoded.body)) as ApiResponse;
