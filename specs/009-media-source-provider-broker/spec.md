@@ -29,7 +29,7 @@
 - RF-13: providers web y nativos comparten contrato, no implementación acoplada.
 - RF-14: las copias en R2 requieren derecho documentado para almacenamiento/distribución; no crear copias YouTube automáticamente.
 - RF-15: el runtime web de YouTube no usa Cloudflare Worker/R2 como proxy de medios.
-- RF-16: el runtime distingue fallos transitorios de denegaciones de acceso. Timeouts, errores de red y 5xx son recuperables; 400 detiene la rotación de perfiles y 401/403/407/429 o restricciones explícitas detienen el failover a otras rutas de YouTube.
+- RF-16: el runtime distingue fallos transitorios, precondiciones indeterminadas y denegaciones explícitas. Timeouts, red y 5xx son recuperables. HTTP 400 bloquea la rotación a otra identidad; si un Onesie 400 solo contiene `FAILED_PRECONDITION` genérico, se permite exactamente un fallback a InnerTube normal con el mismo perfil WEB. Si este también falla, se detiene la cadena. 401/403/407/429 y motivos explícitos de acceso/anti-bot detienen todas las rutas YouTube.
 - RF-17: el runtime detecta estancamiento por falta de avance/buffer, con timeout y presupuesto finito; no confunde pausa, seek, vídeo terminado, pestaña oculta o navegador offline con un fallo de proveedor.
 
 ## Orden inicial de reproducción
@@ -52,6 +52,7 @@ La salud del proveedor, la frescura de la sesión, la duración de la resolució
 - Onesie falla -> InnerTube standard se intenta en el mismo cliente.
 - Cliente falla por timeout, red o 5xx -> se puede intentar el próximo perfil dentro del presupuesto total.
 - Respuesta HTTP 400 -> no se rota a otra identidad de cliente.
+- `FAILED_PRECONDITION` genérico en Onesie -> se permite solo InnerTube normal del mismo cliente; si vuelve a fallar, no se avanza a otro perfil.
 - Respuesta 401/403/407/429 o restricción explícita -> se detienen las rutas YouTube; R2 autorizado del mismo asset puede evaluarse aparte.
 - SABR falla -> probar DASH/HLS/directo cuando existan candidatos reales.
 - URL/manifest no entrega datos -> contar como fallo y conmutar.
