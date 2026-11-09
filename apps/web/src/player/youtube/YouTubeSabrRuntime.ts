@@ -18,13 +18,11 @@ import { botguardService } from './BotguardService';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
 
 type YouTubeClient =
-  | 'VISIONOS'
   | 'MWEB'
   | 'WEB'
   | 'TV'
   | 'TV_EMBEDDED'
   | 'WEB_EMBEDDED'
-  | 'ANDROID_VR'
   | 'ANDROID_CREATOR'
   | 'ANDROID';
 
@@ -46,30 +44,25 @@ type RuntimeCallbacks = {
 };
 
 const CLIENT_TYPES: Record<YouTubeClient, ClientType> = {
-  VISIONOS: ClientType.VISIONOS,
   MWEB: ClientType.MWEB,
   WEB: ClientType.WEB,
   TV: ClientType.TV,
   TV_EMBEDDED: ClientType.TV_EMBEDDED,
   WEB_EMBEDDED: ClientType.WEB_EMBEDDED,
-  ANDROID_VR: ClientType.ANDROID_VR,
   ANDROID_CREATOR: ClientType.ANDROID_CREATOR,
   ANDROID: ClientType.ANDROID,
 };
 
 /**
- * Ordered after Flow Desktop's current native client strategy:
- * visionOS direct first, then mobile/web SABR clients, TV fallbacks, and
- * Android profiles as later rungs. Every rung has its own Innertube session.
+ * Ordered client ladder limited to ClientType values exposed by the
+ * pinned youtubei.js runtime. Every rung has its own Innertube session.
  */
 const CLIENT_FALLBACK_ORDER: YouTubeClient[] = [
-  'VISIONOS',
   'MWEB',
   'WEB',
   'TV',
   'TV_EMBEDDED',
   'WEB_EMBEDDED',
-  'ANDROID_VR',
   'ANDROID_CREATOR',
   'ANDROID',
 ];
