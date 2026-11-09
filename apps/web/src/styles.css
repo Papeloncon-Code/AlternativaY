@@ -1105,3 +1105,19 @@ img.avatar { object-fit: cover; background: var(--chip); }
   .media-field-wide { grid-column: auto; }
   .media-upload-actions { align-items: flex-start; }
 }
+
+
+/* El reproductor reserva espacio para el vídeo Y la barra; evita que los controles queden recortados. */
+.gateway-player {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.gateway-video {
+  flex: 1 1 auto;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  object-fit: contain;
+}
+.gateway-controls { flex: 0 0 auto; }
