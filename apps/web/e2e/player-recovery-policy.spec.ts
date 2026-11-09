@@ -41,7 +41,10 @@ test('HTTP 400 blocks client rotation; permission and throttling errors block so
     'FAILED_PRECONDITION: Precondition check failed.',
   );
   expect(shouldStopClientFallback(failedPrecondition)).toBe(true);
-  expect(shouldStopSourceFallback(failedPrecondition)).toBe(true);
+  // An indeterminate Onesie precondition may fall back to the normal
+  // InnerTube /player endpoint on the same WEB identity. The HTTP 400 still
+  // prevents rotation to a different client if that request also fails.
+  expect(shouldStopSourceFallback(failedPrecondition)).toBe(false);
 
   for (const status of [401, 403, 407, 429]) {
     const error = new InnerTubePlayerHttpError(status, 'Request rejected');
@@ -50,17 +53,22 @@ test('HTTP 400 blocks client rotation; permission and throttling errors block so
   }
 });
 
-test('known access, consent and automated-query restrictions do not rotate client identity', () => {
+test('explicit access, consent and automated-query restrictions stop all YouTube source fallback', () => {
   for (const message of [
     'LOGIN_REQUIRED',
     'AGE_CHECK_REQUIRED',
     'Sign in to confirm you are not a bot',
     'This network is sending automated queries',
-    'FAILED_PRECONDITION: Precondition check failed.',
   ]) {
     expect(shouldStopClientFallback(new Error(message))).toBe(true);
     expect(shouldStopSourceFallback(new Error(message))).toBe(true);
   }
+});
+
+test('an indeterminate FAILED_PRECONDITION allows same-client fallback but never client rotation', () => {
+  const failure = new Error('FAILED_PRECONDITION: Precondition check failed.');
+  expect(shouldStopClientFallback(failure)).toBe(true);
+  expect(shouldStopSourceFallback(failure)).toBe(false);
 });
 
 test('Shaka HTTP error detail preserves the permission status for the recovery policy', () => {
