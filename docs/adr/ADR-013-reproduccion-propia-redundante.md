@@ -48,7 +48,7 @@ TodoTube UI / PlayerHost (un solo reproductor)
 - **PlayerHost:** dueño único del dock, navegación y selección de fuente.
 - **PlaybackBroker:** prioridades, timeouts, salud, cuarentena temporal y política de failover.
 - **YouTubeSabrRuntime:** runtime de extracción y reproducción en el navegador; mantiene una instancia Shaka por sesión.
-- **TodoTube Bridge:** extensión local Manifest V3, actualmente compilada para Chrome/Edge. Es requisito para el runtime SABR web porque habilita las peticiones que el navegador bloquea por CORS. Solo se inyecta en TodoTube/localhost y solo acepta los dominios declarados. Sin Bridge, el player comunica la limitación y no finge reproducción.
+- **TodoTube Worker Relay:** ruta same-origin `/api/youtube/proxy` en el Worker de la aplicación. Mantiene youtubei.js, BotGuard y Shaka en el navegador, mientras el Worker realiza las peticiones HTTPS a hosts/rutas permitidos y devuelve el cuerpo en streaming. No requiere extensión, no acepta cookies/Authorization, no almacena medios y limita tamaño de POST, redirecciones y frecuencia por IP. Es una integración experimental hasta E4.
 - **Media Gateway R2:** almacén y entrega de archivos propios/licenciados. No es un proxy de YouTube ni un requisito para el runtime SABR.
 - **Android/Desktop:** futuros adaptadores nativos implementarán el mismo contrato del broker, sin duplicar la UI web ni mezclar sus dependencias con el runtime web.
 
@@ -66,8 +66,9 @@ TodoTube UI / PlayerHost (un solo reproductor)
 
 ## Seguridad y operación
 
-- La resolución y entrega de YouTube ocurren desde el dispositivo/runtime del usuario. Cloudflare Workers y R2 no retransmiten streams de YouTube.
-- TodoTube Bridge limita ejecución al origen de TodoTube y a hosts HTTPS explícitamente permitidos; no acepta destinos arbitrarios.
+- La extracción, interpretación de player scripts, attestation y minter WebPO siguen en el navegador del usuario.
+- El Worker Relay transporta las peticiones/segmentos mediante una allowlist HTTPS de hosts y rutas concretas; no es un proxy abierto, no reenvía cookies/Authorization, no almacena ni cachea medios y aplica límites de cuerpo, redirecciones y frecuencia.
+- Un 401/403/407/429 o una razón explícita de acceso/anti-bot se devuelve sin reintentar por otra identidad, IP, instancia o red. El relay cambia el punto de salida de red como transporte primario, no se usa como fallback para eludir una denegación.
 - Nunca se elude DRM/Widevine ni se intenta reproducir contenido de pago sin autorización.
 - No se suben ni almacenan vídeos de YouTube en R2 por defecto. El Gateway sigue reservado a contenido propio/licenciado con evidencia de derechos.
 - No se almacenan credenciales de Google en nuestros servidores.
@@ -87,25 +88,25 @@ Fuentes de la investigación: [Materialious issue #869](https://github.com/Mater
 
 ## Puerta final de aceptación E4
 
-La aceptación de playback se cierra solo con un vídeo real en el TodoTube desplegado: metadata y primer frame, dimensiones válidas, imagen en movimiento, sonido audible sincronizado, avance sostenido de `currentTime`, seek de ida y vuelta, pausa/reanudación, volumen, velocidad y pantalla completa desde controles TodoTube, y recuperación segura de un fallo transitorio en staging. La denegación explícita debe detener la cadena sin cambiar de identidad ni usar otro backend para eludirla. La prueba debe registrar navegador, Bridge, commit y proveedor/ruta. Ver `docs/testing/real-playback-release-gate.md`.
+La aceptación de playback se cierra solo con un vídeo real en el TodoTube desplegado: metadata y primer frame, dimensiones válidas, imagen en movimiento, sonido audible sincronizado, avance sostenido de `currentTime`, seek de ida y vuelta, pausa/reanudación, volumen, velocidad y pantalla completa desde controles TodoTube, y recuperación segura de un fallo transitorio en staging. La denegación explícita debe detener la cadena sin cambiar de identidad ni usar otro backend para eludirla. La prueba debe registrar navegador sin extensiones, uso del Worker Relay, commit y proveedor/ruta. Ver `docs/testing/real-playback-release-gate.md`.
 
 ## Criterios de aceptación
 
-- Reproducir un vídeo real de duración completa en Chrome y Edge con controles propios.
+- Reproducir un vídeo real de duración completa en Chrome y Edge sin extensiones instaladas, con controles propios.
 - Confirmar audio y vídeo; seek hacia delante/atrás; calidad adaptativa; subtítulos si el proveedor los entrega; fullscreen; pausa/reanudación.
 - Confirmar que un fallo simulado de Onesie pasa a InnerTube.
 - Confirmar que un cliente fallido pasa al cliente siguiente.
 - Confirmar que SABR fallido pasa a DASH/HLS/directo cuando existan candidatos.
 - Confirmar que una caída a mitad del vídeo cambia de fuente y conserva el tiempo de reproducción.
 - Confirmar que R2 y runtime YouTube se revalidan uno al otro sin crear dos instancias de reproductor ni audio duplicado.
-- Confirmar que no existe iframe de YouTube como fallback dentro de TodoTube.
+- Confirmar que no existe iframe de YouTube como fallback dentro de TodoTube y que `window.ytcBridge`/`window.proxyFetch` no son necesarios.
 - Medir tiempo al primer frame, duración de cada intento, tasa de éxito por proveedor y tiempo de failover.
 - Pruebas automatizadas de los contratos y pruebas manuales con vídeos públicos variados, directos, Shorts, vídeos largos y casos restringidos.
 - Build, TypeScript, contratos y Playwright son puertas intermedias; **E4 es el único cierre** y exige que un vídeo sí reproduzca en el despliegue objetivo con imagen, sonido audible/sincronizado, avance, seek, controles propios y recuperación real. Un error correcto ante contenido restringido es una prueba de seguridad separada, no un éxito de playback.
 
 ## Estado actual de implementación
 
-PR #37 integra la primera versión a nivel de código y ya está fusionada en `main`. En el commit `1528993e1ac1a0f6185adbe18e7f8c706d3c537b`, CI #467 terminó con build, TypeScript, Bridge, Gateway, avisos y 86/86 pruebas Playwright en verde; CodeQL #106 también pasó. La integración no equivale a aceptación E4. El smoke desplegado del 2026-11-09 no decodificó metadata y las ramas de diagnóstico/recuperación #46–#47 siguen abiertas sin fusionar ni desplegar. Aún falta evidencia E4 de imagen, sonido audible, seek y recuperación con contenido real. Por tanto, playback no se declara completo.
+La primera integración de playback está fusionada en `main` y PR #51 actualizó youtubei.js/BotGuard/Googlevideo. El smoke de producción del 2026-11-09, ejecutado con un Chromium que tenía Bridge instalado, no decodificó metadata (`readyState=0`, dimensiones 0, duración nula). La rama `fix/web-playback-without-bridge-2026-11-09` introduce el Worker Relay y una nueva prueba E4 sin extensión; todavía no existe resultado de CI ni de producción para esta variante. Playback no se declara completo hasta que la URL publicada reproduzca un vídeo real.
 
 ## Adaptación SABR derivada de Materialious
 
@@ -113,4 +114,4 @@ La inspección del SABR local de Materialious añadió tres pasos: preparar `ENG
 
 El SABR de Materialious se construye a partir de `/player` WEB normal. Invidious PR #5814 observa que ciertas respuestas Onesie no habilitan contextos SABR que luego el servidor entrega vía `SABR_CONTEXT_UPDATE`; la PR sigue draft y también contiene un proxy/PoToken helper que TodoTube no adopta. No se asume que la ruta Onesie de TodoTube sea SABR-ready por el simple hecho de devolver HTTP 200 y un campo UStreamer.
 
-Estos cambios son una adaptación protocolaria, no evidencia de éxito. E4 sigue siendo obligatorio.
+Estos cambios son una adaptación protocolaria, no evidencia de éxito. E4 sigue siendo obligatorio. El Worker Relay adopta el patrón de proxy same-origin de Materialious full web, pero TodoTube mantiene la extracción y el minter en el navegador; no adopta su backend Node completo ni una instancia Invidious pública.
