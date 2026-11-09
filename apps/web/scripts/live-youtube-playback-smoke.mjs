@@ -16,6 +16,7 @@ let context;
 try {
   context = await chromium.launchPersistentContext(profileDir, {
     headless: false,
+    channel: 'chromium',
     viewport: { width: 1366, height: 900 },
     args: [
       '--no-sandbox',
@@ -74,7 +75,7 @@ try {
 
   const seekTarget = Math.min(15, Math.floor(initial.duration - 2));
   await page.locator('.youtube-sabr-player video').evaluate((element, target) => {
-    (element as HTMLVideoElement).currentTime = target as number;
+    element.currentTime = target;
   }, seekTarget);
   await page.waitForFunction((target) => {
     const video = document.querySelector('.youtube-sabr-player video') as HTMLVideoElement | null;
@@ -82,7 +83,7 @@ try {
   }, seekTarget, { timeout: 20_000 });
 
   const final = await page.locator('.youtube-sabr-player video').evaluate((element) => {
-    const video = element as HTMLVideoElement;
+    const video = element;
     return {
       currentTime: video.currentTime,
       duration: video.duration,
