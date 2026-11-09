@@ -29,7 +29,7 @@ La carga de reproducción continúa por separado: `getWatchPlayer()` llama a `co
 - Permitir que un proveedor de metadatos y un proveedor de streams sean distintos.
 - Conservar una única instancia de reproductor y una única UI de TodoTube.
 - Tratar Invidious y YT.js como resolutores alternativos, no como reproductores diferentes.
-- Estudiar la evolución de dependencias: Materialious declara `youtubei.js ^18.3.0`, `googlevideo ^5.0.1` y `shaka-player ~5.2.16`. TodoTube declara versiones anteriores (`16.0.0`, `4.0.4` y `4.16.4`), respectivamente. Esto justifica un spike de compatibilidad medido; no demuestra que actualizar por sí solo arregle el HTTP 400 actual.
+- Estudiar la evolución de dependencias: El snapshot de `materialious/package.json` consultado en esta revisión declara `youtubei.js ^17.0.1`, `googlevideo ^4.0.4` y `shaka-player ^4.16.14`. TodoTube declara `youtubei.js ^16.0.0`, `googlevideo ^4.0.4` y `shaka-player ^4.16.4`. La diferencia apunta a un spike controlado para youtubei.js/Shaka; googlevideo comparte la misma línea declarada. Esto no demuestra que actualizar arregle el HTTP 400. Esto justifica un spike de compatibilidad medido; no demuestra que actualizar por sí solo arregle el HTTP 400 actual.
 
 ### Qué no resuelve automáticamente
 
@@ -137,8 +137,22 @@ El log capturó dos respuestas en `/youtubei/v1/player`:
 
 **Límite de la evidencia:** PR #43 guardaba método, bytes, nombres de cabeceras y un fragmento de respuesta, pero no los valores de `context.client.clientName` y `clientVersion`. Por eso no se debe asignar todavía cada respuesta a MWEB, WEB o Android ni afirmar que una actualización de dependencia resolverá el problema.
 
-TodoTube fija `youtubei.js@16.0.0`, mientras Materialious declara `youtubei.js ^18.3.0`, `googlevideo ^5.0.1` y Shaka 5.2.x. La diferencia justifica un spike controlado de compatibilidad, pero no demuestra que el salto de versiones corrija este rechazo. PR #46 añade un resumen seguro de la petición fallida —perfil y versión del cliente, presencia del video ID, llaves de playback context y Content-Type— sin almacenar valores de tokens, cookies, visitor IDs, URL firmada ni cuerpo de solicitud. Se necesita aprobar y desplegar esa instrumentación para obtener un nuevo diagnóstico de producción.
+TodoTube fija `youtubei.js@16.0.0`, `googlevideo@4.0.4` y Shaka 4.16.4. El snapshot de `materialious/package.json` consultado en esta revisión declara `youtubei.js ^17.0.1`, `googlevideo ^4.0.4` y Shaka ^4.16.14. La diferencia justifica un spike controlado de compatibilidad de youtubei.js/Shaka; no demuestra que esas actualizaciones corrijan el HTTP 400. PR #46 añade un resumen seguro de la petición fallida —perfil y versión del cliente, presencia del video ID, llaves de playback context y Content-Type— sin almacenar valores de tokens, cookies, visitor IDs, URL firmada ni cuerpo de solicitud. Se necesita aprobar y desplegar esa instrumentación para obtener un nuevo diagnóstico de producción.
 
 ## Estado y límites de la investigación
 
 La inspección fue de las rutas de extracción, endpoints, player y proxy citadas arriba; no es una auditoría formal de todos los archivos, pruebas, instancias desplegadas ni condiciones de servicio. Una ruta que compila o aparece en el README no demuestra que YouTube entregue actualmente streams para todos los vídeos. El smoke real de TodoTube sigue pendiente de resolver el HTTP 400 de `/youtubei/v1/player` documentado en PR #43.
+
+## Revisión adicional: fallback local de Materialious y versiones verificadas
+
+El selector de Materialious (`getVideo()`) no equivale a un fallback universal para cualquier web estática: puede pasar de Invidious a `youtubei.js` local según preferencias/configuración del engine y `isUnrestrictedPlatform()`. La documentación de desarrollador diferencia SPA estática, full web con backend Node, Desktop/Electron y Android; `isUnrestrictedPlatform()` cubre full backend o apps nativas. En el issue [Materialious #869](https://github.com/Materialious/Materialious/issues/869), el mantenedor atribuyó un fallo web a bloqueo de Invidious por Google y recomendó el fallback local en Android/Desktop. Es una pista reproducible para esos entornos, no evidencia de que una SPA estática como la de TodoTube ya tenga esa capacidad.
+
+TodoTube ya ejecuta `youtubei.js` desde el navegador. La lección aplicable es conservar la separación de motores y probar compatibilidad del runtime, no añadir un segundo nombre que llame a la misma biblioteca. Un backend remoto no se desplegará para cambiar la red/IP de salida ante un rechazo anti-bot o de acceso.
+
+**Versiones:** el snapshot del archivo `materialious/package.json` consultado el 2026-11-09 declara `youtubei.js ^17.0.1`, `googlevideo ^4.0.4` y `shaka-player ^4.16.14`. El package.json de TodoTube en la rama de adaptación declara `youtubei.js ^16.0.0`, `googlevideo ^4.0.4` y `shaka-player ^4.16.4`. Por tanto, no se debe propagar la afirmación anterior de que el Materialious package usa `googlevideo ^5.0.1`/Shaka 5.2.x. Tampoco se debe cambiar el paquete npm `googlevideo` a 5.x basándose en una versión de registro distinta. Actualizar `youtubei.js` o Shaka requiere lockfile regenerado, build, TypeScript, Playwright, Bridge y prueba E4 real.
+
+Fuentes: [selector de engine](https://raw.githubusercontent.com/Materialious/Materialious/main/materialious/src/lib/api/index.ts), [plataformas y backends de Materialious](https://github.com/Materialious/Materialious/blob/main/docs/DEV.md), [issue #869](https://github.com/Materialious/Materialious/issues/869), [package.json de Materialious](https://raw.githubusercontent.com/Materialious/Materialious/main/materialious/package.json).
+
+## Criterio final de aceptación
+
+El único cierre es E4: reproducción real en TodoTube desplegado con imagen, sonido audible y sincronizado, avance, seek de ida y vuelta, controles propios y recuperación segura. CI, extracción, metadatos, manifest y URL son evidencias intermedias. Procedimiento: `docs/testing/real-playback-release-gate.md`.
