@@ -17,7 +17,7 @@ function allowedOrigins(env) {
 function cors(req, env) {
   const h = new Headers({
     'Access-Control-Allow-Methods': 'GET, HEAD, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range, If-Range, If-None-Match, X-Media-Title, X-Media-Creator, X-Media-License, X-Media-License-Reference, X-Media-Visibility',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type, Range, If-Range, If-None-Match, X-Media-Size, X-Media-Title, X-Media-Creator, X-Media-License, X-Media-License-Reference, X-Media-Visibility',
     'Access-Control-Expose-Headers': 'Accept-Ranges, Content-Range, Content-Length, Content-Type, ETag, Last-Modified, X-Media-Title, X-Media-Creator, X-Media-License, X-Media-Origin',
     'Vary': 'Origin',
   });
@@ -342,9 +342,10 @@ async function upload(req, env, id) {
   const title = (req.headers.get('X-Media-Title') || '').trim().slice(0, 180);
   const creator = (req.headers.get('X-Media-Creator') || '').trim().slice(0, 120);
   const licenseReference = (req.headers.get('X-Media-License-Reference') || '').trim().slice(0, 300);
-  const length = Number(req.headers.get('Content-Length'));
+  const declaredSize = req.headers.get('Content-Length') || req.headers.get('X-Media-Size');
+  const length = Number(declaredSize);
   if (!ALLOWED_TYPES.has(type)) return json(req, env, { error: 'Content-Type multimedia no permitido' }, 415);
-  if (!Number.isSafeInteger(length) || length <= 0 || length > MAX_UPLOAD_BYTES) return json(req, env, { error: 'Content-Length obligatorio; máximo 90 MiB' }, 413);
+  if (!Number.isSafeInteger(length) || length <= 0 || length > MAX_UPLOAD_BYTES) return json(req, env, { error: 'Tamaño del archivo obligatorio; máximo 90 MiB' }, 413);
   if (!title || !creator) return json(req, env, { error: 'X-Media-Title y X-Media-Creator son obligatorios' }, 400);
   if (license !== 'owned' && license !== 'licensed') return json(req, env, { error: 'X-Media-License debe ser owned o licensed' }, 400);
   if (license === 'licensed' && !licenseReference) return json(req, env, { error: 'El contenido licenciado requiere X-Media-License-Reference' }, 400);
@@ -357,20 +358,42 @@ async function upload(req, env, id) {
   }
   if (heads.some((result) => result.value)) return json(req, env, { error: 'Ya existe un medio con ese ID' }, 409);
 
-  const bodies = splitBody(req.body, origins.length);
+  // R2 requires a stream with a known length. Tee the incoming request, then
+  // wrap each branch in its own FixedLengthStream so each replica receives
+  // exactly the declared byte count without buffering the whole video in memory.
+  const transfers = splitBody(req.body, origins.length).map((branch) => {
+    const fixed = new FixedLengthStream(length);
+    const controller = new AbortController();
+    const pump = branch.pipeTo(fixed.writable, { signal: controller.signal });
+    pump.catch(() => {});
+    return { body: fixed.readable, pump, controller };
+  });
   const mediaVersion = crypto.randomUUID();
   const options = {
     httpMetadata: { contentType: type, cacheControl: visibility === 'public' ? 'public, max-age=300' : 'private, no-store' },
     customMetadata: { title, creator, license, licenseReference, visibility, mediaVersion },
   };
   const writes = await Promise.allSettled(origins.map((bucket, index) =>
-    withTimeout(bucket.put(key, bodies[index], options), writeTimeout(env))
+    withTimeout(bucket.put(key, transfers[index].body, options), writeTimeout(env))
   ));
   const written = writes.filter((result) => result.status === 'fulfilled').length;
-  if (!written) return json(req, env, { error: 'No se pudo guardar el archivo en ningún origen' }, 503);
+  if (written !== origins.length) {
+    // A public media ID must never be left visible from only one origin.
+    // FixedLengthStream makes R2 enforce the exact byte count; abort unused
+    // upload branches and rollback any partial write if an origin rejects it.
+    transfers.forEach((transfer) => transfer.controller.abort());
+    const cleanup = await Promise.allSettled(origins.map((bucket) => withTimeout(bucket.delete(key), originTimeout(env))));
+    const cleanupComplete = cleanup.every((result) => result.status === 'fulfilled');
+    return json(req, env, {
+      error: 'No se pudo completar la carga en todos los orígenes. Comprueba el tamaño del archivo y la conexión; se revirtió cualquier escritura parcial.',
+      written,
+      configured: origins.length,
+      cleanupComplete,
+    }, 503);
+  }
   return json(req, env, {
     ok: true, id, visibility,
-    replicas: { written, configured: origins.length, degraded: written < origins.length },
+    replicas: { written, configured: origins.length, degraded: false },
   }, 201);
 }
 

@@ -12,7 +12,7 @@ function timeLabel(seconds: number) {
 const STALL_RECOVERY_MS = 10000;
 const MAX_AUTOMATIC_RECOVERIES = 1;
 
-export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) {
+export default function GatewayPlayer({ id, meta, startAt = 0, compact = false }: { id: string; meta: Meta; startAt?: number; compact?: boolean }) {
   const wrap = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const metaRef = useRef(meta);
@@ -22,6 +22,7 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
   const recoveryInFlightRef = useRef(false);
   const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingPositionRef = useRef<number | null>(null);
+  const initialPositionRef = useRef(Math.max(0, startAt));
   const resumePlaybackRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
@@ -90,6 +91,10 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
           resumePlaybackRef.current = false;
           void video.play().catch((e) => setError(e instanceof Error ? e.message : String(e)));
         }
+      } else if (initialPositionRef.current > 0) {
+        const position = Math.min(initialPositionRef.current, Number.isFinite(video.duration) ? video.duration : initialPositionRef.current);
+        initialPositionRef.current = 0;
+        try { video.currentTime = position; } catch { /* metadata may not be seekable yet */ }
       }
     };
     const onTime = () => { setCurrent(video.currentTime); save(); };
@@ -164,7 +169,7 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
     video.load();
   }
 
-  return <div className="gateway-player" ref={wrap}>
+  return <div className={'gateway-player' + (compact ? ' compact' : '')} ref={wrap}>
     <video ref={videoRef} src={gatewayMediaUrl(id)} crossOrigin="anonymous" playsInline preload="metadata" className="gateway-video" />
     {recovering && <div className="gateway-recovering" role="status">Reconectando el mismo archivo…</div>}
     {error && <div className="gateway-error" role="alert"><b>No se pudo recuperar este medio</b><p>{error}</p><button type="button" className="btn" onClick={retryManually}>Reintentar</button><a className="btn" href="/medios">Volver a la biblioteca</a></div>}

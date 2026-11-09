@@ -2,6 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import worker from '../src/index.js';
 
+// Cloudflare's FixedLengthStream is not available in Node's test runtime.
+// This compatible identity stream exercises its exact byte-count contract.
+class TestFixedLengthStream extends TransformStream {
+  constructor(length) {
+    let actual = 0;
+    super({
+      transform(chunk, controller) {
+        const size = chunk instanceof Uint8Array ? chunk.byteLength : new Uint8Array(chunk).byteLength;
+        actual += size;
+        if (actual > length) throw new Error('FixedLengthStream received too many bytes');
+        controller.enqueue(chunk);
+      },
+      flush() {
+        if (actual !== length) throw new Error('FixedLengthStream received too few bytes');
+      },
+    });
+  }
+}
+globalThis.FixedLengthStream = TestFixedLengthStream;
+
 class MemoryR2 {
   objects = new Map();
   failHead = false;
@@ -10,6 +30,7 @@ class MemoryR2 {
   failBodyAfterBytes = null;
   stallBodyAfterBytes = null;
   slowPutMs = 0;
+  failPut = false;
   failList = false;
   getCount = 0;
   async head(key) {
@@ -56,6 +77,7 @@ class MemoryR2 {
     return { ...item, body: stream, writeHttpMetadata: item.writeHttpMetadata };
   }
   async put(key, body, opts) {
+    if (this.failPut) throw new Error('simulated upload failure');
     if (this.slowPutMs) await new Promise((resolve) => setTimeout(resolve, this.slowPutMs));
     const bytes = new Uint8Array(await new Response(body).arrayBuffer());
     this.objects.set(key, makeObject(bytes, opts));
@@ -360,6 +382,77 @@ test('uploads are replicated to each configured origin', async () => {
     e.MEDIA_BUCKET.objects.get('media/upload_001').customMetadata.mediaVersion,
     replica.objects.get('media/upload_001').customMetadata.mediaVersion,
   );
+});
+
+test('browser uploads can declare file size without setting the forbidden Content-Length header', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/admin/media/browser_upload', {
+    method: 'PUT',
+    body: 'browser-file',
+    headers: {
+      Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN,
+      Origin: 'https://todotube.papelon.workers.dev',
+      'Content-Type': 'video/mp4',
+      'X-Media-Size': '12',
+      'X-Media-Title': 'Browser upload',
+      'X-Media-Creator': 'Owner',
+      'X-Media-License': 'owned',
+      'X-Media-Visibility': 'public',
+    },
+  }), e);
+  assert.equal(r.status, 201);
+  assert.match(r.headers.get('Access-Control-Allow-Headers') || '', /X-Media-Size/);
+  assert.equal(new TextDecoder().decode(e.MEDIA_BUCKET.objects.get('media/browser_upload').bytes), 'browser-file');
+  assert.equal(new TextDecoder().decode(replica.objects.get('media/browser_upload').bytes), 'browser-file');
+});
+
+test('an upload whose actual bytes do not match its declared size is rolled back', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/admin/media/size_mismatch', {
+    method: 'PUT',
+    body: 'video',
+    headers: {
+      Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN,
+      'Content-Type': 'video/mp4',
+      'X-Media-Size': '6',
+      'X-Media-Title': 'Wrong size',
+      'X-Media-Creator': 'Owner',
+      'X-Media-License': 'owned',
+      'X-Media-Visibility': 'public',
+    },
+  }), e);
+  assert.equal(r.status, 503);
+  assert.equal((await r.json()).cleanupComplete, true);
+  assert.equal(e.MEDIA_BUCKET.objects.has('media/size_mismatch'), false);
+  assert.equal(replica.objects.has('media/size_mismatch'), false);
+});
+
+test('a failed replica write rolls back the primary instead of publishing a degraded asset', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  replica.failPut = true;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/admin/media/replica_failure', {
+    method: 'PUT',
+    body: 'video',
+    headers: {
+      Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN,
+      'Content-Type': 'video/mp4',
+      'Content-Length': '5',
+      'X-Media-Title': 'Replica failure',
+      'X-Media-Creator': 'Owner',
+      'X-Media-License': 'owned',
+      'X-Media-Visibility': 'public',
+    },
+  }), e);
+  assert.equal(r.status, 503);
+  assert.equal((await r.json()).cleanupComplete, true);
+  assert.equal(e.MEDIA_BUCKET.objects.has('media/replica_failure'), false);
+  assert.equal(replica.objects.has('media/replica_failure'), false);
 });
 
 test('replicated writes use a write timeout separate from fast read failover timeouts', async () => {
