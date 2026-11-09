@@ -44,7 +44,7 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 - CA10.14: la recuperación es limitada y reutiliza el mismo Player/Shaka; conserva currentTime, play/pause, volumen y velocidad al cambiar de candidato.
 - CA10.15: HTTP 400 detiene la rotación de perfiles; solo un `FAILED_PRECONDITION` genérico de Onesie permite probar InnerTube normal en el mismo perfil WEB, una vez. Un segundo 400 termina la cadena. 401/403/407/429 y restricciones explícitas detienen las rutas YouTube; no se evaden restricciones ni se rotan identidades.
 - CA10.16: los errores transitorios (timeout, red y 5xx) siguen siendo elegibles para recuperación/failover.
-- CA10.17: la función no se marca terminada hasta completar E4: vídeo real con primer frame/dimensiones, imagen en movimiento, sonido audible y sincronizado, avance, seek hacia delante/atrás, controles TodoTube y recuperación segura en navegador/despliegue objetivo.
+- CA10.17: la función no se marca terminada hasta completar E4: un vídeo real debe reproducirse de verdad en TodoTube con primer frame/dimensiones, imagen en movimiento, sonido audible y sincronizado, avance, seek hacia delante/atrás, controles TodoTube y recuperación segura de fallo transitorio en navegador/despliegue objetivo. Un error correcto para contenido restringido es una prueba separada y no sustituye E4.
 - CA10.18: las denegaciones anti-bot, PoToken/BotGuard, tráfico automatizado, región o acceso bloquean los demás providers que dependan del origen YouTube; Invidious o un backend remoto no pueden usarse para cambiar la red/IP y superar la denegación.
 
 ## Validación pendiente para cerrar
@@ -62,4 +62,4 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 
 ## Regla de cierre E4
 
-Build, TypeScript, Playwright con fixtures, resultado de extractor, respuesta JSON, manifest, URL o `readyState` sin audio comprobado son evidencias parciales, no éxito final. La única aceptación de reproducción es una ejecución E4 real conforme a `docs/testing/real-playback-release-gate.md` desde el despliegue objetivo. El registro debe incluir evidencia de imagen, audio audible, avance, seek de ida/vuelta, controles propios, recuperación transitoria y manejo correcto de denegaciones. Hasta entonces el estado permanece **PLAYBACK PENDIENTE DE VALIDACIÓN REAL**.
+Build, TypeScript, Playwright con fixtures, resultado de extractor, respuesta JSON, manifest, URL o `readyState` sin audio comprobado son evidencias parciales, no éxito final. La única aceptación de reproducción es una ejecución E4 real conforme a `docs/testing/real-playback-release-gate.md` desde el despliegue objetivo. El registro debe incluir evidencia de imagen, audio audible, avance, seek de ida/vuelta, controles propios y recuperación transitoria. El manejo correcto de denegaciones se registra como prueba de seguridad separada. Hasta entonces el estado permanece **PLAYBACK PENDIENTE DE VALIDACIÓN REAL**.
