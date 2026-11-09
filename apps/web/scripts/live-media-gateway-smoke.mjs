@@ -102,21 +102,18 @@ async function checkHttpContract() {
 async function checkBrowserPlayer() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
-  const mediaResponses = [];
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
-  page.on('response', async (response) => {
+  const sourceResponsePromise = page.waitForResponse((response) => {
     try {
       const responseUrl = new URL(response.url());
-      if (responseUrl.origin === gatewayUrl && responseUrl.pathname === `/v1/media/${mediaId}`) {
-        mediaResponses.push({
-          status: response.status(),
-          headers: await response.allHeaders(),
-          range: response.request().headers()['range'] || null,
-        });
-      }
-    } catch { /* Ignore non-HTTP browser responses. */ }
-  });
+      return responseUrl.origin === gatewayUrl &&
+        responseUrl.pathname === `/v1/media/${mediaId}` &&
+        response.headers()['x-media-origin'] === expectedOrigin;
+    } catch {
+      return false;
+    }
+  }, { timeout: 60_000 });
 
   try {
     await page.goto(`${webUrl}/medios/${encodeURIComponent(mediaId)}`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
@@ -139,10 +136,8 @@ async function checkBrowserPlayer() {
     assert.equal(await page.locator('iframe').count(), 0, 'The media page must not embed a third-party iframe');
     check(true, 'production /medios page loads an HTML5 video from the Gateway with TodoTube controls');
 
-    await page.waitForFunction(() => document.querySelector('video.gateway-video')?.currentSrc.length > 0);
-    await page.waitForTimeout(250);
-    const matchingOrigin = mediaResponses.find((item) => item.headers['x-media-origin'] === expectedOrigin);
-    assert.ok(matchingOrigin, `The browser's media request must report X-Media-Origin=${expectedOrigin}; got ${JSON.stringify(mediaResponses.map((item) => ({ status: item.status, origin: item.headers['x-media-origin'], range: item.range })))}`);
+    const sourceResponse = await sourceResponsePromise;
+    assert.ok(sourceResponse.status() === 200 || sourceResponse.status() === 206);
     check(true, `browser media request is served by ${expectedOrigin}`);
 
     await page.screenshot({ path: resolve(outputDir, `${expectedOrigin}-01-loaded.png`), fullPage: true });
