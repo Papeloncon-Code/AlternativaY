@@ -1,135 +1,220 @@
+import { BotGuardClient } from 'bgutils-js/botguard';
+import { WebPoMinter } from 'bgutils-js/webpo';
+import {
+  buildURL,
+  getHeaders,
+  parseLooseJSON,
+  USER_AGENT,
+} from 'bgutils-js/utils';
+import type { WebPoSignalOutput } from 'bgutils-js/shared-types';
+import type { IRawResponse } from 'youtubei.js';
 import { fetchFunction } from './helpers';
-import type { DescrambledChallenge, WebPoSignalOutput } from 'bgutils-js';
-import { BG, buildURL, GOOG_API_KEY } from 'bgutils-js';
+
+const REQUEST_KEY = 'O43z0dpjhgX20SCx4KAo';
+const CHALLENGE_TTL_MS = 10 * 60 * 1000;
+
+interface InnerTubeChallenge {
+  ytConfig: string;
+  challengeResponse: IRawResponse;
+  interpreterJavascript: string;
+}
+
+type IntegrityTokenResponse = [
+  integrityToken: string,
+  estimatedTtlSecs: number,
+  mintRefreshThreshold: number,
+  websafeFallbackToken: string,
+];
+
+type ChallengePagePayload = {
+  R?: IRawResponse;
+};
+
+let cachedChallenge: { fetchedAt: number; challenge: InnerTubeChallenge } | undefined;
+
+/**
+ * Obtain the same first-party attestation challenge used by Materialious'
+ * current local PoToken flow. The old BotGuard Create endpoint is no longer
+ * a reliable source of this challenge.
+ */
+async function fetchInnerTubeChallenge(): Promise<InnerTubeChallenge> {
+  if (cachedChallenge && Date.now() - cachedChallenge.fetchedAt < CHALLENGE_TTL_MS) {
+    return cachedChallenge.challenge;
+  }
+
+  const pageResponse = await fetchFunction('https://www.youtube.com/', {
+    method: 'GET',
+    headers: {
+      accept: '*/*',
+      'accept-language': 'en-US,en;q=0.7',
+      'user-agent': USER_AGENT,
+    },
+  });
+
+  if (!pageResponse.ok) {
+    throw new Error('No se pudo obtener la página de challenge de YouTube (HTTP ' + pageResponse.status + ').');
+  }
+
+  const pageHtml = await pageResponse.text();
+  const ytConfig = pageHtml.match(/ytcfg\\.set\\(({.+?})\\);/s)?.[1];
+  if (!ytConfig) {
+    throw new Error('La página de YouTube no incluyó ytcfg.');
+  }
+
+  const initialAttestationData = pageHtml.match(/window\\.ytAtN\\(\\s*({[\\s\\S]*?})\\s*\\)/);
+  if (!initialAttestationData) {
+    throw new Error('La página de YouTube no incluyó el challenge de attestation.');
+  }
+
+  const parsed = parseLooseJSON(initialAttestationData[1]) as ChallengePagePayload;
+  const challengeResponse = parsed.R;
+  if (!challengeResponse?.bgChallenge) {
+    throw new Error('YouTube no devolvió un challenge BotGuard válido.');
+  }
+
+  const interpreterUrl =
+    challengeResponse.bgChallenge.interpreterUrl
+      ?.privateDoNotAccessOrElseTrustedResourceUrlWrappedValue;
+
+  if (!interpreterUrl) {
+    throw new Error('El challenge BotGuard no incluyó la URL del intérprete.');
+  }
+
+  const interpreterResponse = await fetchFunction(
+    new URL(interpreterUrl, 'https://www.youtube.com').href,
+    { method: 'GET' },
+  );
+
+  if (!interpreterResponse.ok) {
+    throw new Error('No se pudo cargar el intérprete BotGuard (HTTP ' + interpreterResponse.status + ').');
+  }
+
+  const interpreterJavascript = await interpreterResponse.text();
+  if (!interpreterJavascript) {
+    throw new Error('YouTube devolvió un intérprete BotGuard vacío.');
+  }
+
+  const challenge = { ytConfig, challengeResponse, interpreterJavascript };
+  cachedChallenge = { fetchedAt: Date.now(), challenge };
+  return challenge;
+}
 
 export class BotguardService {
-  private readonly waaRequestKey = 'O43z0dpjhgX20SCx4KAo';
+  public botguardClient?: BotGuardClient;
+  public initializationPromise?: Promise<BotGuardClient> | null = null;
+  public integrityTokenBasedMinter?: WebPoMinter;
 
-  public botguardClient?: BG.BotGuardClient;
-  public initializationPromise?: Promise<BG.BotGuardClient | undefined> | null = null;
-  public integrityTokenBasedMinter?: BG.WebPoMinter;
-  public bgChallenge?: DescrambledChallenge & { challenge?: string, interpreterUrl?: string };
+  private async createClient(): Promise<BotGuardClient> {
+    const challenge = await fetchInnerTubeChallenge();
+    const runtimeGlobal = globalThis as typeof globalThis & {
+      yt?: { config_?: unknown };
+    };
 
-  async init() {
-    if (this.initializationPromise) {
-      return await this.initializationPromise;
-    }
+    runtimeGlobal.yt = { config_: JSON.parse(challenge.ytConfig) };
+    new Function(challenge.interpreterJavascript)();
 
-    return this.setup();
-  }
-
-  private async setup() {
-    if (this.initializationPromise)
-      return await this.initializationPromise;
-
-    this.initializationPromise = this._initBotguard();
+    const botguardClient = await BotGuardClient.create({
+      program: challenge.challengeResponse.bgChallenge!.program,
+      globalName: challenge.challengeResponse.bgChallenge!.globalName,
+      globalObject: globalThis,
+    });
 
     try {
-      this.botguardClient = await this.initializationPromise;
-      return this.botguardClient;
-    } finally {
-      this.initializationPromise = null;
-    }
-  }
-
-  private async _initBotguard() {
-    const challengeResponse = await fetchFunction(buildURL('Create', true), {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json+protobuf',
-        'x-goog-api-key': GOOG_API_KEY,
-        'x-user-agent': 'grpc-web-javascript/0.1'
-      },
-      body: JSON.stringify([ this.waaRequestKey ])
-    });
-
-    const challengeResponseData = await challengeResponse.json();
-    this.bgChallenge = BG.Challenge.parseChallengeData(challengeResponseData);
-
-    if (!this.bgChallenge)
-      return;
-
-    const interpreterJavascript = this.bgChallenge.interpreterJavascript.privateDoNotAccessOrElseSafeScriptWrappedValue;
-
-    if (!interpreterJavascript) {
-      console.error('[BotguardService]', 'Could not get interpreter javascript. Interpreter Hash:', this.bgChallenge.interpreterHash);
-      return;
-    }
-
-    if (!document.getElementById(this.bgChallenge.interpreterHash)) {
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.id = this.bgChallenge.interpreterHash;
-      script.textContent = interpreterJavascript;
-      document.head.appendChild(script);
-    }
-
-    this.botguardClient = await BG.BotGuardClient.create({
-      globalObj: globalThis,
-      globalName: this.bgChallenge.globalName,
-      program: this.bgChallenge.program
-    });
-
-    if (this.bgChallenge) {
       const webPoSignalOutput: WebPoSignalOutput = [];
-      const botguardResponse = await this.botguardClient.snapshot({ webPoSignalOutput });
-
+      const botguardResponse = await botguardClient.snapshot({ webPoSignalOutput });
       const integrityTokenResponse = await fetchFunction(buildURL('GenerateIT', true), {
         method: 'POST',
-        headers: {
-          'content-type': 'application/json+protobuf',
-          'x-goog-api-key': GOOG_API_KEY,
-          'x-user-agent': 'grpc-web-javascript/0.1'
-        },
-        body: JSON.stringify([ this.waaRequestKey, botguardResponse ])
+        headers: getHeaders(),
+        body: JSON.stringify([REQUEST_KEY, botguardResponse]),
       });
 
       if (!integrityTokenResponse.ok) {
-        const responseBody = (await integrityTokenResponse.text()).slice(0, 500);
-        throw new Error('BotGuard GenerateIT failed with HTTP ' + integrityTokenResponse.status + ': ' + responseBody);
+        throw new Error(
+          'BotGuard GenerateIT falló con HTTP ' + integrityTokenResponse.status + '.',
+        );
       }
 
-      const integrityTokenResponseData = await integrityTokenResponse.json();
-      const integrityToken = Array.isArray(integrityTokenResponseData)
-        ? integrityTokenResponseData[0] as string | undefined
-        : undefined;
+      const tokenData = await integrityTokenResponse.json() as IntegrityTokenResponse;
+      const [
+        integrityToken,
+        estimatedTtlSecs,
+        mintRefreshThreshold,
+        websafeFallbackToken,
+      ] = tokenData;
 
-      if (!integrityToken) {
-        throw new Error('BotGuard GenerateIT response did not include an integrity token.');
+      if (typeof integrityToken !== 'string' || integrityToken.length === 0) {
+        throw new Error('BotGuard GenerateIT no devolvió el integrity token.');
       }
 
-      this.integrityTokenBasedMinter = await BG.WebPoMinter.create({ integrityToken }, webPoSignalOutput);
+      this.integrityTokenBasedMinter = await WebPoMinter.create(
+        {
+          integrityToken,
+          estimatedTtlSecs,
+          mintRefreshThreshold,
+          websafeFallbackToken,
+        },
+        webPoSignalOutput,
+      );
+
+      return botguardClient;
+    } catch (error) {
+      await botguardClient.shutdown().catch(() => undefined);
+      throw error;
+    }
+  }
+
+  public async init(): Promise<BotGuardClient> {
+    if (this.botguardClient && this.integrityTokenBasedMinter) {
+      return this.botguardClient;
+    }
+    if (this.initializationPromise) {
+      return this.initializationPromise;
     }
 
-    return this.botguardClient;
+    const pending = this.createClient();
+    this.initializationPromise = pending;
+    try {
+      const client = await pending;
+      this.botguardClient = client;
+      return client;
+    } finally {
+      if (this.initializationPromise === pending) {
+        this.initializationPromise = null;
+      }
+    }
   }
 
-  public mintColdStartToken(contentBinding: string) {
-    return BG.PoToken.generateColdStartToken(contentBinding);
+  public async mintPlaybackToken(videoId: string): Promise<string> {
+    await this.init();
+    if (!this.integrityTokenBasedMinter) {
+      throw new Error('BotGuard no está listo para generar el PoToken.');
+    }
+    return this.integrityTokenBasedMinter.mintAsWebsafeString(decodeURIComponent(videoId));
   }
 
-  public isInitialized() {
+  public isInitialized(): boolean {
     return !!this.botguardClient && !!this.integrityTokenBasedMinter;
   }
 
-  public dispose() {
-    if (this.botguardClient && this.bgChallenge) {
-      this.botguardClient.shutdown();
-      this.botguardClient = undefined;
-      this.integrityTokenBasedMinter = undefined;
+  public dispose(): void {
+    const client = this.botguardClient;
+    this.botguardClient = undefined;
+    this.integrityTokenBasedMinter = undefined;
 
-      const script = document.getElementById(this.bgChallenge.interpreterHash);
-      if (script) {
-        script.remove();
-      }
+    if (client) {
+      void client.shutdown().catch((error) => {
+        console.warn('[TodoTube] No se pudo cerrar BotGuard limpiamente:', error);
+      });
     }
   }
 
-  public async reinit() {
-    if (this.initializationPromise)
-      return this.initializationPromise;
+  public async reinit(): Promise<BotGuardClient> {
+    const pending = this.initializationPromise;
+    if (pending) {
+      await pending.catch(() => undefined);
+    }
     this.dispose();
-    return this.setup();
+    return this.init();
   }
 }
 
