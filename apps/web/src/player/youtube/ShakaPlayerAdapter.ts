@@ -15,11 +15,10 @@ import {
 
 import {
   asMap, checkExtension,
-  createRecoverableError,
   getInjectedProxyFunction,
-  headersToGenericObject,
-  makeResponse
+  headersToGenericObject
 } from './helpers';
+import { createRecoverableError, makeResponse } from './shakaHelpers';
 
 interface ShakaResponseArgs {
   uri: string;
