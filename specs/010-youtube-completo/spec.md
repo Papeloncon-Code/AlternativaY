@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | PR #37: build y 86/86 Playwright verdes; reproducción real en navegador pendiente |
+| Estado | PR #37 integrada en `main`; smoke real del 2026-11-09 sin metadata decodificada; PR #46–#47 abiertas y no desplegadas; aceptación E4 pendiente |
 | Decisión rectora | ADR-013 |
 | Broker | Especificación 009 |
 | Plataformas | Web Chrome/Edge (Bridge MV3); Android/Desktop vía providers nativos futuros |
@@ -21,8 +21,10 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 4. YouTubeSabrRuntime crea sesiones InnerTube independientes para los perfiles soportados.
 5. WEB intenta Onesie primero y cae a InnerTube estándar en el mismo perfil.
 6. Cada respuesta puede producir candidatos SABR, DASH, HLS o progresivo. Solo se intenta una fuente que exponga datos utilizables.
-7. Si el transporte activo falla, se intenta renovar el player response y luego el candidato/perfil siguiente.
-8. R2 y runtime web pueden entregarse el control conservando posición, estado, volumen y velocidad.
+7. Los fallos transitorios de red, timeout, 5xx o estancamiento pueden recuperar/reintentar la ruta y, si es necesario, avanzar a otro candidato, conservando timestamp y estado.
+8. Un HTTP 400 detiene la rotación a otro perfil. Si Onesie devuelve solo `FAILED_PRECONDITION` genérico, TodoTube permite probar InnerTube normal con el mismo perfil WEB; si ese request también es 400, termina la cadena. 401/403/407/429 y denegaciones explícitas de login, edad, región, consentimiento, anti-bot o tráfico automatizado detienen todas las rutas YouTube. No se cambia identidad ni backend para sortear una denegación.
+9. El watchdog observa el avance del elemento de vídeo cada segundo. Tras 2 s sin avance y con menos de 0,25 s de buffer, recupera como máximo tres veces; ignora pausa, seek, fin, pestaña oculta y estado offline.
+10. R2 y runtime web pueden entregarse el control conservando posición, estado, volumen y velocidad, siempre que R2 sea una copia autorizada del mismo asset.
 
 ## Criterios de aceptación
 
@@ -38,6 +40,12 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 - CA10.10: bridge se inyecta solo en TodoTube/localhost y bloquea hosts no permitidos.
 - CA10.11: UI propia incluye play/pause, seek, volumen, velocidad y pantalla completa; controles visibles también en modo mini.
 - CA10.12: telemetría de diagnóstico excluye credenciales, tokens de integridad y URLs firmadas completas.
+- CA10.13: un estancamiento real se detecta en un máximo aproximado de 3 s (2 s más el intervalo de muestreo) cuando no hay progreso ni buffer útil; no se dispara por pausa, seek, vídeo terminado, pestaña oculta o navegador offline.
+- CA10.14: la recuperación es limitada y reutiliza el mismo Player/Shaka; conserva currentTime, play/pause, volumen y velocidad al cambiar de candidato.
+- CA10.15: HTTP 400 detiene la rotación de perfiles; solo un `FAILED_PRECONDITION` genérico de Onesie permite probar InnerTube normal en el mismo perfil WEB, una vez. Un segundo 400 termina la cadena. 401/403/407/429 y restricciones explícitas detienen las rutas YouTube; no se evaden restricciones ni se rotan identidades.
+- CA10.16: los errores transitorios (timeout, red y 5xx) siguen siendo elegibles para recuperación/failover.
+- CA10.17: la función no se marca terminada hasta completar E4: un vídeo real debe reproducirse de verdad en TodoTube con primer frame/dimensiones, imagen en movimiento, sonido audible y sincronizado, avance, seek hacia delante/atrás, controles TodoTube y recuperación segura de fallo transitorio en navegador/despliegue objetivo. Un error correcto para contenido restringido es una prueba separada y no sustituye E4.
+- CA10.18: las denegaciones anti-bot, PoToken/BotGuard, tráfico automatizado, región o acceso bloquean los demás providers que dependan del origen YouTube; Invidious o un backend remoto no pueden usarse para cambiar la red/IP y superar la denegación.
 
 ## Validación pendiente para cerrar
 
@@ -45,7 +53,22 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 - Probar desde una instalación limpia sin Bridge y comprobar que el error explica el requisito sin crear iframe.
 - Probar el flujo con Bridge activo; CI Playwright no sustituye esta verificación.
 - Reproducir un vídeo público corto, un vídeo largo (>1 h), un vídeo con audio adaptativo, un Short y un directo cuando la fuente entregue una ruta compatible.
-- Forzar fallo de Onesie, perfil WEB, SABR y R2 para demostrar failover.
+- Simular timeout, 5xx, recurso vencido y estancamiento para demostrar recuperación limitada.
+- Simular 400 genérico y `FAILED_PRECONDITION` de Onesie: permitir solo el endpoint estándar del mismo perfil y bloquear cualquier perfil diferente si se repite el 400. Simular además 401, 403, 407, 429 y denegaciones explícitas; comprobar que se detienen todas las rutas YouTube.
+- Forzar fallo de Onesie no relacionado con acceso para comprobar el fallback InnerTube del mismo perfil; no usar el fallback ante una denegación explícita.
 - Verificar audio, seek, reanudación y ausencia de audio duplicado.
 - Medir TTFF p50/p75, buffer ratio y tiempo de conmutación.
 - Validar Firefox/Android por separado; Manifest V3 inicial cubre Chrome/Edge, no implica compatibilidad universal.
+
+## Regla de cierre E4
+
+Build, TypeScript, Playwright con fixtures, resultado de extractor, respuesta JSON, manifest, URL o `readyState` sin audio comprobado son evidencias parciales, no éxito final. La única aceptación de reproducción es una ejecución E4 real conforme a `docs/testing/real-playback-release-gate.md` desde el despliegue objetivo. El registro debe incluir evidencia de imagen, audio audible, avance, seek de ida/vuelta, controles propios y recuperación transitoria. El manejo correcto de denegaciones se registra como prueba de seguridad separada. Hasta entonces el estado permanece **PLAYBACK PENDIENTE DE VALIDACIÓN REAL**.
+
+## SABR y attestation en runtime web
+
+- CA10.19: WEB/MWEB llama a `getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND')` en la misma sesión antes de adjuntar SABR; el proceso tiene timeout/reintentos limitados y no rota identidad.
+- CA10.20: `ShakaPlayerAdapter` comunica los eventos `StreamProtectionStatus` UMP al runtime; status `3` solicita actualización de attestation y nuevo WebPO del `BotguardService` local, con deduplicación/cooldown.
+- CA10.21: el request Onesie no establece `sendVideoPlaybackConfig=false`; la respuesta se valida en navegador real por segmentos/context updates, no solo por la presencia de un campo UStreamer.
+- CA10.22: no se añade helper externo, proxy, `jsdom` con origen falsificado, cambio de IP ni backend remoto para eludir BotGuard/PoToken.
+
+Estos criterios necesitan CI y E4 real. No están aceptados solo por su implementación o por fixtures.

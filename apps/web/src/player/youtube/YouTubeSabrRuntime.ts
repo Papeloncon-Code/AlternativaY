@@ -16,6 +16,12 @@ import { makePlayerRequest } from './onesie';
 import type { ReloadPlaybackContext } from 'googlevideo/protos';
 import { botguardService } from './BotguardService';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
+import { shouldStopClientFallback, shouldStopSourceFallback } from './failurePolicy';
+import { isSabrAttestationRefreshRequired, primeSabrAttestation } from './sabrAttestation';
+import {
+  PLAYBACK_STALL_TIMEOUT_MS,
+  shouldRecoverPlaybackStall,
+} from './stallWatchdog';
 
 type YouTubeClient =
   | 'MWEB'
@@ -113,12 +119,21 @@ export class YouTubeSabrRuntime {
   private videoId = '';
   private playbackToken = '';
   private coldStartToken = '';
-  private tokenLock = false;
+  private tokenPromise: Promise<void> | null = null;
+  private sabrRefreshPromise: Promise<void> | null = null;
+  private lastSabrRefreshAt = 0;
   private loading = false;
   private switching = false;
   private destroyed = false;
   private callbacks: RuntimeCallbacks;
   private lastError = '';
+  private stallWatchdogInterval: number | null = null;
+  private stallWatchdogLastTime = 0;
+  private stallWatchdogLastProgress = 0;
+  private stallRecoveryAttempts = 0;
+  private stallRecoveryInProgress = false;
+  private stallRecoveryExhausted = false;
+  private lastStallRecoveryAt = 0;
 
   constructor(callbacks: RuntimeCallbacks = {}) {
     this.callbacks = callbacks;
@@ -180,6 +195,107 @@ export class YouTubeSabrRuntime {
     void botguardService.init().catch((error) => {
       console.warn('[TodoTube] No se pudo inicializar el servicio de integridad:', error);
     });
+
+    this.startStallWatchdog();
+  }
+
+  private startStallWatchdog(): void {
+    if (this.stallWatchdogInterval !== null || !this.video) return;
+    this.stallWatchdogLastTime = this.video.currentTime || 0;
+    this.stallWatchdogLastProgress = Date.now();
+    this.stallWatchdogInterval = window.setInterval(() => this.checkForStall(), 1_000);
+  }
+
+  private checkForStall(): void {
+    const video = this.video;
+    if (
+      this.destroyed ||
+      !video ||
+      !this.player ||
+      this.candidateIndex < 0 ||
+      this.loading ||
+      this.switching ||
+      this.stallRecoveryInProgress
+    ) return;
+
+    const now = Date.now();
+    const currentTime = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+    const visible = document.visibilityState === 'visible';
+    const online = navigator.onLine !== false;
+
+    if (video.paused || video.seeking || video.ended || !visible || !online) {
+      this.stallWatchdogLastTime = currentTime;
+      this.stallWatchdogLastProgress = now;
+      return;
+    }
+
+    if (Math.abs(currentTime - this.stallWatchdogLastTime) > 0.05) {
+      this.stallWatchdogLastTime = currentTime;
+      this.stallWatchdogLastProgress = now;
+      if (now - this.lastStallRecoveryAt > 10_000) {
+        this.stallRecoveryAttempts = 0;
+        this.stallRecoveryExhausted = false;
+      }
+      return;
+    }
+
+    let bufferedAhead = 0;
+    for (let index = 0; index < video.buffered.length; index++) {
+      const start = video.buffered.start(index);
+      const end = video.buffered.end(index);
+      if (currentTime >= start - 0.15 && currentTime <= end + 0.05) {
+        bufferedAhead = Math.max(0, end - currentTime);
+        break;
+      }
+    }
+
+    const stalled = shouldRecoverPlaybackStall({
+      now,
+      lastProgressAt: this.stallWatchdogLastProgress,
+      currentTime,
+      lastCurrentTime: this.stallWatchdogLastTime,
+      bufferedAhead,
+      paused: video.paused,
+      seeking: video.seeking,
+      ended: video.ended,
+      visible,
+      online,
+    }, PLAYBACK_STALL_TIMEOUT_MS);
+
+    if (stalled) void this.recoverFromStall();
+  }
+
+  private async recoverFromStall(): Promise<void> {
+    if (
+      this.stallRecoveryInProgress ||
+      this.stallRecoveryExhausted ||
+      this.destroyed ||
+      !this.video
+    ) return;
+    if (this.stallRecoveryAttempts >= 3) {
+      this.stallRecoveryExhausted = true;
+      const error = new Error('La reproducción no logró recuperarse después de varios intentos.');
+      this.callbacks.onStatus?.('error', error.message);
+      this.callbacks.onFatal?.(error);
+      return;
+    }
+
+    this.stallRecoveryInProgress = true;
+    this.stallRecoveryAttempts += 1;
+    this.lastStallRecoveryAt = Date.now();
+    this.stallWatchdogLastProgress = this.lastStallRecoveryAt;
+    console.warn('[TodoTube] Playback stalled; attempting recovery', this.stallRecoveryAttempts);
+
+    try {
+      const recovered = await this.switchToNextSource(
+        'El vídeo dejó de avanzar. TodoTube está recuperando la reproducción…',
+      );
+      if (!recovered) this.stallRecoveryExhausted = true;
+    } finally {
+      this.stallRecoveryInProgress = false;
+      this.stallWatchdogLastTime = this.video?.currentTime ?? 0;
+      this.stallWatchdogLastProgress = Date.now();
+    }
   }
 
   async load(videoId: string, startAt = 0, autoplay = true): Promise<void> {
@@ -193,13 +309,18 @@ export class YouTubeSabrRuntime {
     this.videoId = videoId;
     this.playbackToken = '';
     this.coldStartToken = '';
-    this.tokenLock = false;
     this.candidates = [];
     this.candidateIndex = -1;
     this.nextClientIndex = 0;
     this.refreshedClients.clear();
     this.currentClient = null;
     this.lastError = '';
+    this.stallRecoveryAttempts = 0;
+    this.stallRecoveryExhausted = false;
+    this.stallRecoveryInProgress = false;
+    this.lastStallRecoveryAt = 0;
+    this.stallWatchdogLastProgress = Date.now();
+    this.stallWatchdogLastTime = startAt;
     this.callbacks.onStatus?.('loading', 'Iniciando la cadena redundante de clientes…');
 
     const found = await this.loadNextClient(startAt, autoplay);
@@ -250,7 +371,8 @@ export class YouTubeSabrRuntime {
               },
             });
           } catch (error) {
-            console.warn('[TodoTube] Onesie request failed; falling back to InnerTube:', error);
+            if (shouldStopSourceFallback(error)) throw error;
+            console.warn('[TodoTube] Onesie request failed; falling back to InnerTube on the same client:', error);
             this.onesieConfigPromise = null;
           }
         }
@@ -387,7 +509,15 @@ export class YouTubeSabrRuntime {
         const response = await this.fetchPlayerInfo(innertube, client);
         const info = new YT.VideoInfo([response], innertube.actions, Utils.generateRandomString(16));
         if (info.playability_status?.status !== 'OK') {
-          this.lastError = info.playability_status?.reason || ('YouTube rechazó el cliente ' + client + '.');
+          const reason = info.playability_status?.reason || ('YouTube rechazó el cliente ' + client + '.');
+          this.lastError = reason;
+          if (shouldStopClientFallback({
+            playabilityStatus: info.playability_status?.status,
+            reason,
+          })) {
+            this.lastError = 'La fuente no autorizó esta reproducción. TodoTube no probará otros perfiles.';
+            return false;
+          }
           continue;
         }
 
@@ -406,11 +536,16 @@ export class YouTubeSabrRuntime {
             await this.activateCandidate(candidates[index], index, resumeAt, autoplay);
             return true;
           } catch (error) {
+            if (shouldStopSourceFallback(error)) return this.reportRestrictedFailure();
             this.lastError = error instanceof Error ? error.message : String(error);
             console.warn('[TodoTube] Falló la ruta ' + client + '/' + candidates[index].mode + ':', error);
           }
         }
       } catch (error) {
+        if (shouldStopClientFallback(error)) {
+          this.lastError = 'La fuente rechazó la solicitud. TodoTube no probará otros perfiles.';
+          return false;
+        }
         this.lastError = error instanceof Error ? error.message : String(error);
         console.warn('[TodoTube] Falló el cliente ' + client + ':', error);
       }
@@ -423,8 +558,19 @@ export class YouTubeSabrRuntime {
     this.sabrAdapter?.dispose();
 
     const { innertube, info, client } = candidate;
+    if (isWebClient(client)) {
+      await primeSabrAttestation(innertube);
+    }
+
+    const playerAdapter = new ShakaPlayerAdapter();
+    playerAdapter.setStreamProtectionHandler(async (status) => {
+      if (isWebClient(client) && isSabrAttestationRefreshRequired(status)) {
+        await this.refreshSabrAttestation(innertube);
+      }
+    });
+
     const adapter = new SabrStreamingAdapter({
-      playerAdapter: new ShakaPlayerAdapter(),
+      playerAdapter,
       clientInfo: {
         osName: innertube.session.context.client.osName,
         osVersion: innertube.session.context.client.osVersion,
@@ -437,7 +583,8 @@ export class YouTubeSabrRuntime {
 
     adapter.onMintPoToken(async () => {
       if (!isWebClient(client)) return '';
-      if (!this.playbackToken && !this.tokenLock) {
+      if (this.tokenPromise) await this.tokenPromise;
+      if (!this.playbackToken) {
         if (info.basic_info.is_live) await this.mintPlaybackToken();
         else void this.mintPlaybackToken();
       }
@@ -467,19 +614,66 @@ export class YouTubeSabrRuntime {
     this.sabrAdapter = adapter;
   }
 
-  private async mintPlaybackToken(): Promise<void> {
-    if (!this.videoId || this.tokenLock) return;
-    this.tokenLock = true;
-    try {
-      this.coldStartToken = botguardService.mintColdStartToken(this.videoId);
-      if (!botguardService.isInitialized()) await botguardService.reinit();
-      if (botguardService.integrityTokenBasedMinter) {
-        this.playbackToken = await botguardService.integrityTokenBasedMinter.mintAsWebsafeString(this.videoId);
+  private async mintPlaybackToken(forceReinit = false): Promise<void> {
+    if (!this.videoId) return;
+    if (this.tokenPromise) {
+      if (!forceReinit) return this.tokenPromise;
+      await this.tokenPromise.catch(() => undefined);
+    }
+
+    const targetVideoId = this.videoId;
+    const pending = (async () => {
+      try {
+        const coldStartToken = botguardService.mintColdStartToken(targetVideoId);
+        if (this.videoId === targetVideoId) this.coldStartToken = coldStartToken;
+        if (forceReinit) {
+          const pendingInitialization = botguardService.initializationPromise;
+          if (pendingInitialization) await pendingInitialization;
+          await botguardService.reinit();
+        } else if (!botguardService.isInitialized()) {
+          await botguardService.reinit();
+        }
+        if (botguardService.integrityTokenBasedMinter) {
+          const playbackToken = await botguardService.integrityTokenBasedMinter.mintAsWebsafeString(targetVideoId);
+          if (this.videoId === targetVideoId) this.playbackToken = playbackToken;
+        }
+        if (forceReinit && this.videoId === targetVideoId && !this.playbackToken) {
+          throw new Error('No se pudo renovar el token de reproducción tras StreamProtectionStatus=3.');
+        }
+      } catch (error) {
+        console.warn('[TodoTube] No se pudo obtener el token web de reproducción:', error);
+        if (forceReinit) throw error;
+      } finally {
       }
-    } catch (error) {
-      console.warn('[TodoTube] No se pudo obtener el token web de reproducción:', error);
+    })();
+
+    this.tokenPromise = pending;
+    try {
+      await pending;
     } finally {
-      this.tokenLock = false;
+      if (this.tokenPromise === pending) this.tokenPromise = null;
+    }
+  }
+
+  private async refreshSabrAttestation(innertube: Innertube): Promise<void> {
+    if (this.sabrRefreshPromise) return this.sabrRefreshPromise;
+    if (Date.now() - this.lastSabrRefreshAt < 15_000) return;
+
+    const targetVideoId = this.videoId;
+    const pending = (async () => {
+      await primeSabrAttestation(innertube);
+      if (this.videoId !== targetVideoId) return;
+
+      this.playbackToken = '';
+      await this.mintPlaybackToken(true);
+      this.lastSabrRefreshAt = Date.now();
+    })();
+
+    this.sabrRefreshPromise = pending;
+    try {
+      await pending;
+    } finally {
+      if (this.sabrRefreshPromise === pending) this.sabrRefreshPromise = null;
     }
   }
 
@@ -520,9 +714,22 @@ export class YouTubeSabrRuntime {
     }
   }
 
+  private reportRestrictedFailure(): false {
+    this.stallRecoveryExhausted = true;
+    const error = new Error('La fuente no autorizó esta reproducción. TodoTube no intentará otras rutas de YouTube.');
+    this.lastError = error.message;
+    this.callbacks.onStatus?.('error', error.message);
+    this.callbacks.onFatal?.(error);
+    return false;
+  }
+
   private handlePlayerError = (event: Event): void => {
     if (this.destroyed || this.loading || this.switching || this.candidateIndex < 0) return;
     const detail = (event as CustomEvent).detail;
+    if (shouldStopSourceFallback(detail)) {
+      this.reportRestrictedFailure();
+      return;
+    }
     const error = detail?.message || 'El transporte activo dejó de funcionar.';
     void this.switchToNextSource(error);
   };
@@ -540,6 +747,7 @@ export class YouTubeSabrRuntime {
           await this.activateCandidate(this.candidates[index], index, resumeAt, autoplay);
           return true;
         } catch (error) {
+          if (shouldStopSourceFallback(error)) return this.reportRestrictedFailure();
           this.lastError = error instanceof Error ? error.message : String(error);
         }
       }
@@ -562,11 +770,21 @@ export class YouTubeSabrRuntime {
                 await this.activateCandidate(refreshedCandidates[index], index, resumeAt, autoplay);
                 return true;
               } catch (error) {
+                if (shouldStopSourceFallback(error)) return this.reportRestrictedFailure();
                 this.lastError = error instanceof Error ? error.message : String(error);
               }
             }
+          } else {
+            const reason = info.playability_status?.reason || info.playability_status?.status || '';
+            if (shouldStopClientFallback({
+              playabilityStatus: info.playability_status?.status,
+              reason,
+            })) return this.reportRestrictedFailure();
           }
         } catch (error) {
+          if (shouldStopSourceFallback(error) || shouldStopClientFallback(error)) {
+            return this.reportRestrictedFailure();
+          }
           this.lastError = error instanceof Error ? error.message : String(error);
         }
       }
@@ -585,6 +803,10 @@ export class YouTubeSabrRuntime {
 
   async dispose(): Promise<void> {
     this.destroyed = true;
+    if (this.stallWatchdogInterval !== null) {
+      window.clearInterval(this.stallWatchdogInterval);
+      this.stallWatchdogInterval = null;
+    }
     this.video?.pause();
     this.sabrAdapter?.dispose();
     this.sabrAdapter = null;

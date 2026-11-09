@@ -43,3 +43,4 @@ Versión 4.0 · 2026-11-09 · Dirección de reproducción unificada definida por
 23. **No afirmamos superioridad sin medirla.** Las comparativas públicas solo citan funcionalidades implementadas y verificadas.
 24. **Bus factor ≥ 2.** Ningún módulo crítico depende de una sola persona.
 25. **Simplicidad primero.** La redundancia se implementa detrás de una sola interfaz de reproductor; no se multiplican reproductores visibles ni arquitecturas paralelas.
+26. **Aceptación final de playback:** solo se considera terminado cuando un vídeo real reproduce imagen y sonido audibles en TodoTube, el tiempo avanza, seek hacia delante/atrás funciona, responden los controles propios y la recuperación segura queda demostrada en el navegador/despliegue objetivo. Build, TypeScript, fixtures, Playwright simulado, metadatos, manifests y URLs son pruebas intermedias, nunca éxito final. Aplicar la puerta E4 de `docs/testing/real-playback-release-gate.md`.

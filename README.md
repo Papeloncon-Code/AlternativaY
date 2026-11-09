@@ -1,6 +1,6 @@
 # TodoTube
 
-> Estado de código: 9 de noviembre de 2026. PR #37 tiene CI y CodeQL en verde (86 pruebas Playwright); sigue sin fusionar ni desplegar. La compilación no sustituye la prueba manual de reproducción real.
+> Estado de código: 9 de noviembre de 2026. PR #37 y PR #39–#43 están integradas en `main`; PR #44–#47 siguen abiertas y sin fusionar. El smoke real del 2026-11-09 no decodificó metadata (`readyState=0`, dimensiones 0, duración nula) y recibió respuestas HTTP 400 distintas. Playback sigue **pendiente de validación real E4**.
 
 TodoTube es una aplicación web para descubrir vídeos y canales, organizar una biblioteca personal y reproducir vídeos dentro de un reproductor propio con controles y continuidad propios.
 
@@ -23,6 +23,21 @@ El cambio automático de fuente conserva posición, play/pause, volumen y veloci
 **Requisito del navegador:** la reproducción SABR web requiere instalar y habilitar TodoTube Bridge en Chrome o Edge (Manifest V3). Sin la extensión, la web muestra un error recuperable y no inserta un iframe. La web por sí sola todavía no ofrece playback universal en una instalación limpia; Firefox, Safari y navegadores móviles no están validados.
 
 **Estado de implementación:** PR #37 integra PlayerHost, Playback Broker, Shaka/SABR/Onesie, transportes y clientes alternativos y Bridge MV3. La rama compila y pasa 86 pruebas Playwright y CodeQL, pero aún no está fusionada ni desplegada. CI valida contratos/UI con fixtures, no demuestra reproducción audiovisual desde YouTube.
+
+### Diagnóstico y recuperación SABR
+
+La ruta SABR utiliza ahora la attestation oficial de YouTube.js en la misma sesión WEB/MWEB antes de adjuntar el adaptador. El adaptador comunica `StreamProtectionStatus`; si informa estado `3`, el runtime actualiza attestation y renueva el WebPO con el `BotguardService` local, con deduplicación/cooldown. Onesie no envía `sendVideoPlaybackConfig=false`. Estos cambios están en PR #47 y siguen pendientes de prueba E4 real. No añaden proxy, egress alternativo ni servidor externo de tokens.
+
+### Criterio definitivo de aceptación
+
+La reproducción solo se considera terminada cuando un vídeo real reproduce imagen y sonido dentro del player TodoTube, avanza, permite seek hacia delante y atrás, responde a los controles propios y demuestra recuperación segura en el navegador/despliegue objetivo. Build, TypeScript, Playwright con fixtures, health checks, metadatos, manifests o URLs son pruebas intermedias, no éxito final. La matriz y el procedimiento obligatorios están en [la puerta de aceptación E4](docs/testing/real-playback-release-gate.md).
+
+### Investigación de alternativas aplicada
+
+- **Materialious:** además del watchdog ya adaptado en PR #47, su hallazgo más útil es el fallback de Invidious a `youtubei.js` local cuando el entorno lo permite. Su código y documentación aclaran que la SPA web estática no equivale a Android/Desktop o al full web backend. No desplegaremos un backend ni moveremos solicitudes a otra IP para superar un bloqueo anti-bot.
+- **ChruPipe:** su HLS → progresivo y conservación de posición sirven como referencia; su NewPipeExtractor 0.26.4 no es un extractor independiente del NewPipeExtractor 0.27.0 ya probado por TodoTube.
+- **Invidious:** su API de formatos es un resolver distinto, pero continúa obteniendo el medio de YouTube; ni su API ni su proxy constituyen una CDN independiente.
+- La siguiente investigación técnica es un spike controlado de compatibilidad de `youtubei.js`/Shaka y una prueba E4 real. No se modifican dependencias ni infraestructura de producción hasta que CI y la prueba real confirmen una mejora.
 
 ## Media Gateway R2
 
@@ -75,4 +90,4 @@ Avisos:
 
 CI/CD construye y empaqueta el Bridge. El artefacto de la extensión se publica en el workflow asociado a la PR.
 
-No declares terminada una función solo porque exista una pantalla o pase un test unitario: la aceptación de playback exige audio/vídeo real, seek, recuperación y verificación de producción cuando aplique.
+No declares terminada una función solo porque compile o pase tests automatizados: playback exige evidencia E4 en el navegador y despliegue objetivo, con imagen, sonido audible, avance, seek, controles propios y recuperación segura. El Gateway requiere, por separado, prueba de producción con un archivo propio/licenciado; no sustituye la prueba de YouTube.

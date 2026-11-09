@@ -29,17 +29,20 @@
 - RF-13: providers web y nativos comparten contrato, no implementación acoplada.
 - RF-14: las copias en R2 requieren derecho documentado para almacenamiento/distribución; no crear copias YouTube automáticamente.
 - RF-15: el runtime web de YouTube no usa Cloudflare Worker/R2 como proxy de medios.
+- RF-16: el runtime distingue fallos transitorios, precondiciones indeterminadas y denegaciones explícitas. Timeouts, red y 5xx son recuperables. HTTP 400 bloquea la rotación a otra identidad; si un Onesie 400 solo contiene `FAILED_PRECONDITION` genérico, se permite exactamente un fallback a InnerTube normal con el mismo perfil WEB. Si este también falla, se detiene la cadena. 401/403/407/429 y motivos explícitos de acceso/anti-bot detienen todas las rutas YouTube.
+- RF-17: el runtime detecta estancamiento por falta de avance/buffer, con timeout y presupuesto finito; no confunde pausa, seek, vídeo terminado, pestaña oculta o navegador offline con un fallo de proveedor.
 
 ## Orden inicial de reproducción
 
 1. R2 propio/licenciado del mismo ID cuando exista.
 2. runtime de YouTube client-side.
    - Onesie como player request principal de WEB cuando esté disponible.
-   - InnerTube estándar como fallback inmediato.
+   - InnerTube estándar como fallback del mismo perfil WEB solo para errores transitorios/no relacionados con acceso.
    - cadena implementada con `youtubei.js@16.0.0`: MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID.
    - VISIONOS (incorporado en youtubei.js 18) y ANDROID_VR (17) están diferidos; no forman parte del build fijado actual.
    - candidatos de transporte: SABR/UMP, DASH, HLS, progresivo.
-3. Revalidar R2 si el runtime web agota sus rutas.
+   - un HTTP 400 detiene la rotación de perfiles. Un `FAILED_PRECONDITION` genérico en Onesie permite solo probar InnerTube normal con el mismo perfil; si también devuelve 400, termina la cadena. 401/403/407/429 y restricciones explícitas detienen todas las rutas YouTube.
+3. Revalidar R2 si el runtime web agota sus rutas; únicamente cuando exista una copia autorizada del mismo asset.
 
 La salud del proveedor, la frescura de la sesión, la duración de la resolución y los éxitos recientes pueden ajustar el orden sin eliminar los fallbacks.
 
@@ -47,7 +50,10 @@ La salud del proveedor, la frescura de la sesión, la duración de la resolució
 
 - Todas las rutas fallan -> error explícito, nunca spinner infinito ni iframe inesperado.
 - Onesie falla -> InnerTube standard se intenta en el mismo cliente.
-- Cliente falla -> se intenta el próximo perfil del ladder dentro del timeout.
+- Cliente falla por timeout, red o 5xx -> se puede intentar el próximo perfil dentro del presupuesto total.
+- Respuesta HTTP 400 -> no se rota a otra identidad de cliente.
+- `FAILED_PRECONDITION` genérico de Onesie -> se permite solo InnerTube normal del mismo cliente, una vez; si vuelve a fallar, no se avanza a otro perfil.
+- Respuesta 401/403/407/429 o restricción explícita -> se detienen las rutas YouTube; R2 autorizado del mismo asset puede evaluarse aparte.
 - SABR falla -> probar DASH/HLS/directo cuando existan candidatos reales.
 - URL/manifest no entrega datos -> contar como fallo y conmutar.
 - Interrupción midstream -> renovar enlace; después conmutar y mantener timestamp.
@@ -57,3 +63,19 @@ La salud del proveedor, la frescura de la sesión, la duración de la resolució
 - Usuario pulsa pausa durante conmutación -> el nuevo origen permanece pausado.
 - No se duplica audio ni se montan dos reproductores.
 - El usuario puede consultar diagnóstico de proveedor sin revelar tokens ni URLs firmadas.
+- Watchdog de estancamiento: intervalo 1 s, umbral 2 s (criterio de issue #27), buffer útil máximo 0,25 s, máximo tres intentos; no se activa por pausa, seek, ended, pestaña oculta u offline.
+- Denegaciones de acceso no se contabilizan como fallos transitorios y no provocan cambio de identidad.
+
+## Puerta de aceptación final E4
+
+El broker puede marcar una ruta como candidata o recuperable, pero nunca declarar playback completado por recibir metadatos, URL o manifest. Solo se cierra con la prueba E4 en `docs/testing/real-playback-release-gate.md`: un vídeo real que sí reproduce en el despliegue objetivo, primer frame/dimensiones, tiempo avanzando, audio audible y sincronizado, seek de ida/vuelta, controles TodoTube y recuperación de un fallo transitorio demostrada en staging con el mismo asset/timeline. Mostrar un error correcto ante contenido restringido es una prueba de seguridad independiente y no satisface E4.
+
+Las denegaciones explícitas (login, edad, región, consentimiento, anti-bot, PoToken/BotGuard, tráfico automatizado o `FAILED_PRECONDITION` acompañado de un motivo claro de restricción) detienen la cadena de proveedores basados en YouTube. Un `FAILED_PRECONDITION` sin causa adicional es indeterminado y solo permite el fallback técnico al endpoint estándar del mismo cliente WEB. Invidious sigue dependiendo del mismo origen y no se puede utilizar como ruta para eludir esa denegación. Un backend propio tampoco se usa para cambiar de IP/red y superar el bloqueo.
+
+Las pruebas E0–E3 (build, fixtures, contratos, metadatos, manifest y primer frame sin audio verificado) son intermedias y se reportan por separado. La aceptación final requiere E4 y un registro versionado del commit, navegador, Bridge y ruta probada.
+## Requisitos SABR de attestation y renovación
+
+- RF-18: antes de iniciar SABR en WEB/MWEB se prepara `ENGAGEMENT_TYPE_UNBOUND` mediante `getAttestationChallenge` en la misma sesión InnerTube; la operación tiene timeout/reintentos finitos y no cambia identidad.
+- RF-19: el adaptador del player propaga `StreamProtectionStatus` de UMP; ante status `3`, el runtime actualiza attestation y renueva WebPO con el `BotguardService` local, con deduplicación y cooldown.
+- RF-20: la renovación de attestation/token no puede utilizar proxy, egress alternativo, `jsdom` con origen falso, instancia pública de Invidious ni servicio remoto para superar BotGuard/PoToken o restricción de acceso.
+- RF-21: Onesie no codifica `sendVideoPlaybackConfig=false`; un SABR candidate no se considera funcional hasta demostrar que recibe datos/context updates y reproduce el mismo asset/timeline.

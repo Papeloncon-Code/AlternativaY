@@ -27,9 +27,11 @@ Un solo reproductor TodoTube y varios proveedores/rutas detrás de un contrato c
 
 - Onesie player request como primera ruta para WEB.
 - InnerTube estándar como respaldo en el mismo perfil.
-- Perfiles alternativos: VISIONOS, MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_VR, ANDROID_CREATOR y ANDROID.
+- Perfiles actualmente incluidos con `youtubei.js@16.0.0`: MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID. VISIONOS y ANDROID_VR no están en el tipo ni en la cadena de fallback del build actual.
 - Para cada respuesta, construir candidatos SABR, DASH, HLS y progresivos válidos.
-- Si el flujo falla, renovar player response/URLs una vez y avanzar al siguiente candidato y perfil.
+- Si el flujo falla por timeout, red, 5xx o estancamiento, renovar una vez cuando proceda y avanzar al siguiente candidato/perfil.
+- Una respuesta HTTP 400 detiene la rotación a otro perfil. Si `FAILED_PRECONDITION` aparece solo como mensaje genérico en Onesie, se permite únicamente probar InnerTube normal con el mismo perfil WEB; si el 400 se repite, la cadena termina. Una denegación explícita (login, edad, geo, consentimiento, anti-bot/tráfico automatizado) o 401/403/407/429 detiene todas las rutas YouTube. Nunca se cambia identidad ni backend para eludir la denegación.
+- El watchdog detecta más de 2 s sin avance y sin buffer útil (0,25 s), muestrea cada segundo, ignora pausa/seek/ended/oculto/offline y limita la recuperación a tres intentos. El umbral sigue el criterio de la incidencia #27; Materialious usa 12 s para su watchdog general, pero TodoTube conserva su aceptación más estricta.
 - El broker registra éxito/fallo y aplica cooldown.
 - El runtime solo cuenta una fuente como funcional cuando Shaka carga y empieza a entregar datos.
 
@@ -63,7 +65,10 @@ El runtime recibe resumeAt y wasPlaying. El player conserva posición, volumen, 
 ## Pruebas necesarias
 
 - Onesie falla -> InnerTube normal.
-- Perfil falla -> siguiente perfil.
+- Timeout/red/5xx en perfil -> siguiente perfil.
+- HTTP 400 -> no cambiar de perfil.
+- `FAILED_PRECONDITION` genérico en Onesie -> probar una sola vez InnerTube estándar con el mismo perfil WEB; si falla, terminar la cadena.
+- 401/403/407/429/restricción explícita -> detener rutas YouTube.
 - SABR falla -> DASH/HLS/directo si la respuesta provee candidatos válidos.
 - URL vencida -> renovación y después failover.
 - R2 falla a mitad de vídeo -> runtime web, posición y estado preservados.
@@ -71,5 +76,29 @@ El runtime recibe resumeAt y wasPlaying. El player conserva posición, volumen, 
 - Rechazar fingerprint/timeline incompatible.
 - Confirmar audio y vídeo completos, seek, buffering y fullscreen en navegadores objetivo.
 - Medir TTFF, tasa de buffer y tiempo de failover.
+- Verificar que el watchdog respeta el presupuesto y evita reintentos repetidos después del agotamiento.
 
-El código presente en PR #37 es una primera integración. No se certifica playback completo hasta ejecutar pruebas reales de navegador y medios.
+La investigación comparativa y las decisiones de adaptación se detallan en `docs/research/12-comparativa-materialious-chrupipe-invidious.md` y `docs/research/13-adaptacion-materialious-chrupipe-invidious-a-todotube.md`. La recuperación nueva deriva del patrón de watchdog de Materialious; ChruPipe aporta recuperación HLS/progresivo y el modelo de formatos; Invidious aporta un contrato alternativo de extracción/formatos que queda como provider futuro, no activado. No se encontró un warm standby independiente en esos proyectos.
+
+El código presente en PR #37 es una primera integración. La recuperación segura está en la rama/PR de adaptación y requiere CI más pruebas de navegador real. No se certifica playback completo hasta ejecutar pruebas reales de navegador y medios.
+
+## Hallazgo Materialious: fallback local y alcance por plataforma
+
+La fuente `materialious/src/lib/api/index.ts` elige `getVideoYTjs()` en vez de `getVideoInvidious()` si el backend YouTube está activo, si `useEngineFallback('Video')` lo ordena o si se fuerza YT.js en un entorno no restringido. `docs/DEV.md` define cuatro configuraciones distintas: SPA web estática, full web con Node backend, Desktop/Electron y Android. `isUnrestrictedPlatform()` es verdadero con full backend o app nativa; no se debe atribuir ese fallback a la SPA estática por defecto.
+
+En Materialious issue #869 el mantenedor dijo que Invidious estaba siendo bloqueado por Google y recomendó el fallback local en Android/Desktop. Es evidencia de una recuperación concreta en esos entornos, no de que cualquier web client o un Invidious remoto vaya a reproducir. TodoTube es hoy una SPA servida por Cloudflare Worker con runtime de navegador y Bridge MV3; no tiene el Node local de Android ni el full backend de Materialious.
+
+La adaptación razonable es separar la selección de motor del PlayerHost y hacer una prueba de compatibilidad del runtime local ya existente (`youtubei.js`) antes de elegir un backend adicional. Un backend remoto/Invidious no se activa como respuesta a un rechazo anti-bot, PoToken/BotGuard, IP/región o acceso. Cambiar la red de salida para superar esa respuesta no cuenta como failover permitido.
+
+Fuentes: [selector de Materialious](https://raw.githubusercontent.com/Materialious/Materialious/main/materialious/src/lib/api/index.ts), [DEV.md: tipos de build y plataformas](https://github.com/Materialious/Materialious/blob/main/docs/DEV.md), [issue #869](https://github.com/Materialious/Materialious/issues/869).
+
+## Puerta de aceptación final E4
+
+La aceptación de playback exige que un vídeo sí se reproduzca en una sesión E4 real del TodoTube desplegado: metadata, primer frame, dimensiones válidas, imagen en movimiento, audio audible y sincronizado, `currentTime` avanzando, seek en ambos sentidos, controles propios y recuperación de una interrupción transitoria en staging con el mismo asset/timeline. Las denegaciones deben detener la cadena y mostrar un error real como prueba de seguridad separada; no cuentan como éxito de reproducción. Una prueba con fixtures o un HTTP 200 no cierra la incidencia. Ver `docs/testing/real-playback-release-gate.md`.
+## SABR: attestation y protección del stream
+
+La ruta SABR para WEB/MWEB debe preparar el contexto de attestation del cliente con `innertube.getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND')` antes de conectar `SabrStreamingAdapter`. El desafío se ejecuta en la misma sesión/identidad y con el API público de YouTube.js; no es una evasión ni usa un servidor auxiliar.
+
+`ShakaPlayerAdapter` transmite `StreamProtectionStatus` detectado en UMP al runtime. Para estado `3`, el runtime re-primea attestation y renueva el WebPO mediante el `BotguardService` del navegador existente. La operación se deduplica y limita con cooldown; no cambia cliente, IP, proxy ni instancia remota.
+
+La respuesta Onesie no se debe considerar SABR-ready por tener un campo UStreamer no vacío. Materialious construye SABR con el `/player` WEB normal y Invidious PR #5814 documenta una diferencia de contextos SABR entre Onesie y el player normal. TodoTube deja de enviar `sendVideoPlaybackConfig=false`, pero aún necesita evidencia real de que el servidor devuelve contextos/segmentos y permite seek. El comportamiento debe verificarse mediante UMP telemetry segura y E4.

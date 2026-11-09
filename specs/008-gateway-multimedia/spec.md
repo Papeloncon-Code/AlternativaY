@@ -55,3 +55,9 @@ La iteración actual soporta MP4, WebM y Ogg progresivos. No incluye Shaka, mani
 ## Límites explícitos
 
 La PoC con fixtures no demostró una ruta YouTube. El Gateway sirve archivos que el propietario tiene derecho a distribuir. No obtiene, descarga, retransmite, desbloquea ni transforma contenido YouTube.
+
+## Validación real de entrega y reproducción
+
+Las pruebas automatizadas de Range, autenticación y catálogo no demuestran por sí solas que el Gateway desplegado entregue un archivo reproducible. El cierre operativo exige cargar un archivo de prueba propio/licenciado, verificar GET/HEAD y Range desde el Worker de producción, y reproducirlo en navegador real con metadata, dimensiones, imagen, sonido audible, avance y seek hacia delante/atrás. Registrar commit, Worker, buckets realmente conectados, checksum/mediaVersion y resultado.
+
+Esta aceptación comprueba exclusivamente la entrega de medios propios/licenciados. No prueba ni resuelve la reproducción de YouTube y no autoriza a convertir el Gateway en proxy de streams externos. La reproducción de YouTube conserva su puerta E4 separada en `docs/testing/real-playback-release-gate.md`.

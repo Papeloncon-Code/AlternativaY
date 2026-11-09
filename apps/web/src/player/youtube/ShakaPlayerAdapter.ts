@@ -15,11 +15,10 @@ import {
 
 import {
   asMap, checkExtension,
-  createRecoverableError,
   getInjectedProxyFunction,
-  headersToGenericObject,
-  makeResponse
+  headersToGenericObject
 } from './helpers';
+import { createRecoverableError, makeResponse } from './shakaHelpers';
 
 interface ShakaResponseArgs {
   uri: string;
@@ -34,6 +33,7 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
   private requestMetadataManager?: RequestMetadataManager;
   private cacheManager?: CacheManager;
   private abortController?: AbortController;
+  private streamProtectionHandler?: (status: number) => Promise<void> | void;
 
   private requestFilter?: (type: shaka.net.NetworkingEngine.RequestType, request: shaka.extern.Request, context?: shaka.extern.RequestContext) => Promise<void>;
   private responseFilter?: (type: shaka.net.NetworkingEngine.RequestType, response: shaka.extern.Response, context?: shaka.extern.RequestContext) => Promise<void>;
@@ -59,6 +59,10 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         networkingEngine.PluginPriority.PREFERRED
       );
     });
+  }
+
+  public setStreamProtectionHandler(handler: (status: number) => Promise<void> | void): void {
+    this.streamProtectionHandler = handler;
   }
 
   private parseRequest(
@@ -171,8 +175,16 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
 
     const sabrUmpReader = new SabrUmpProcessor(requestMetadata, this.cacheManager);
 
+    const handleStreamProtectionStatus = async () => {
+      const protectionStatus = requestMetadata.streamInfo?.streamProtectionStatus?.status;
+      if (protectionStatus !== undefined) {
+        await this.streamProtectionHandler?.(protectionStatus);
+      }
+    };
+
     const checkResultIntegrity = (result: UmpProcessingResult) => {
-      if (!result.data && ((!!requestMetadata.error || requestMetadata.streamInfo?.streamProtectionStatus?.status === 3) && !requestMetadata.streamInfo?.sabrContextUpdate)) {
+      const protectionStatus = requestMetadata.streamInfo?.streamProtectionStatus?.status;
+      if (!result.data && ((!!requestMetadata.error || protectionStatus === 3) && !requestMetadata.streamInfo?.sabrContextUpdate)) {
         throw createRecoverableError('Server streaming error', requestMetadata);
       }
     };
@@ -194,6 +206,7 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
       progressUpdated(currentTime - lastTime, arrayBuffer.byteLength, 0);
 
       const result = await sabrUmpReader.processChunk(new Uint8Array(arrayBuffer));
+      await handleStreamProtectionStatus();
 
       if (result) {
         checkResultIntegrity(result);
@@ -233,6 +246,7 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         }
 
         const result = await sabrUmpReader.processChunk(value);
+        await handleStreamProtectionStatus();
 
         const segmentInfo = sabrUmpReader.getSegmentInfo();
 
