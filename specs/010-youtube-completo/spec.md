@@ -63,3 +63,12 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 ## Regla de cierre E4
 
 Build, TypeScript, Playwright con fixtures, resultado de extractor, respuesta JSON, manifest, URL o `readyState` sin audio comprobado son evidencias parciales, no éxito final. La única aceptación de reproducción es una ejecución E4 real conforme a `docs/testing/real-playback-release-gate.md` desde el despliegue objetivo. El registro debe incluir evidencia de imagen, audio audible, avance, seek de ida/vuelta, controles propios y recuperación transitoria. El manejo correcto de denegaciones se registra como prueba de seguridad separada. Hasta entonces el estado permanece **PLAYBACK PENDIENTE DE VALIDACIÓN REAL**.
+
+## SABR y attestation en runtime web
+
+- CA10.19: WEB/MWEB llama a `getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND')` en la misma sesión antes de adjuntar SABR; el proceso tiene timeout/reintentos limitados y no rota identidad.
+- CA10.20: `ShakaPlayerAdapter` comunica los eventos `StreamProtectionStatus` UMP al runtime; status `3` solicita actualización de attestation y nuevo WebPO del `BotguardService` local, con deduplicación/cooldown.
+- CA10.21: el request Onesie no establece `sendVideoPlaybackConfig=false`; la respuesta se valida en navegador real por segmentos/context updates, no solo por la presencia de un campo UStreamer.
+- CA10.22: no se añade helper externo, proxy, `jsdom` con origen falsificado, cambio de IP ni backend remoto para eludir BotGuard/PoToken.
+
+Estos criterios necesitan CI y E4 real. No están aceptados solo por su implementación o por fixtures.
