@@ -57,6 +57,7 @@ test('explicit access, consent and automated-query restrictions stop all YouTube
   for (const message of [
     'LOGIN_REQUIRED',
     'AGE_CHECK_REQUIRED',
+    'AGE_VERIFICATION_REQUIRED',
     'Sign in to confirm you are not a bot',
     'This network is sending automated queries',
   ]) {
@@ -98,4 +99,18 @@ test('stall watchdog ignores pause, seek, ended, background and offline states',
   ]) {
     expect(shouldRecoverPlaybackStall(idleStall(patch))).toBe(false);
   }
+});
+
+test('generic UNPLAYABLE status remains eligible for another client, explicit age gates do not', () => {
+  expect(shouldStopClientFallback(new Error('UNPLAYABLE: This video is not available.'))).toBe(false);
+  expect(shouldStopSourceFallback(new Error('UNPLAYABLE: This video is not available.'))).toBe(false);
+  const ageGate = new Error('AGE_VERIFICATION_REQUIRED');
+  expect(shouldStopClientFallback(ageGate)).toBe(true);
+  expect(shouldStopSourceFallback(ageGate)).toBe(true);
+});
+
+test('decoded Onesie HTTP 403 is preserved as an access denial', () => {
+  const decodedOnesieFailure = new InnerTubePlayerHttpError(403, 'Onesie player response was rejected.');
+  expect(shouldStopClientFallback(decodedOnesieFailure)).toBe(true);
+  expect(shouldStopSourceFallback(decodedOnesieFailure)).toBe(true);
 });
