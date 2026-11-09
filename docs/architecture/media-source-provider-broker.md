@@ -27,9 +27,11 @@ Un solo reproductor TodoTube y varios proveedores/rutas detrás de un contrato c
 
 - Onesie player request como primera ruta para WEB.
 - InnerTube estándar como respaldo en el mismo perfil.
-- Perfiles alternativos: VISIONOS, MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_VR, ANDROID_CREATOR y ANDROID.
+- Perfiles actualmente incluidos con `youtubei.js@16.0.0`: MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID. VISIONOS y ANDROID_VR no están en el tipo ni en la cadena de fallback del build actual.
 - Para cada respuesta, construir candidatos SABR, DASH, HLS y progresivos válidos.
-- Si el flujo falla, renovar player response/URLs una vez y avanzar al siguiente candidato y perfil.
+- Si el flujo falla por timeout, red, 5xx o estancamiento, renovar una vez cuando proceda y avanzar al siguiente candidato/perfil.
+- Una respuesta 400 detiene la rotación de perfiles; 401/403/407/429 y restricciones explícitas detienen el failover a otras rutas de YouTube. No se intenta sortearlas cambiando identidad.
+- El watchdog detecta más de 12 s sin avance y sin buffer útil (0,25 s), muestrea cada segundo, ignora pausa/seek/ended/oculto/offline y limita la recuperación a tres intentos.
 - El broker registra éxito/fallo y aplica cooldown.
 - El runtime solo cuenta una fuente como funcional cuando Shaka carga y empieza a entregar datos.
 
@@ -63,7 +65,9 @@ El runtime recibe resumeAt y wasPlaying. El player conserva posición, volumen, 
 ## Pruebas necesarias
 
 - Onesie falla -> InnerTube normal.
-- Perfil falla -> siguiente perfil.
+- Timeout/red/5xx en perfil -> siguiente perfil.
+- HTTP 400 -> no cambiar de perfil.
+- 401/403/407/429/restricción explícita -> detener rutas YouTube.
 - SABR falla -> DASH/HLS/directo si la respuesta provee candidatos válidos.
 - URL vencida -> renovación y después failover.
 - R2 falla a mitad de vídeo -> runtime web, posición y estado preservados.
@@ -71,5 +75,8 @@ El runtime recibe resumeAt y wasPlaying. El player conserva posición, volumen, 
 - Rechazar fingerprint/timeline incompatible.
 - Confirmar audio y vídeo completos, seek, buffering y fullscreen en navegadores objetivo.
 - Medir TTFF, tasa de buffer y tiempo de failover.
+- Verificar que el watchdog respeta el presupuesto y evita reintentos repetidos después del agotamiento.
 
-El código presente en PR #37 es una primera integración. No se certifica playback completo hasta ejecutar pruebas reales de navegador y medios.
+La investigación comparativa y las decisiones de adaptación se detallan en `docs/research/12-comparativa-materialious-chrupipe-invidious.md` y `docs/research/13-adaptacion-materialious-chrupipe-invidious-a-todotube.md`. La recuperación nueva deriva del patrón de watchdog de Materialious; ChruPipe aporta recuperación HLS/progresivo y el modelo de formatos; Invidious aporta un contrato alternativo de extracción/formatos que queda como provider futuro, no activado. No se encontró un warm standby independiente en esos proyectos.
+
+El código presente en PR #37 es una primera integración. La recuperación segura está en la rama/PR de adaptación y requiere CI más pruebas de navegador real. No se certifica playback completo hasta ejecutar pruebas reales de navegador y medios.
