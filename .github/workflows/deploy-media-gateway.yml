@@ -25,6 +25,9 @@ jobs:
           node-version: '22'
       - name: Comprobar token configurado
         run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Falta CLOUDFLARE_API_TOKEN"; exit 1; }
+      - name: Instalar dependencias del Gateway
+        working-directory: apps/web
+        run: npm ci
       - name: Crear buckets R2 si todavía no existen
         working-directory: apps/web
         run: |
@@ -37,6 +40,6 @@ jobs:
               npx wrangler r2 bucket create "$bucket"
             fi
           done
-      - name: Instalar Wrangler y publicar Gateway
+      - name: Publicar Gateway multimedia
         working-directory: apps/web
-        run: npm ci && npx wrangler deploy --config ../media-gateway/wrangler.toml
+        run: npx wrangler deploy --config ../media-gateway/wrangler.toml
