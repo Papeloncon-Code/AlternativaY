@@ -29,6 +29,8 @@ async function removeNetRequestRules(ids: number[]): Promise<void> {
   if (ids.length) await chrome.declarativeNetRequest.updateSessionRules({ removeRuleIds: ids });
 }
 
+const BINARY_BODY_PREFIX = '__TODOTUBE_BINARY_BASE64__:';
+
 function encodeBase64(bytes: Uint8Array): string {
   let binary = '';
   const chunkSize = 0x8000;
@@ -63,13 +65,9 @@ async function handleFetchRequest(request: FetchRequest, sendResponse: (response
     }]);
 
     let body = options.body;
-    if (typeof body === 'string' && (options.method || 'POST') !== 'GET') {
-      try {
-        const binary = atob(body);
-        body = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-      } catch {
-        // Text bodies remain strings.
-      }
+    if (typeof body === 'string' && body.startsWith(BINARY_BODY_PREFIX)) {
+      const binary = atob(body.slice(BINARY_BODY_PREFIX.length));
+      body = Uint8Array.from(binary, (char) => char.charCodeAt(0));
     }
 
     const response = await fetch(request.url, {
