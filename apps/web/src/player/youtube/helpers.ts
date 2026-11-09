@@ -19,10 +19,6 @@ export interface EncryptedRequest {
 export const REDIRECTOR_STORAGE_KEY = 'todotube_googlevideo_redirector';
 export const CLIENT_CONFIG_STORAGE_KEY = 'todotube_onesie_config';
 
-export function checkExtension(): boolean {
-  return window.ytcBridge?.installed === true && typeof window.proxyFetch === 'function';
-}
-
 function decodeBase64(value: string): Uint8Array {
   const binary = atob(value);
   const bytes = new Uint8Array(binary.length);
