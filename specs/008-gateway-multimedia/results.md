@@ -9,6 +9,7 @@
 - Límite de carga: 90 MiB.
 - Tests unitarios de health, Range, HEAD, 416, privacidad, autenticación, licencia, catálogo y CORS.
 - UI `/medios` y `/medios/:id`.
+- Estado de almacenamiento en `/medios`, leído desde `/health`, con recuento real de orígenes configurados/disponibles y mensajes de carga adaptados al número escrito.
 - Player HTML5 nativo con controles propios; no usa Shaka.
 - Código web y empaquetado de Puente retirados.
 

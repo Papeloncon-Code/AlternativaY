@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchGatewayCatalog, type GatewayMedia } from '../api';
-import { uploadGatewayMedia } from '../mediaGateway';
+import { fetchGatewayHealth, uploadGatewayMedia, type GatewayHealth } from '../mediaGateway';
 import { Empty } from '../components/States';
 import Icon from '../components/Icon';
 import { useTitle } from '../title';
@@ -19,6 +19,8 @@ export default function MediaLibrary() {
   const [items, setItems] = useState<GatewayMedia[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [health, setHealth] = useState<GatewayHealth | null>(null);
+  const [healthError, setHealthError] = useState('');
   const [mediaId, setMediaId] = useState('');
   const [title, setTitle] = useState('');
   const [creator, setCreator] = useState('');
@@ -32,6 +34,30 @@ export default function MediaLibrary() {
   const fileInput = useRef<HTMLInputElement>(null);
   useTitle('Medios propios');
 
+  async function reloadHealth() {
+    try {
+      setHealth(await fetchGatewayHealth());
+      setHealthError('');
+    } catch (e) {
+      setHealth(null);
+      setHealthError(e instanceof Error ? e.message : 'No se pudo comprobar el estado del almacenamiento.');
+    }
+  }
+
+  function originStatusText(value: GatewayHealth) {
+    if (value.originsConfigured === 0) return 'No hay ningún origen de almacenamiento configurado.';
+    if (value.originsAvailable === 0 || !value.ok) {
+      return `Sin disponibilidad: 0 de ${value.originsConfigured} orígenes responden.`;
+    }
+    if (value.degraded) {
+      return `Servicio degradado: ${value.originsAvailable} de ${value.originsConfigured} orígenes disponibles.`;
+    }
+    if (value.originsConfigured === 1) {
+      return 'Disponible en un solo origen. El archivo funciona, pero no tiene redundancia.';
+    }
+    return `Operativo: ${value.originsAvailable} de ${value.originsConfigured} orígenes disponibles.`;
+  }
+
   async function reloadCatalog() {
     const data = await fetchGatewayCatalog();
     setItems(data);
@@ -40,6 +66,7 @@ export default function MediaLibrary() {
 
   useEffect(() => {
     let live = true;
+    void reloadHealth();
     fetchGatewayCatalog().then((data) => { if (live) setItems(data); })
       .catch((e) => { if (live) setError(e instanceof Error ? e.message : String(e)); })
       .finally(() => { if (live) setLoading(false); });
@@ -90,9 +117,13 @@ export default function MediaLibrary() {
         visibility: 'public',
       });
       await reloadCatalog();
-      setUploadMessage(result.replicas.degraded
-        ? 'El archivo quedó en un solo origen. No se considera publicado: revisa la réplica antes de usarlo.'
-        : 'Archivo cargado, verificado y replicado en los dos buckets.');
+      await reloadHealth();
+      const { written, configured, degraded } = result.replicas;
+      setUploadMessage(degraded || written < configured
+        ? `Carga parcial: ${written} de ${configured} orígenes escritos. No consideres el archivo redundante.`
+        : configured < 2
+          ? 'Carga completada en un único origen. El archivo queda disponible, pero sin redundancia.'
+          : `Carga completada en ${written} orígenes.`);
       setToken('');
       setFile(null);
       if (fileInput.current) fileInput.current.value = '';
@@ -106,10 +137,16 @@ export default function MediaLibrary() {
   return <div className="page media-library">
     <div className="page-head-row"><h1 className="page-title"><Icon name="library" size={24} /> Medios propios</h1></div>
     <p className="sub">Archivos alojados en TodoTube. Solo se publican vídeos propios o con licencia expresa para su distribución.</p>
+    <section className="media-origin-status" role="status" aria-live="polite"
+      data-state={!health ? (healthError ? 'unknown' : 'checking') : (!health.ok || health.degraded || health.originsConfigured < 2 ? 'warning' : 'ready')}>
+      <strong>Disponibilidad del almacenamiento</strong>
+      <span>{health ? originStatusText(health) : healthError || 'Comprobando los orígenes configurados…'}</span>
+      {healthError && <span>No se pudo confirmar la redundancia. No se debe asumir que existe una segunda copia.</span>}
+    </section>
 
     <section className="media-upload" aria-labelledby="media-upload-title">
       <div className="media-upload-head">
-        <div><h2 id="media-upload-title">Cargar un archivo</h2><p>MP4, WebM u Ogg · máximo 90 MiB · escritura verificada en ambos buckets.</p></div>
+        <div><h2 id="media-upload-title">Cargar un archivo</h2><p>MP4, WebM u Ogg · máximo 90 MiB · la carga se escribe en todos los orígenes configurados.</p></div>
         <Icon name="upload" size={22} />
       </div>
       <form className="media-upload-form" onSubmit={submitUpload}>
@@ -144,7 +181,7 @@ export default function MediaLibrary() {
         {uploadMessage && <p className="media-upload-success" role="status">{uploadMessage}</p>}
         <div className="media-upload-actions">
           <button className="btn primary" type="submit" disabled={uploading}>{uploading ? 'Cargando y replicando…' : 'Subir archivo'}</button>
-          <span>Solo se publica cuando ambas copias quedan escritas correctamente.</span>
+          <span>La carga se acepta únicamente cuando todos los orígenes configurados confirman la escritura.</span>
         </div>
       </form>
     </section>

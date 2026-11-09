@@ -51,6 +51,7 @@ La iteración actual soporta MP4, WebM y Ogg progresivos. No incluye Shaka, mani
 - CA-11: /medios y /medios/:id usan catálogo y stream del Gateway.
 - CA-12: player reproduce MP4/WebM/Ogg con seek mediante Range.
 - CA-13: build y Playwright pasan sin Puente.
+- CA-14: `/medios` muestra `originsAvailable` frente a `originsConfigured`; si solo existe un origen, declara explícitamente que no hay redundancia y nunca afirma que se escribió en dos buckets.
 
 ## Límites explícitos
 

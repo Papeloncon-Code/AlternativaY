@@ -2,6 +2,30 @@ const BASE = (import.meta.env.VITE_MEDIA_GATEWAY_URL || 'https://todotube-media-
 export const gatewayUrl = (path: string) => BASE + (path.startsWith('/') ? path : '/' + path);
 export const gatewayMediaUrl = (id: string) => gatewayUrl('/v1/media/' + encodeURIComponent(id));
 
+export type GatewayHealth = {
+  ok: boolean;
+  service: string;
+  originsConfigured: number;
+  originsAvailable: number;
+  degraded: boolean;
+};
+
+/** Read the Gateway's live origin count. HTTP 503 is still a valid health payload
+ * when all configured origins are unavailable; callers need that detail. */
+export async function fetchGatewayHealth(): Promise<GatewayHealth> {
+  const response = await fetch(gatewayUrl('/health'), { cache: 'no-store' });
+  const data = await response.json().catch(() => null) as Partial<GatewayHealth> | null;
+  if (!data || typeof data.ok !== 'boolean' || typeof data.service !== 'string' ||
+      !Number.isInteger(data.originsConfigured) || !Number.isInteger(data.originsAvailable) ||
+      typeof data.degraded !== 'boolean') {
+    throw new Error('El Gateway no devolvió un estado de almacenamiento válido.');
+  }
+  if (!response.ok && response.status !== 503) {
+    throw new Error('No se pudo consultar el estado del Gateway (HTTP ' + response.status + ').');
+  }
+  return data as GatewayHealth;
+}
+
 export async function hasPublicGatewayVideo(id: string): Promise<boolean> {
   try {
     const response = await fetch(gatewayMediaUrl(id), { method: 'HEAD' });

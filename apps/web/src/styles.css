@@ -979,3 +979,20 @@ img.avatar { object-fit: cover; background: var(--chip); }
   object-fit: contain;
 }
 .player-dock.gateway.mini .gateway-controls { min-height: 38px; box-sizing: border-box; }
+
+
+/* Estado real de redundancia del Media Gateway; no se infiere por la configuración del cliente. */
+.media-origin-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-elev);
+  font-size: 13px;
+}
+.media-origin-status strong { font-size: 13px; }
+.media-origin-status span { color: var(--text-2); line-height: 1.45; }
+.media-origin-status[data-state="warning"] { border-color: var(--line); }
