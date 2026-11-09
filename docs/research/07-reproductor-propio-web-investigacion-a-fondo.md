@@ -4,7 +4,7 @@
 
 ## Hallazgo principal
 
-Kira demuestra un reproductor web con UI propia y transportes SABR mediante Shaka. Utiliza youtubei.js, googlevideo, BgUtils y un Bridge del navegador para resolver las barreras de origen. El vídeo no necesita pasar por un proxy multimedia de TodoTube.
+Kira demuestra un runtime web con Bridge local; Materialious full web demuestra un backend Node con proxy same-origin. TodoTube prueba ahora una adaptación intermedia: youtubei.js/BotGuard/Shaka permanecen en el cliente, y el Worker del mismo dominio actúa como relay HTTPS acotado para solicitudes de control y segmentos.
 
 La integración de TodoTube toma la arquitectura de Kira como base de implementación MIT, preservando el aviso de licencia. Toma de Flow la estrategia de redundancia y recuperación, pero no copia su código GPL.
 
@@ -15,7 +15,7 @@ La referencia actual de Flow ha cambiado: Flow Desktop utiliza su propio cliente
 ## Ruta técnica elegida
 
 1. TodoTube inicia un único Shaka Player y conecta su UI propia.
-2. TodoTube Bridge habilita el transporte de solicitudes desde el navegador del usuario.
+2. El Worker Relay recibe solicitudes same-origin de la web, valida host/ruta y método y transmite la respuesta upstream sin almacenar el medio.
 3. El proveedor WEB intenta Onesie y cae a InnerTube normal.
 4. El broker continúa por perfiles de cliente alternativos.
 5. Cada respuesta genera candidatos SABR, DASH, HLS o progresivos cuando son válidos.
@@ -26,20 +26,20 @@ La referencia actual de Flow ha cambiado: Flow Desktop utiliza su propio cliente
 ## Proyectos de referencia y licencias
 
 - [Kira](https://github.com/LuanRT/kira): MIT. Se han adaptado partes de BotguardService, ShakaPlayerAdapter, helpers y lógica Onesie/SABR; ver el archivo THIRD_PARTY_NOTICES.md dentro del runtime web.
-- [ytc-bridge](https://github.com/LuanRT/ytc-bridge): MIT. El Bridge de TodoTube adapta permisos, orígenes y validación de destinos; conserva su LICENSE.
+- [Materialious full web](https://github.com/Materialious/Materialious/blob/main/docs/DOCKER-FULL.md): referencia para proxy same-origin con allowlist y límites. TodoTube no copia su backend Node ni su configuración de autenticación.
 - [googlevideo](https://github.com/LuanRT/googlevideo): dependencia MIT de transporte SABR/UMP.
 - [Flow Android](https://github.com/Flow-YouTube/Flow) y [Flow Desktop](https://github.com/Flow-YouTube/Flow-Desktop): referencia de arquitectura y comportamiento; sus implementaciones GPL no se copian dentro de TodoTube.
 
 ## Qué no se debe volver a afirmar
 
 - No es cierto que la única forma web de tener un player propio sea usar un iframe oficial.
-- No es cierto que el único fallback sea un proxy multimedia server-side.
+- El proxy same-origin es una opción para resolver CORS, pero no es una CDN nueva ni una forma de saltarse denegaciones de YouTube.
 - La extensión oficial de Flow no es el Bridge de TodoTube: Flow Desktop y su extensión funcionan como aplicación de escritorio y handoff; TodoTube necesita su propio runtime web.
 - Un perfil InnerTube alternativo no equivale a un proveedor independiente de CDN. La independencia real requiere orígenes de contenido distintos, como una copia autorizada R2 o un origin de creador.
 
 ## Estado real de integración
 
-La PR #37 pasó CI #467: build, TypeScript, Bridge, Gateway, avisos y 86/86 pruebas Playwright; CodeQL #106 pasó. La PR sigue sin fusionar ni publicar. Playwright utiliza API/fixtures locales: no prueba que YouTube entregue audio y vídeo reales ni que el Bridge funcione instalado en Chrome/Edge. Esa validación manual sigue pendiente.
+La implementación original pasó build y Playwright con fixtures, pero sus smokes reales con Bridge no alcanzaron metadata ni primer frame. La nueva variante sin Bridge está en la rama `fix/web-playback-without-bridge-2026-11-09`; su CI debe probar contratos/seguridad y el deploy de `main` ejecutará un nuevo smoke E4 sin cargar extensiones. No se considera terminada hasta ver vídeo real.
 
 ## Pendiente de prueba
 
