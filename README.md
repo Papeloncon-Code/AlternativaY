@@ -1,6 +1,6 @@
 # TodoTube
 
-> Estado de código: 8 de noviembre de 2026. La presencia de código en una rama o PR no implica que esté fusionado ni publicado. Consulta ADR-013 para la arquitectura objetivo y el estado de reproducción.
+> Estado de código: 9 de noviembre de 2026. PR #37 tiene CI y CodeQL en verde (86 pruebas Playwright); sigue sin fusionar ni desplegar. La compilación no sustituye la prueba manual de reproducción real.
 
 TodoTube es una aplicación web para descubrir vídeos y canales, organizar una biblioteca personal y reproducir vídeos dentro de un reproductor propio con controles y continuidad propios.
 
@@ -20,7 +20,9 @@ El runtime integra Shaka Player, youtubei.js, googlevideo/SABR y una cadena de p
 
 El cambio automático de fuente conserva posición, play/pause, volumen y velocidad. La redundancia de clientes/modos dentro de YouTube aumenta tolerancia a fallos del proveedor, pero no equivale a una CDN independiente; la redundancia de dominio se logra con copias propias/licenciadas o un origin autorizado del creador.
 
-**Estado de implementación:** PR #37 integra la primera versión de broker, runtime SABR/Onesie, perfiles alternativos y Bridge. Sigue en revisión; no está fusionado ni desplegado. La validación definitiva exige reproducir audio y vídeo reales de principio a fin, probar seek y forzar el failover. No declarar playback completo antes de superar esa matriz.
+**Requisito del navegador:** la reproducción SABR web requiere instalar y habilitar TodoTube Bridge en Chrome o Edge (Manifest V3). Sin la extensión, la web muestra un error recuperable y no inserta un iframe. La web por sí sola todavía no ofrece playback universal en una instalación limpia; Firefox, Safari y navegadores móviles no están validados.
+
+**Estado de implementación:** PR #37 integra PlayerHost, Playback Broker, Shaka/SABR/Onesie, transportes y clientes alternativos y Bridge MV3. La rama compila y pasa 86 pruebas Playwright y CodeQL, pero aún no está fusionada ni desplegada. CI valida contratos/UI con fixtures, no demuestra reproducción audiovisual desde YouTube.
 
 ## Media Gateway R2
 
