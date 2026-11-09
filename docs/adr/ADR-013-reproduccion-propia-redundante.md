@@ -73,6 +73,22 @@ TodoTube UI / PlayerHost (un solo reproductor)
 - No se almacenan credenciales de Google en nuestros servidores.
 - La implementación técnica no constituye una garantía de cumplimiento de las condiciones de terceros. Antes de distribución comercial se revisan términos, licencias y jurisdicciones aplicables; una incertidumbre externa no se convierte en una prohibición interna automática, pero sí se registra como riesgo concreto.
 
+## Hallazgo adicional: fallback local de Materialious
+
+La inspección del código de Materialious añade una pista que debe distinguirse de un segundo CDN:
+
+- Su función de selección de vídeo puede elegir `getVideoYTjs()` en vez de `getVideoInvidious()` cuando el backend YouTube está activo, cuando `useEngineFallback('Video')` lo decide o cuando se fuerza YouTube.js en una plataforma no restringida.
+- Su documentación de desarrollador distingue SPA web estática, full web con backend Node, Desktop/Electron y Android. Define la plataforma no restringida como full backend o plataforma nativa; por tanto, la SPA estática no recibe automáticamente el mismo fallback local.
+- En el issue Materialious #869, el mantenedor atribuyó el fallo de reproducción web a que Google estaba bloqueando Invidious y recomendó usar el fallback local en Android/Desktop. Esto demuestra una recuperación en esos entornos concretos, no una garantía para una SPA web estática.
+- TodoTube ya tiene un runtime de navegador con `youtubei.js`; todavía no tiene el Node runtime local de Android ni el full backend de Materialious. Una prueba de compatibilidad de versiones y una ejecución E4 real deben preceder a cualquier cambio de runtime.
+- Un backend remoto o una instancia Invidious no se debe utilizar para desplazar solicitudes a otra red cuando la respuesta indique BotGuard, PoToken, tráfico automatizado, restricciones de acceso, región o IP. Eso sería cambiar el origen de la petición para evitar una denegación, no una recuperación técnica autorizada.
+
+Fuentes de la investigación: [Materialious issue #869](https://github.com/Materialious/Materialious/issues/869), [Materialious DEV.md — tipos de app y runtime](https://github.com/Materialious/Materialious/blob/main/docs/DEV.md), [selector de motor de Materialious](https://raw.githubusercontent.com/Materialious/Materialious/main/materialious/src/lib/api/index.ts).
+
+## Puerta final de aceptación E4
+
+La aceptación de playback se cierra solo con un vídeo real en el TodoTube desplegado: metadata y primer frame, dimensiones válidas, imagen en movimiento, sonido audible sincronizado, avance sostenido de `currentTime`, seek de ida y vuelta, pausa/reanudación, volumen, velocidad y pantalla completa desde controles TodoTube, y recuperación segura de un fallo transitorio en staging. La denegación explícita debe detener la cadena sin cambiar de identidad ni usar otro backend para eludirla. La prueba debe registrar navegador, Bridge, commit y proveedor/ruta. Ver `docs/testing/real-playback-release-gate.md`.
+
 ## Criterios de aceptación
 
 - Reproducir un vídeo real de duración completa en Chrome y Edge con controles propios.
@@ -85,8 +101,8 @@ TodoTube UI / PlayerHost (un solo reproductor)
 - Confirmar que no existe iframe de YouTube como fallback dentro de TodoTube.
 - Medir tiempo al primer frame, duración de cada intento, tasa de éxito por proveedor y tiempo de failover.
 - Pruebas automatizadas de los contratos y pruebas manuales con vídeos públicos variados, directos, Shorts, vídeos largos y casos restringidos.
-- No se declara terminado por pasar TypeScript: exige evidencia real de audio/vídeo completo.
+- Build, TypeScript, contratos y Playwright son puertas intermedias; **E4 es el único cierre** y exige evidencia real de audio/vídeo, seek, controles propios y recuperación en el despliegue objetivo.
 
 ## Estado actual de implementación
 
-PR #37 integra la primera versión a nivel de código. En el commit `1528993e1ac1a0f6185adbe18e7f8c706d3c537b`, CI #467 terminó con build, TypeScript, Bridge, Gateway, avisos y 86/86 pruebas Playwright en verde; CodeQL #106 también pasó. La PR permanece en borrador y no está desplegada. Aún faltan instalación del Bridge en navegador real y evidencia de reproducción de audio/vídeo, seek y failover con contenido real. Por tanto, playback no se declara completo.
+PR #37 integra la primera versión a nivel de código y ya está fusionada en `main`. En el commit `1528993e1ac1a0f6185adbe18e7f8c706d3c537b`, CI #467 terminó con build, TypeScript, Bridge, Gateway, avisos y 86/86 pruebas Playwright en verde; CodeQL #106 también pasó. La integración no equivale a aceptación E4. El smoke desplegado del 2026-11-09 no decodificó metadata y las ramas de diagnóstico/recuperación #46–#47 siguen abiertas sin fusionar ni desplegar. Aún falta evidencia E4 de imagen, sonido audible, seek y recuperación con contenido real. Por tanto, playback no se declara completo.
