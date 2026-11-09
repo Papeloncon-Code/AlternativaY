@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | PR #37: build y 86/86 Playwright verdes; reproducción real en navegador pendiente |
+| Estado | Implementación de PR #37 fusionada en `main`; correcciones #39–#43 integradas; smoke de producción aún recibe HTTP 400 en `/youtubei/v1/player`; reproducción real pendiente |
 | Decisión rectora | ADR-013 |
 | Broker | Especificación 009 |
 | Plataformas | Web Chrome/Edge (Bridge MV3); Android/Desktop vía providers nativos futuros |
@@ -45,7 +45,8 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 - Probar desde una instalación limpia sin Bridge y comprobar que el error explica el requisito sin crear iframe.
 - Probar el flujo con Bridge activo; CI Playwright no sustituye esta verificación.
 - Reproducir un vídeo público corto, un vídeo largo (>1 h), un vídeo con audio adaptativo, un Short y un directo cuando la fuente entregue una ruta compatible.
-- Forzar fallo de Onesie, perfil WEB, SABR y R2 para demostrar failover.
+- Forzar fallos de Onesie, perfiles InnerTube y transportes para demostrar failover entre rutas YouTube.
+- Resolver primero el HTTP 400 observado en `/youtubei/v1/player` y adjuntar evidencia de audio/vídeo real, seek y recuperación antes de cerrar la aceptación.
 - Verificar audio, seek, reanudación y ausencia de audio duplicado.
 - Medir TTFF p50/p75, buffer ratio y tiempo de conmutación.
 - Validar Firefox/Android por separado; Manifest V3 inicial cubre Chrome/Edge, no implica compatibilidad universal.
