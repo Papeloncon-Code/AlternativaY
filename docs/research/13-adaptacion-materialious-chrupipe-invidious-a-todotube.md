@@ -151,3 +151,27 @@ La aceptación de esta fase exige:
 - Playwright: watchdog recupera únicamente tras 2 segundos sin progreso y sin buffer; no se dispara por pausa, seek, pestaña oculta, offline o buffer suficiente.
 - En navegador real, comprobar que una interrupción transitoria conserva posición y que una denegación no produce intentos con otros perfiles.
 - Mantener como pendiente separado la reproducción real en producción: el smoke de GitHub Actions no prueba el comportamiento desde la red doméstica del usuario.
+
+## Hallazgo adicional: el fallback local de Materialious sí aborda un caso de bloqueo, pero depende de la plataforma
+
+La lectura del selector real de Materialious precisa la pista inicial:
+
+- `getVideo()` puede elegir `getVideoYTjs()` en lugar de `getVideoInvidious()` cuando el backend YouTube está seleccionado, cuando `useEngineFallback('Video')` está activo o cuando la preferencia fuerza YT.js en una plataforma no restringida.
+- Materialious define `isUnrestrictedPlatform()` como full web backend propio o plataforma nativa. Su `docs/DEV.md` separa SPA estática, web con Node backend, Desktop/Electron y Android. La SPA web estática común no recibe automáticamente el mismo fallback local.
+- En [Materialious #869](https://github.com/Materialious/Materialious/issues/869), un usuario no podía reproducir desde el cliente web. El mantenedor respondió que Google estaba bloqueando Invidious y recomendó utilizar el fallback local en Android/Desktop. Es evidencia de que el segundo motor solucionó ese caso en esos entornos nativos; no demuestra éxito en una SPA estática.
+- TodoTube ya realiza extracción desde el navegador mediante `youtubei.js`; por tanto, incorporar otro botón o alias `youtubei.js` no crea un segundo motor. La diferencia a investigar es el entorno local de ejecución y la compatibilidad de versiones, no una segunda URL de YouTube.
+- Un full backend propio tendría un contexto de red distinto. No se desplegará para mover solicitudes a otra IP ni para superar BotGuard/PoToken, anti-bot, geo/IP o restricciones de acceso. Solo podría estudiarse si el fallo se identifica como incompatibilidad técnica no restrictiva y supera revisión separada y E4.
+
+### Consecuencia para la arquitectura de TodoTube
+
+1. Mantener el PlayerHost/Shaka y el contrato de candidatos; el motor alternativo nunca crea otro reproductor visible.
+2. Probar primero la actualización controlada de la biblioteca de extracción sobre el runtime de navegador ya existente, comparando el mismo vídeo y entorno con el baseline. El snapshot consultado de `materialious/package.json` declara `youtubei.js ^17.0.1`, `googlevideo ^4.0.4` y `shaka-player ^4.16.14`; TodoTube usa `youtubei.js ^16.0.0`, `googlevideo ^4.0.4` y `shaka-player ^4.16.4`. Esto identifica una diferencia verificable, no una causa demostrada del HTTP 400.
+3. No actualizar dependencias ni infraestructura sin regenerar lockfile, build/TypeScript, Playwright, Bridge y E4 real. Las versiones de otra app son un baseline de compatibilidad, no una garantía.
+4. Mantener Invidious como provider experimental solo para contenido/rutas que no hayan sido denegados por políticas de acceso. Ante texto anti-bot, `FAILED_PRECONDITION` restrictivo, PoToken/BotGuard, región o IP, no cambiar a Invidious para obtener el mismo medio.
+5. No declarar independencia de origen: Invidious y el runtime local siguen resolviendo el contenido desde el origen YouTube.
+
+Fuentes adicionales: [selector `getVideo()` de Materialious](https://raw.githubusercontent.com/Materialious/Materialious/main/materialious/src/lib/api/index.ts), [DEV.md — configuraciones de app y runtime](https://github.com/Materialious/Materialious/blob/main/docs/DEV.md), [Materialious issue #869](https://github.com/Materialious/Materialious/issues/869).
+
+## Criterio final de cierre
+
+La comparación queda como investigación, no como prueba de éxito. Solo E4 —imagen real, sonido audible y sincronizado, avance, seek de ida/vuelta, controles TodoTube y recuperación segura dentro del despliegue objetivo— permite cerrar playback. Build, Playwright con fixtures, metadatos, manifests o URLs se reportan como niveles intermedios. La ejecución y el formato de evidencia están definidos en `docs/testing/real-playback-release-gate.md`.
