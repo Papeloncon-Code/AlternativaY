@@ -176,12 +176,15 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
 
     const sabrUmpReader = new SabrUmpProcessor(requestMetadata, this.cacheManager);
 
-    const checkResultIntegrity = async (result: UmpProcessingResult) => {
+    const handleStreamProtectionStatus = async () => {
       const protectionStatus = requestMetadata.streamInfo?.streamProtectionStatus?.status;
       if (protectionStatus !== undefined) {
         await this.streamProtectionHandler?.(protectionStatus);
       }
+    };
 
+    const checkResultIntegrity = (result: UmpProcessingResult) => {
+      const protectionStatus = requestMetadata.streamInfo?.streamProtectionStatus?.status;
       if (!result.data && ((!!requestMetadata.error || protectionStatus === 3) && !requestMetadata.streamInfo?.sabrContextUpdate)) {
         throw createRecoverableError('Server streaming error', requestMetadata);
       }
@@ -204,9 +207,10 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
       progressUpdated(currentTime - lastTime, arrayBuffer.byteLength, 0);
 
       const result = await sabrUmpReader.processChunk(new Uint8Array(arrayBuffer));
+      await handleStreamProtectionStatus();
 
       if (result) {
-        await checkResultIntegrity(result);
+        checkResultIntegrity(result);
         return this.createShakaResponse({ uri, request, requestType, response, arrayBuffer: result.data });
       }
 
@@ -243,6 +247,7 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         }
 
         const result = await sabrUmpReader.processChunk(value);
+        await handleStreamProtectionStatus();
 
         const segmentInfo = sabrUmpReader.getSegmentInfo();
 
@@ -263,7 +268,7 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         // is downloaded, call progressUpdated().
         if ((currentTime - lastTime > 100 && chunkSize >= minBytes) || result) {
           // If we have a result, check its integrity before attempting anything.
-          if (result) await checkResultIntegrity(result);
+          if (result) checkResultIntegrity(result);
           if (contentLength) {
             const numBytesRemaining = result ? 0 : parseInt(contentLength) - loaded;
             try {
