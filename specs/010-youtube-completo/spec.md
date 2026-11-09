@@ -23,7 +23,7 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 6. Cada respuesta puede producir candidatos SABR, DASH, HLS o progresivo. Solo se intenta una fuente que exponga datos utilizables.
 7. Los fallos transitorios de red, timeout, 5xx o estancamiento pueden recuperar/reintentar la ruta y, si es necesario, avanzar a otro candidato, conservando timestamp y estado.
 8. Un 400 detiene la rotación a otro perfil; 401/403/407/429 y restricciones explícitas de login, edad, región, consentimiento, anti-bot o `FAILED_PRECONDITION` detienen la cadena YouTube. No se cambia la identidad del cliente para sortear una denegación.
-9. El watchdog observa el avance del elemento de vídeo cada segundo. Tras 12 s sin avance y con menos de 0,25 s de buffer, recupera como máximo tres veces; ignora pausa, seek, fin, pestaña oculta y estado offline.
+9. El watchdog observa el avance del elemento de vídeo cada segundo. Tras 2 s sin avance y con menos de 0,25 s de buffer, recupera como máximo tres veces; ignora pausa, seek, fin, pestaña oculta y estado offline.
 10. R2 y runtime web pueden entregarse el control conservando posición, estado, volumen y velocidad, siempre que R2 sea una copia autorizada del mismo asset.
 
 ## Criterios de aceptación
@@ -40,7 +40,7 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 - CA10.10: bridge se inyecta solo en TodoTube/localhost y bloquea hosts no permitidos.
 - CA10.11: UI propia incluye play/pause, seek, volumen, velocidad y pantalla completa; controles visibles también en modo mini.
 - CA10.12: telemetría de diagnóstico excluye credenciales, tokens de integridad y URLs firmadas completas.
-- CA10.13: un estancamiento real se detecta en un máximo aproximado de 13 s (12 s más el intervalo de muestreo) cuando no hay progreso ni buffer útil; no se dispara por pausa, seek, vídeo terminado, pestaña oculta o navegador offline.
+- CA10.13: un estancamiento real se detecta en un máximo aproximado de 3 s (2 s más el intervalo de muestreo) cuando no hay progreso ni buffer útil; no se dispara por pausa, seek, vídeo terminado, pestaña oculta o navegador offline.
 - CA10.14: la recuperación es limitada y reutiliza el mismo Player/Shaka; conserva currentTime, play/pause, volumen y velocidad al cambiar de candidato.
 - CA10.15: 400 detiene la rotación de perfiles; 401/403/407/429 y restricciones explícitas detienen el failover a otras rutas de YouTube. No se evaden restricciones ni se rotan identidades.
 - CA10.16: los errores transitorios (timeout, red y 5xx) siguen siendo elegibles para recuperación/failover.
