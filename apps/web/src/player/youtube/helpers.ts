@@ -45,8 +45,10 @@ export async function encryptRequest(clientKey: Uint8Array, data: Uint8Array): P
   new Uint8Array(hmacKeyData).set(clientKey.subarray(16, 32));
   const iv = window.crypto.getRandomValues(new Uint8Array(16));
   const aesKey = await window.crypto.subtle.importKey('raw', aesKeyData, { name: 'AES-CTR', length: 128 }, false, ['encrypt']);
+  const dataBuffer = new ArrayBuffer(data.byteLength);
+  new Uint8Array(dataBuffer).set(data);
   const encrypted = new Uint8Array(await window.crypto.subtle.encrypt(
-    { name: 'AES-CTR', counter: iv, length: 128 }, aesKey, data,
+    { name: 'AES-CTR', counter: iv, length: 128 }, aesKey, dataBuffer,
   ));
   const hmacKey = await window.crypto.subtle.importKey(
     'raw', hmacKeyData, { name: 'HMAC', hash: { name: 'SHA-256' } }, false, ['sign'],
