@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   deploy:
-    name: Publicar Gateway multimedia R2
+    name: Provisionar R2 y publicar Gateway multimedia
     runs-on: ubuntu-latest
     environment: produccion
     env:
@@ -25,6 +25,18 @@ jobs:
           node-version: '22'
       - name: Comprobar token configurado
         run: test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Falta CLOUDFLARE_API_TOKEN"; exit 1; }
+      - name: Crear buckets R2 si todavía no existen
+        working-directory: apps/web
+        run: |
+          set -euo pipefail
+          for bucket in todotube-media todotube-media-replica; do
+            if npx wrangler r2 bucket info "$bucket" >/dev/null 2>&1; then
+              echo "R2 bucket disponible: $bucket"
+            else
+              echo "Creando R2 bucket: $bucket"
+              npx wrangler r2 bucket create "$bucket"
+            fi
+          done
       - name: Instalar Wrangler y publicar Gateway
         working-directory: apps/web
         run: npm ci && npx wrangler deploy --config ../media-gateway/wrangler.toml
