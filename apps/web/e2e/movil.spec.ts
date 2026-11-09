@@ -64,7 +64,7 @@ test('minirreproductor móvil: conserva el estado de reproducción y no crea ifr
   await page.locator('.logo-link').click();
   await expect(page.locator('.player-dock')).toHaveClass(/mini/);
   await expect(page.locator('.player-dock .gateway-error')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Abrir vídeo original' })).toBeVisible();
+  await expect(page.locator('.player-dock .mini-source')).toBeVisible();
   await expect(page.locator('.mini-cover')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
