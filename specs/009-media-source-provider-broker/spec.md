@@ -37,10 +37,11 @@
 1. R2 propio/licenciado del mismo ID cuando exista.
 2. runtime de YouTube client-side.
    - Onesie como player request principal de WEB cuando esté disponible.
-   - InnerTube estándar como fallback inmediato.
+   - InnerTube estándar como fallback del mismo perfil WEB solo para errores transitorios/no relacionados con acceso.
    - cadena implementada con `youtubei.js@16.0.0`: MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID.
    - VISIONOS (incorporado en youtubei.js 18) y ANDROID_VR (17) están diferidos; no forman parte del build fijado actual.
    - candidatos de transporte: SABR/UMP, DASH, HLS, progresivo.
+   - un 400 detiene la rotación de perfiles; 401/403/407/429 y restricciones explícitas detienen las rutas YouTube. No se usan otros perfiles para eludir una denegación.
 3. Revalidar R2 si el runtime web agota sus rutas; únicamente cuando exista una copia autorizada del mismo asset.
 
 La salud del proveedor, la frescura de la sesión, la duración de la resolución y los éxitos recientes pueden ajustar el orden sin eliminar los fallbacks.
