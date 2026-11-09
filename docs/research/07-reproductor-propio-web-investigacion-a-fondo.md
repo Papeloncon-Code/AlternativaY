@@ -10,7 +10,7 @@ La integración de TodoTube toma la arquitectura de Kira como base de implementa
 
 ## Flow: referencia actual
 
-La referencia actual de Flow ha cambiado: Flow v3.0.0 eliminó NewPipeExtractor y utiliza su propio cliente InnerTube. La cadena observada en Flow Desktop intenta VISIONOS, MWEB, WEB, TV_TIZEN y varios perfiles ANDROID_VR/ANDROID; usa SABR en clientes web cuando está disponible y renueva enlaces durante fallos midstream. La implementación web de TodoTube adapta esta estrategia a los tipos de cliente que expone la versión de youtubei.js instalada.
+La referencia actual de Flow ha cambiado: Flow Desktop utiliza su propio cliente InnerTube, SABR y renovación durante fallos midstream. Esa matriz de referencia no equivale a la implementación web de TodoTube. TodoTube fija `youtubei.js@16.0.0`: la cadena compilada hoy es MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID. VISIONOS requiere youtubei.js 18 y ANDROID_VR requiere 17; ambos quedan diferidos hasta actualizar y volver a probar dependencias.
 
 ## Ruta técnica elegida
 
@@ -36,6 +36,10 @@ La referencia actual de Flow ha cambiado: Flow v3.0.0 eliminó NewPipeExtractor 
 - No es cierto que el único fallback sea un proxy multimedia server-side.
 - La extensión oficial de Flow no es el Bridge de TodoTube: Flow Desktop y su extensión funcionan como aplicación de escritorio y handoff; TodoTube necesita su propio runtime web.
 - Un perfil InnerTube alternativo no equivale a un proveedor independiente de CDN. La independencia real requiere orígenes de contenido distintos, como una copia autorizada R2 o un origin de creador.
+
+## Estado real de integración
+
+La PR #37 pasó CI #467: build, TypeScript, Bridge, Gateway, avisos y 86/86 pruebas Playwright; CodeQL #106 pasó. La PR sigue sin fusionar ni publicar. Playwright utiliza API/fixtures locales: no prueba que YouTube entregue audio y vídeo reales ni que el Bridge funcione instalado en Chrome/Edge. Esa validación manual sigue pendiente.
 
 ## Pendiente de prueba
 
