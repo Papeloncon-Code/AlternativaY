@@ -156,3 +156,8 @@ Fuentes: [selector de engine](https://raw.githubusercontent.com/Materialious/Mat
 ## Criterio final de aceptación
 
 El único cierre es E4: reproducción real en TodoTube desplegado con imagen, sonido audible y sincronizado, avance, seek de ida y vuelta, controles propios y recuperación segura. CI, extracción, metadatos, manifest y URL son evidencias intermedias. Procedimiento: `docs/testing/real-playback-release-gate.md`.
+## Matiz de política para FAILED_PRECONDITION
+
+La respuesta JSON de producción `400 FAILED_PRECONDITION: Precondition check failed` no contiene por sí sola una razón de anti-bot, login, región o permiso. Por eso la política debe distinguir una precondición indeterminada de una denegación explícita: HTTP 400 bloquea cambiar a otro perfil/identidad; si ocurre en Onesie sin razón explícita, se permite solamente probar InnerTube normal con el mismo perfil WEB. Si el endpoint estándar también devuelve 400, se detiene la cadena. 401/403/407/429 o una razón explícita de acceso/anti-bot detienen todas las rutas YouTube. No se cambia de red ni backend para eludir un bloqueo.
+
+Esta distinción no declara que el `FAILED_PRECONDITION` sea un error inocuo: su causa sigue sin conocerse. Solo conserva una alternativa técnica del mismo cliente para averiguar si el fallo es específico de Onesie, manteniendo el bloqueo de rotación de identidad.
