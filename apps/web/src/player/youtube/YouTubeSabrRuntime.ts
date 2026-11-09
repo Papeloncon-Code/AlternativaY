@@ -17,6 +17,7 @@ import { botguardService } from './BotguardService';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
 import { shouldStopClientFallback, shouldStopSourceFallback } from './failurePolicy';
 import { isSabrAttestationRefreshRequired, primeSabrAttestation } from './sabrAttestation';
+import { tryBuildSabrManifest } from './sabrManifest';
 import {
   PLAYBACK_STALL_TIMEOUT_MS,
   shouldRecoverPlaybackStall,
@@ -378,13 +379,7 @@ export class YouTubeSabrRuntime {
         streaming.server_abr_streaming_url &&
         streaming.adaptive_formats?.length &&
         info.player_config?.media_common_config?.media_ustreamer_request_config?.video_playback_ustreamer_config) {
-      const manifest = await info.toDash({
-        manifest_options: {
-          is_sabr: true,
-          captions_format: 'vtt',
-          include_thumbnails: false,
-        },
-      });
+      const manifest = await tryBuildSabrManifest(info);
       if (manifest) candidates.push({
         mode: 'sabr-dash',
         uri: toDataUri(manifest),

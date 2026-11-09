@@ -78,3 +78,6 @@ Cuando la fuente activa es SABR, el registro de staging debe mostrar que la mism
 Primer smoke desplegado: se abrió `/ver/dQw4w9WgXcQ` en Chromium con Bridge, pero terminó sin metadata (`readyState=0`, `videoWidth=0`, `videoHeight=0`, `duration=null`). `/youtubei/v1/player` del perfil ANDROID devolvió HTTP 400 `FAILED_PRECONDITION`; la app mostró error propio y no creó iframe. Resultado: **E4 FALLIDO**, no aceptación.
 
 La siguiente iteración usa el `/player` WEB normal para construir SABR, no una respuesta Onesie parcial, y amplía el registro de warnings runtime redactados. El nuevo smoke debe producir una captura de éxito con `currentTime` avanzando y seek, o una captura de fallo con la causa. La denegación explícita sigue siendo una prueba de seguridad separada.
+### Comportamiento ante manifiesto SABR malformado
+
+Un fallo local de `VideoInfo.toDash({ is_sabr: true })` por URL/format inválido debe descartar solo el candidato SABR; el broker aún debe probar DASH/HLS/directos que estén presentes en la misma respuesta y cliente. Registrar ese fallo como error de construcción de candidato, distinto de HTTP 401/403/407/429 o anti-bot explícito. No se permite cambiar IP/egress ni ocultar una denegación de acceso.

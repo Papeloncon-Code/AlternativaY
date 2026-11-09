@@ -108,3 +108,8 @@ La respuesta Onesie no se debe considerar SABR-ready por tener un campo UStreame
 El runtime SABR obtiene ahora su playerResponse mediante el endpoint `/player` normal de YouTube.js en la misma sesión WEB/MWEB, transportado por Browser Bridge. Onesie no se usa como respuesta primaria para construir un manifiesto SABR: puede responder HTTP 200 con datos parciales de UStreamer pero sin los contextos requeridos para segmentos/seek. Onesie conserva pruebas y código aislado, pero no se considera una fuente SABR válida sin demostrar esos contextos.
 
 El primer smoke E4 desplegado el 2026-11-09 falló con Android HTTP 400 `FAILED_PRECONDITION`, `readyState=0`, sin dimensiones ni duración. No demuestra reproducción ni que la red del usuario esté bloqueada. El siguiente smoke debe registrar advertencias runtime redactadas para identificar la progresión de clientes/transporte y volver a exigir E4 real.
+## Aislamiento de fallos al construir el candidato SABR
+
+La construcción de un manifiesto SABR es opcional dentro de una respuesta MWEB/WEB. Si `VideoInfo.toDash({ is_sabr: true })` arroja por un formato o URL inválido, el broker descarta solo el candidato SABR y conserva la respuesta para seguir construyendo DASH, HLS y progresivo del mismo cliente. El error de parsing local no se debe confundir con una denegación HTTP ni descartar toda la sesión. La implementación está en `sabrManifest.ts`.
+
+No se usa esta recuperación para cambiar de identidad, IP, proxy o egress. 401/403/407/429 y razones explícitas de acceso/anti-bot siguen deteniendo la cadena.
