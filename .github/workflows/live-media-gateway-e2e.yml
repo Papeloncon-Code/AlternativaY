@@ -122,7 +122,11 @@ jobs:
         env:
           WORKER_URL: ${{ steps.fixture.outputs.worker_url }}
           MEDIA_ID: ${{ steps.fixture.outputs.media_id }}
-        run: curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer $MEDIA_TEST_TOKEN" "$WORKER_URL/drop-replica/$MEDIA_ID"
+        run: |
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer $MEDIA_TEST_TOKEN" \
+            "$WORKER_URL/drop-replica/$MEDIA_ID"
       - name: Validar GET, HEAD, Range, CORS, controles y /ver/:id desde el origen principal
         env:
           MEDIA_ID: ${{ steps.fixture.outputs.media_id }}
@@ -144,7 +148,11 @@ jobs:
         env:
           WORKER_URL: ${{ steps.fixture.outputs.worker_url }}
           MEDIA_ID: ${{ steps.fixture.outputs.media_id }}
-        run: curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer $MEDIA_TEST_TOKEN" "$WORKER_URL/drop-primary/$MEDIA_ID"
+        run: |
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            -H "Authorization: Bearer $MEDIA_TEST_TOKEN" \
+            "$WORKER_URL/drop-primary/$MEDIA_ID"
       - name: Validar reproducción, búsqueda y continuidad desde la réplica
         env:
           MEDIA_ID: ${{ steps.fixture.outputs.media_id }}
