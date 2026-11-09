@@ -89,4 +89,4 @@ TodoTube UI / PlayerHost (un solo reproductor)
 
 ## Estado actual de implementación
 
-PR #37 integra la primera versión a nivel de código. En el commit `1528993e1ac1a0f6185adbe18e7f8c706d3c537b`, CI #467 terminó con build, TypeScript, Bridge, Gateway, avisos y 86/86 pruebas Playwright en verde; CodeQL #106 también pasó. La PR permanece en borrador y no está desplegada. Aún faltan instalación del Bridge en navegador real y evidencia de reproducción de audio/vídeo, seek y failover con contenido real. Por tanto, playback no se declara completo.
+PR #37 está fusionada en `main` (merge commit `d98fda20437e38ad7e47fee55943315e0641db88`). Después se fusionaron PR #39–#43 para corregir el transporte del Bridge, las solicitudes BotGuard y el diagnóstico de `/youtubei/v1/player`. La prueba smoke más reciente todavía recibe HTTP 400 en ese endpoint; PR #43 añade el cuerpo de respuesta acotado al diagnóstico para identificar el campo rechazado. La integración está en `main`, pero la reproducción audiovisual real no se declara completa hasta confirmar audio, vídeo, seek y recuperación en navegador.
