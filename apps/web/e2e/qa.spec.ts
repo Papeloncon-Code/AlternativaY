@@ -60,6 +60,7 @@ test('Shorts usa el reproductor propio y no ofrece enlaces externos', async ({ p
   const player = page.locator('.short-player .youtube-sabr-player');
   await expect(player).toBeVisible({ timeout: 15_000 });
   await expect(player.locator('video[aria-label="Reproductor TodoTube"]')).toHaveCount(1);
+  await expect(player).not.toContainText(/youtube|innertube|sabr|mweb|googlevideo|onesie|failed_precondition|http\\s*400/i);
   await expect(page.locator('.short-player iframe')).toHaveCount(0);
   await expect(page.locator('.short-player a[href^="https://www.youtube.com/"]')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Abrir origen' })).toHaveCount(0);
