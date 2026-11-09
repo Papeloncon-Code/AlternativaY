@@ -142,7 +142,9 @@ export async function makePlayerRequest(args: OnesieRequestArgs): Promise<ApiRes
   let responseData: Uint8Array = playerResponse.data;
   if (playerResponse.cryptoParams.compressionType === CompressionType.GZIP) {
     const decompressor = new DecompressionStream('gzip');
-    const stream = new Blob([responseData]).stream().pipeThrough(decompressor);
+    const responseBuffer = new ArrayBuffer(responseData.byteLength);
+    new Uint8Array(responseBuffer).set(responseData);
+    const stream = new Blob([responseBuffer]).stream().pipeThrough(decompressor);
     responseData = new Uint8Array(await new Response(stream).arrayBuffer());
   }
 
