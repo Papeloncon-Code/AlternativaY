@@ -78,6 +78,10 @@ test('error de reproducción móvil: reintento y origen quedan dentro del reprod
   await expect(page.locator('.gateway-error').getByRole('button', { name: 'Reintentar proveedores' })).toBeVisible();
   await expect(page.locator('.gateway-error').getByRole('link', { name: 'Descargar TodoTube Bridge' })).toHaveAttribute('download', 'todotube-browser-bridge.zip');
   await expect(page.locator('.gateway-error').getByRole('link', { name: 'Ver instrucciones de instalación' })).toBeVisible();
+  const bridgePackage = await page.request.get('/todotube-browser-bridge.zip');
+  expect(bridgePackage.ok()).toBe(true);
+  expect(bridgePackage.headers()['content-type']).toContain('application/zip');
+  expect(Number(bridgePackage.headers()['content-length'] || 0)).toBeGreaterThan(0);
   const [frame, message] = await Promise.all([
     page.locator('#player-slot').boundingBox(),
     page.locator('.gateway-error').boundingBox(),
