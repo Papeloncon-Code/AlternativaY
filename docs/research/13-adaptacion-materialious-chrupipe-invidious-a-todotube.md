@@ -175,3 +175,30 @@ Fuentes adicionales: [selector `getVideo()` de Materialious](https://raw.githubu
 ## Criterio final de cierre
 
 La comparación queda como investigación, no como prueba de éxito. Solo E4 —imagen real, sonido audible y sincronizado, avance, seek de ida/vuelta, controles TodoTube y recuperación segura dentro del despliegue objetivo— permite cerrar playback. Build, Playwright con fixtures, metadatos, manifests o URLs se reportan como niveles intermedios. La ejecución y el formato de evidencia están definidos en `docs/testing/real-playback-release-gate.md`.
+## Hallazgo SABR más importante: Materialious usa player WEB normal y prepara attestation
+
+La inspección del código actual de Materialious (`materialious/src/lib/player/sabr/index.ts`, `materialious/src/lib/player/sabr/ShakaPlayerAdapter.ts` y `materialious/src/lib/api/youtubejs/video.ts`) encontró un conjunto de pasos ausentes o incompletos en TodoTube:
+
+1. **Resolución para SABR:** Materialious obtiene la respuesta mediante el endpoint WEB normal `/player` (`watchEndpoint.call(innertube.actions)` / `YT.VideoInfo`) antes de construir el manifiesto SABR. No da por hecho que cualquier respuesta Onesie que exponga una cadena `video_playback_ustreamer_config` ya tenga los contextos SABR correctos.
+2. **Preparación de attestation:** antes de montar `SabrStreamingAdapter`, Materialious invoca `innertube.getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND')` en la misma sesión de YouTube.js. Su comentario advierte que, sin ese paso, el servidor puede dejar de enviar partes de medios y la reproducción solo avanzar tras un seek.
+3. **Protección del stream:** escucha `StreamProtectionStatus`; cuando el estado es `3`, vuelve a preparar attestation y obtiene un WebPO token nuevo con el minter local existente, con deduplicación y cooldown. TodoTube ya tenía el parser UMP y el callback para pedir tokens, pero no conectaba el estado 3 con una renovación de sesión.
+4. **Renovación de player response:** el callback SABR de Materialious utiliza `/player` normal con `reloadPlaybackContext` para actualizar URL y configuración UStreamer, en vez de depender exclusivamente de Onesie.
+5. **Compatibilidad de Onesie:** Invidious PR #5814, todavía draft, también documenta que un `ustreamerConfig` devuelto por Onesie puede no habilitar los contextos SABR/context-update que el servidor necesita; su autor prueba usar el player WEB normal para obtener la configuración completa. Este PR no se copia ni se considera producción-ready.
+
+### Adaptación aplicada a TodoTube en esta rama
+
+- Se añadió `sabrAttestation.ts`: llama al API público `getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND')` de la versión fijada de YouTube.js (confirmado también en el tag `v16.0.0`), con 3 intentos limitados y sin cambiar de identidad; un rechazo HTTP explícito no se reintenta.
+- `ShakaPlayerAdapter` ahora propaga el estado UMP `StreamProtectionStatus` a un callback asíncrono del runtime.
+- `YouTubeSabrRuntime` prepara attestation antes de conectar SABR y, ante estado 3, vuelve a preparar attestation y renueva el WebPO mediante el `BotguardService` local ya existente. El refresh se deduplica y tiene cooldown de 15 segundos.
+- La renovación del minter conserva la sesión y cliente WEB/MWEB actuales. No se añade un helper externo, jsdom con origen falso, proxy, cambio de IP, cliente alternativo ni mecanismo para evitar BotGuard/PoToken.
+- Se quitó `ustreamerFlags.sendVideoPlaybackConfig = false` del request Onesie. El descriptor público de `googlevideo` lo define como bandera opcional para enviar la configuración de playback; mantenerla en `false` podía suprimir información útil para SABR. Se deja sin especificar para que se aplique el comportamiento por defecto. Es una hipótesis que se debe comprobar en navegador real, no una causa probada.
+- Se añadieron pruebas para comprobar que el desafío de attestation se repite solo ante fallos transitorios, que una denegación HTTP explícita no se reintenta, que el estado 3 solicita refresh y que Onesie no codifica la bandera de configuración en `false`.
+
+### Lo que todavía no está demostrado
+
+- No se ha obtenido una sesión SABR real desde la red del usuario que confirme que el servidor devuelve `SABR_CONTEXT_UPDATE`, segmentos continuos y seek correcto.
+- La prueba de GitHub Actions que recibió HTTP 400 salió desde la IP/red del runner; no identifica la causa del rechazo en el entorno del propietario.
+- El HTTP 400 de `/youtubei/v1/player` sigue pendiente de diagnóstico y no debe confundirse con este cambio de protocolo SABR.
+- La única aceptación final sigue siendo E4: vídeo real con imagen y sonido audible/sincronizado, avance, seek de ida/vuelta, controles TodoTube y recuperación del mismo asset/timeline en el despliegue objetivo.
+
+Fuentes de código: [Materialious SABR initializer](https://github.com/Materialious/Materialious/blob/main/materialious/src/lib/player/sabr/index.ts), [Materialious Shaka adapter](https://github.com/Materialious/Materialious/blob/main/materialious/src/lib/player/sabr/ShakaPlayerAdapter.ts), [Materialious WEB player request](https://github.com/Materialious/Materialious/blob/main/materialious/src/lib/api/youtubejs/video.ts), [YouTube.js `getAttestationChallenge`](https://github.com/LuanRT/YouTube.js/blob/v16.0.0/src/Innertube.ts), [googlevideo UstreamerFlags](https://github.com/LuanRT/googlevideo/blob/main/docs/api/exports/protos/interfaces/UstreamerFlags.md), [Invidious SABR PR #5814](https://github.com/iv-org/invidious/pull/5814).
