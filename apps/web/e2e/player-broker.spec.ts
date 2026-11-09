@@ -92,3 +92,56 @@ test('un aborto del usuario no se confunde con un fallo del proveedor', async ()
 
   await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
 });
+
+
+test('mantiene vídeo y controles SABR dentro del dock en página y minirreproductor', async ({ page }) => {
+  await page.goto('/');
+  const results = await page.evaluate(() => {
+    const layouts = ['on-page', 'mini'];
+    return layouts.map((layout) => {
+      const dock = document.createElement('div');
+      dock.className = 'player-dock youtube ' + layout;
+      Object.assign(dock.style, {
+        position: layout === 'mini' ? 'fixed' : 'absolute',
+        left: '24px',
+        top: '24px',
+        width: layout === 'mini' ? '400px' : '640px',
+        height: layout === 'mini' ? 'auto' : '360px',
+        zIndex: '9999',
+      });
+      const slot = document.createElement('div');
+      slot.className = 'player-dock-video';
+      const player = document.createElement('div');
+      player.className = 'gateway-player youtube-sabr-player compact';
+      const video = document.createElement('video');
+      video.className = 'gateway-video';
+      const controls = document.createElement('div');
+      controls.className = 'gateway-controls';
+      controls.textContent = 'Reproducir 0:00 0:00 Velocidad Pantalla';
+      player.append(video, controls);
+      slot.append(player);
+      dock.append(slot);
+      document.body.append(dock);
+      const d = dock.getBoundingClientRect();
+      const v = video.getBoundingClientRect();
+      const c = controls.getBoundingClientRect();
+      const result = {
+        layout,
+        dockBottom: d.bottom,
+        videoBottom: v.bottom,
+        controlsTop: c.top,
+        controlsBottom: c.bottom,
+        dockWidth: d.width,
+        controlsWidth: c.width,
+      };
+      dock.remove();
+      return result;
+    });
+  });
+
+  for (const layout of results) {
+    expect(layout.controlsBottom, layout.layout + ' controls must not be clipped').toBeLessThanOrEqual(layout.dockBottom + 1);
+    expect(layout.videoBottom, layout.layout + ' video must not overlap the controls').toBeLessThanOrEqual(layout.controlsTop + 1);
+    expect(layout.controlsWidth, layout.layout + ' controls must fit the dock').toBeLessThanOrEqual(layout.dockWidth + 1);
+  }
+});
