@@ -63,7 +63,7 @@ jobs:
           echo "worker_name=$worker_name" >> "$GITHUB_OUTPUT"
           echo "media_id=$media_id" >> "$GITHUB_OUTPUT"
           echo "worker_url=https://$worker_name.papelon.workers.dev" >> "$GITHUB_OUTPUT"
-          echo "test_token=$test_token" >> "$GITHUB_OUTPUT"
+          echo "MEDIA_TEST_TOKEN=$test_token" >> "$GITHUB_ENV"
           cat > "$GITHUB_WORKSPACE/apps/media-gateway/test/live-e2e.wrangler.toml" <<EOF
           name = "$worker_name"
           main = "./live-e2e-worker.mjs"
@@ -83,7 +83,7 @@ jobs:
         run: npx wrangler deploy --config "$GITHUB_WORKSPACE/apps/media-gateway/test/live-e2e.wrangler.toml"
       - name: Add ephemeral test secret to fixture worker
         env:
-          TEST_TOKEN: ${{ steps.test-identity.outputs.test_token }}
+          TEST_TOKEN: ${{ env.MEDIA_TEST_TOKEN }}
         run: printf '%s' "$TEST_TOKEN" | npx wrangler secret put MEDIA_TEST_TOKEN --config "$GITHUB_WORKSPACE/apps/media-gateway/test/live-e2e.wrangler.toml"
       - name: Upload synthetic test video to both production R2 buckets
         env:
