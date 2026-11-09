@@ -62,6 +62,7 @@ export default function PlayerHost() {
   const [rect, setRect] = useState<CSSProperties | null>(null);
   const [source, setSource] = useState<{ id: string; status: ActiveSource }>({ id: '', status: 'checking' });
   const [handoff, setHandoff] = useState<PlaybackHandoff | null>(null);
+  const [resolveNonce, setResolveNonce] = useState(0);
   const brokerRef = useRef<PlaybackBroker | null>(null);
   if (!brokerRef.current) brokerRef.current = new PlaybackBroker(createPlaybackProviders());
 
@@ -103,7 +104,7 @@ export default function PlayerHost() {
       active = false;
       controller.abort();
     };
-  }, [s?.id, s?.startAt]);
+  }, [s?.id, s?.startAt, resolveNonce]);
 
   const box = useRef<HTMLDivElement>(null);
   hostEl.current = box.current;
@@ -213,7 +214,7 @@ export default function PlayerHost() {
                   <strong>Este vídeo no está disponible en los proveedores configurados.</strong>
                   <p>TodoTube ya probó las fuentes internas disponibles. Puedes reintentar o abrir el origen.</p>
                   <div className="player-message-actions">
-                    <button className="btn primary" type="button" onClick={() => setSource({ id: s.id, status: 'checking' })}>Reintentar fuentes</button>
+                    <button className="btn primary" type="button" onClick={() => setResolveNonce((value) => value + 1)}>Reintentar fuentes</button>
                     <a className="btn" href={original} target="_blank" rel="noreferrer">Abrir vídeo original</a>
                   </div>
                 </div>
