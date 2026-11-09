@@ -45,6 +45,7 @@ export default function GatewayPlayer({ id, meta }: { id: string; meta: Meta }) 
       }
     };
     const finishRecovery = () => {
+      retryCountRef.current = 0;
       recoveryInFlightRef.current = false;
       setRecovering(false);
       setError('');
