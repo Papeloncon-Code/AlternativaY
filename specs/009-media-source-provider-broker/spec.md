@@ -29,6 +29,8 @@
 - RF-13: providers web y nativos comparten contrato, no implementación acoplada.
 - RF-14: las copias en R2 requieren derecho documentado para almacenamiento/distribución; no crear copias YouTube automáticamente.
 - RF-15: el runtime web de YouTube no usa Cloudflare Worker/R2 como proxy de medios.
+- RF-16: el runtime distingue fallos transitorios de denegaciones de acceso. Timeouts, errores de red y 5xx son recuperables; 400 detiene la rotación de perfiles y 401/403/407/429 o restricciones explícitas detienen el failover a otras rutas de YouTube.
+- RF-17: el runtime detecta estancamiento por falta de avance/buffer, con timeout y presupuesto finito; no confunde pausa, seek, vídeo terminado, pestaña oculta o navegador offline con un fallo de proveedor.
 
 ## Orden inicial de reproducción
 
@@ -39,7 +41,7 @@
    - cadena implementada con `youtubei.js@16.0.0`: MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_CREATOR y ANDROID.
    - VISIONOS (incorporado en youtubei.js 18) y ANDROID_VR (17) están diferidos; no forman parte del build fijado actual.
    - candidatos de transporte: SABR/UMP, DASH, HLS, progresivo.
-3. Revalidar R2 si el runtime web agota sus rutas.
+3. Revalidar R2 si el runtime web agota sus rutas; únicamente cuando exista una copia autorizada del mismo asset.
 
 La salud del proveedor, la frescura de la sesión, la duración de la resolución y los éxitos recientes pueden ajustar el orden sin eliminar los fallbacks.
 
@@ -47,7 +49,9 @@ La salud del proveedor, la frescura de la sesión, la duración de la resolució
 
 - Todas las rutas fallan -> error explícito, nunca spinner infinito ni iframe inesperado.
 - Onesie falla -> InnerTube standard se intenta en el mismo cliente.
-- Cliente falla -> se intenta el próximo perfil del ladder dentro del timeout.
+- Cliente falla por timeout, red o 5xx -> se puede intentar el próximo perfil dentro del presupuesto total.
+- Respuesta HTTP 400 -> no se rota a otra identidad de cliente.
+- Respuesta 401/403/407/429 o restricción explícita -> se detienen las rutas YouTube; R2 autorizado del mismo asset puede evaluarse aparte.
 - SABR falla -> probar DASH/HLS/directo cuando existan candidatos reales.
 - URL/manifest no entrega datos -> contar como fallo y conmutar.
 - Interrupción midstream -> renovar enlace; después conmutar y mantener timestamp.
@@ -57,3 +61,5 @@ La salud del proveedor, la frescura de la sesión, la duración de la resolució
 - Usuario pulsa pausa durante conmutación -> el nuevo origen permanece pausado.
 - No se duplica audio ni se montan dos reproductores.
 - El usuario puede consultar diagnóstico de proveedor sin revelar tokens ni URLs firmadas.
+- Watchdog de estancamiento: intervalo 1 s, umbral 12 s, buffer útil máximo 0,25 s, máximo tres intentos; no se activa por pausa, seek, ended, pestaña oculta u offline.
+- Denegaciones de acceso no se contabilizan como fallos transitorios y no provocan cambio de identidad.
