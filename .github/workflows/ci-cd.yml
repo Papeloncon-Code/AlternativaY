@@ -80,6 +80,25 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  bridge:
+    name: Browser Bridge · compilación, tipos y paquete
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: apps/browser-bridge } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm, cache-dependency-path: apps/browser-bridge/package-lock.json }
+      - run: npm ci
+      - run: npm run type-check
+      - run: npm run build
+      - name: Empaquetar extensión TodoTube Bridge
+        run: zip -r todotube-browser-bridge.zip manifest.json rules.json dist README.md LICENSE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: todotube-browser-bridge-${{ github.sha }}
+          path: apps/browser-bridge/todotube-browser-bridge.zip
+          retention-days: 30
+
   gateway:
     name: Media Gateway · pruebas unitarias
     runs-on: ubuntu-latest
@@ -93,7 +112,7 @@ jobs:
 
   desplegar:
     name: Despliegue en Cloudflare y humo en producción
-    needs: [avisos, web, gateway]
+    needs: [avisos, web, gateway, bridge]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: produccion
