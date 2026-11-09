@@ -68,7 +68,7 @@ La salud del proveedor, la frescura de la sesión, la duración de la resolució
 
 ## Puerta de aceptación final E4
 
-El broker puede marcar una ruta como candidata o recuperable, pero nunca declarar playback completado por recibir metadatos, URL o manifest. Solo se cierra con la prueba E4 en `docs/testing/real-playback-release-gate.md`: vídeo real en el despliegue objetivo, primer frame/dimensiones, tiempo avanzando, audio audible y sincronizado, seek de ida/vuelta, controles TodoTube y recuperación de un fallo transitorio demostrada en staging.
+El broker puede marcar una ruta como candidata o recuperable, pero nunca declarar playback completado por recibir metadatos, URL o manifest. Solo se cierra con la prueba E4 en `docs/testing/real-playback-release-gate.md`: un vídeo real que sí reproduce en el despliegue objetivo, primer frame/dimensiones, tiempo avanzando, audio audible y sincronizado, seek de ida/vuelta, controles TodoTube y recuperación de un fallo transitorio demostrada en staging con el mismo asset/timeline. Mostrar un error correcto ante contenido restringido es una prueba de seguridad independiente y no satisface E4.
 
 Las denegaciones explícitas (login, edad, región, consentimiento, anti-bot, PoToken/BotGuard, tráfico automatizado o `FAILED_PRECONDITION` acompañado de un motivo claro de restricción) detienen la cadena de proveedores basados en YouTube. Un `FAILED_PRECONDITION` sin causa adicional es indeterminado y solo permite el fallback técnico al endpoint estándar del mismo cliente WEB. Invidious sigue dependiendo del mismo origen y no se puede utilizar como ruta para eludir esa denegación. Un backend propio tampoco se usa para cambiar de IP/red y superar el bloqueo.
 
