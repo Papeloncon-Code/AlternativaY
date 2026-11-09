@@ -70,14 +70,20 @@ async function handleFetchRequest(request: FetchRequest, sendResponse: (response
       body = Uint8Array.from(binary, (char) => char.charCodeAt(0));
     }
 
-    const response = await fetch(request.url, {
-      method: typeof options.method === 'string' ? options.method : 'GET',
-      body: body as BodyInit | null | undefined,
+    const method = typeof options.method === 'string' ? options.method.toUpperCase() : 'GET';
+    const fetchOptions: RequestInit = {
+      method,
       headers: {},
       credentials: 'omit',
       cache: 'no-store',
       redirect: 'follow',
-    });
+    };
+    // Fetch rejects GET/HEAD requests that carry even an empty body. Some
+    // callers pass an undefined or null body; omit the property entirely.
+    if (method !== 'GET' && method !== 'HEAD' && body !== undefined && body !== null) {
+      fetchOptions.body = body as BodyInit;
+    }
+    const response = await fetch(request.url, fetchOptions);
 
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => { responseHeaders[key] = value; });
