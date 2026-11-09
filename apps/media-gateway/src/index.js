@@ -358,42 +358,41 @@ async function upload(req, env, id) {
   }
   if (heads.some((result) => result.value)) return json(req, env, { error: 'Ya existe un medio con ese ID' }, 409);
 
-  let actualSize = 0;
-  const sizeCheckedBody = req.body.pipeThrough(new TransformStream({
-    transform(chunk, controller) {
-      const chunkSize = chunk instanceof Uint8Array ? chunk.byteLength : new Uint8Array(chunk).byteLength;
-      actualSize += chunkSize;
-      if (actualSize > MAX_UPLOAD_BYTES || actualSize > length) {
-        controller.error(new Error('MEDIA_UPLOAD_SIZE_MISMATCH'));
-        return;
-      }
-      controller.enqueue(chunk);
-    },
-  }));
-  const bodies = splitBody(sizeCheckedBody, origins.length);
+  // R2 requires a stream with a known length. Tee the incoming request, then
+  // wrap each branch in its own FixedLengthStream so each replica receives
+  // exactly the declared byte count without buffering the whole video in memory.
+  const transfers = splitBody(req.body, origins.length).map((branch) => {
+    const fixed = new FixedLengthStream(length);
+    const controller = new AbortController();
+    const pump = branch.pipeTo(fixed.writable, { signal: controller.signal });
+    pump.catch(() => {});
+    return { body: fixed.readable, pump, controller };
+  });
   const mediaVersion = crypto.randomUUID();
   const options = {
     httpMetadata: { contentType: type, cacheControl: visibility === 'public' ? 'public, max-age=300' : 'private, no-store' },
     customMetadata: { title, creator, license, licenseReference, visibility, mediaVersion },
   };
   const writes = await Promise.allSettled(origins.map((bucket, index) =>
-    withTimeout(bucket.put(key, bodies[index], options), writeTimeout(env))
+    withTimeout(bucket.put(key, transfers[index].body, options), writeTimeout(env))
   ));
   const written = writes.filter((result) => result.status === 'fulfilled').length;
-  const sizeMatches = actualSize === length;
-  if (!sizeMatches || written !== origins.length) {
+  if (written !== origins.length) transfers.forEach((transfer) => transfer.controller.abort());
+  const pumps = await Promise.allSettled(transfers.map((transfer) => transfer.pump));
+  const streamsComplete = pumps.every((result) => result.status === 'fulfilled');
+  if (!streamsComplete || written !== origins.length) {
     // A public media ID must never be left visible from only one origin.
-    // Roll back any successful write so publication is all-or-nothing.
+    // FixedLengthStream rejects over/under-sized bodies; rollback any partial write.
     const cleanup = await Promise.allSettled(origins.map((bucket) => withTimeout(bucket.delete(key), originTimeout(env))));
     const cleanupComplete = cleanup.every((result) => result.status === 'fulfilled');
     return json(req, env, {
-      error: !sizeMatches
+      error: !streamsComplete
         ? 'El tamaño real del archivo no coincide con el tamaño declarado; se canceló la carga'
         : 'No se pudo replicar el archivo en todos los orígenes; se canceló la publicación',
       written,
       configured: origins.length,
       cleanupComplete,
-    }, sizeMatches ? 503 : 400);
+    }, !streamsComplete ? 400 : 503);
   }
   return json(req, env, {
     ok: true, id, visibility,
