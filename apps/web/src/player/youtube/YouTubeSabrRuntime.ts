@@ -11,7 +11,7 @@ import {
 } from 'youtubei.js/web';
 import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
 import { buildSabrFormat } from 'googlevideo/utils';
-import { checkExtension, fetchFunction } from './helpers';
+import { fetchFunction } from './helpers';
 import type { ReloadPlaybackContext } from 'googlevideo/protos';
 import { botguardService } from './BotguardService';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
@@ -103,7 +103,7 @@ function isWebClient(client: YouTubeClient): boolean {
  * client sessions and several media transports. Switching a source reloads
  * Shaka with the last observed playback position instead of replacing the UI.
  *
- * No TodoTube Cloudflare Worker is used to relay YouTube media.
+ * Upstream control and media requests use TodoTube's restricted same-origin Worker relay.
  */
 export class YouTubeSabrRuntime {
   private readonly sessions = new Map<YouTubeClient, Promise<Innertube>>();
@@ -158,10 +158,6 @@ export class YouTubeSabrRuntime {
   async attach(video: HTMLVideoElement): Promise<void> {
     this.video = video;
     this.destroyed = false;
-
-    if (!checkExtension()) {
-      throw new Error('Falta TodoTube Bridge. Instala y activa la extensión en este navegador y vuelve a cargar TodoTube.');
-    }
 
     Platform.shim.eval = async (data: Types.BuildScriptResult) => new Function(data.output)();
 
@@ -349,7 +345,7 @@ export class YouTubeSabrRuntime {
     // Materialious uses the ordinary WEB /player response for this path; the
     // Invidious SABR investigation documents Onesie responses that omit the
     // contexts later required for segments and seeking. Use the normal /player
-    // endpoint through the same Bridge, session and client identity.
+    // endpoint through the same-origin relay, session and client identity.
     const request = innertube.actions.execute('/player', {
       ...requestParams,
       client,
