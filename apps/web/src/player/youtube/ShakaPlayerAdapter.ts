@@ -1,6 +1,6 @@
 import shaka from 'shaka-player/dist/shaka-player.ui';
 
-import { createSegmentCacheKeyFromMetadata, type CacheManager, type RequestMetadataManager } from 'googlevideo/utils';
+import { createSegmentCacheKeyFromMetadata, getUniqueFormatId, type CacheManager, type RequestMetadataManager } from 'googlevideo/utils';
 
 import type { SabrFormat } from 'googlevideo/shared-types';
 
@@ -408,14 +408,14 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
     this.checkPlayerStatus();
 
     const activeVariant = this.player.getVariantTracks().find((track) =>
-      FormatKeyUtils.getUniqueFormatId(activeFormat) === (activeFormat.width ? track.originalVideoId : track.originalAudioId)
+      getUniqueFormatId(activeFormat) === (activeFormat.width ? track.originalVideoId : track.originalAudioId)
     );
 
     if (!activeVariant) {
       return { videoFormat: undefined, audioFormat: undefined };
     }
 
-    const formatMap = new Map(sabrFormats.map((format) => [ FormatKeyUtils.getUniqueFormatId(format), format ]));
+    const formatMap = new Map(sabrFormats.map((format) => [ getUniqueFormatId(format), format ]));
 
     return {
       videoFormat: activeVariant.originalVideoId ? formatMap.get(activeVariant.originalVideoId) : undefined,
