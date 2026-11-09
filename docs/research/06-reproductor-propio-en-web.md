@@ -39,10 +39,3 @@ La web sin extensión/bridge no dispone por sí sola de los permisos de origen n
 ## Validación obligatoria
 
 Ver ADR-013 y la matriz de pruebas de la especificación 010: vídeo corto, largo, audio adaptativo, Short, directo, cambio de origen, reanudación y fallos inducidos.
-
-
-## Actualización de referencia Flow — 2026-11-09
-
-Flow v3.0.0 (publicado el 18 de octubre de 2026) dejó de utilizar NewPipeExtractor y pasó a su propio cliente InnerTube. Flow Desktop implementa el cliente nativo en Rust/Tauri, con resolución de playback, BotGuard/PoToken y rutas SABR/manifiestos. Es una referencia técnica útil, pero no un módulo JavaScript listo para importar en la web de TodoTube. Flow Desktop declara licencia GPL-3.0-only; no copiar su implementación sin revisar la compatibilidad de licencias del proyecto.
-
-Fuentes primarias: [Flow v3.0.0](https://github.com/Flow-Tube/Flow/releases/tag/v3.0.0), [Flow Desktop](https://github.com/Flow-Tube/Flow-Desktop), [licencia de Flow Desktop](https://github.com/Flow-Tube/Flow-Desktop/blob/main/LICENSE).
