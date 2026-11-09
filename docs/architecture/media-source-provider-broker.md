@@ -1,124 +1,75 @@
 # Source Provider Broker · arquitectura de reproducción
 
-Estado: diseño aprobado como dirección técnica; adaptadores externos pendientes de evaluación y autorización.
+**Estado:** implementación inicial en PR #37; dirección rectora ADR-013.
 
-## Problema que resuelve
+## Objetivo
 
-No confundir el sistema que descubre un vídeo con el sistema que entrega sus bytes. Un extractor de metadatos no es automáticamente un proveedor de reproducción, y varios extractores que dependen de la misma plataforma no son dominios de fallo independientes.
+Un solo reproductor TodoTube y varios proveedores/rutas detrás de un contrato común. La UI no conoce detalles de InnerTube, Onesie, SABR, R2, HLS o DASH. El broker resuelve candidatos, observa salud y cambia de fuente preservando el estado.
 
-TodoTube separa:
-1. **Discovery adapters:** obtienen título, canal, miniatura, duración y disponibilidad de metadatos.
-2. **Media source providers:** entregan un archivo o manifiesto HLS/DASH que el reproductor TodoTube puede consumir y cuya distribución está autorizada.
-3. **Playback broker:** elige una fuente compatible, observa su salud y cambia de proveedor cuando hay un fallo recuperable.
-4. **Player:** conserva interfaz y controles propios; no conoce ni implementa lógica específica de cada proveedor.
+## Capas
 
-## Fuentes candidatas compatibles con un reproductor propio
+1. **Discovery:** título, canal, miniatura, duración y metadatos.
+2. **Source providers:** candidatos que entregan medios al player (YouTube browser runtime, R2 propio/licenciado, creator-origin, futuros providers nativos).
+3. **Playback broker:** prioridades, timeouts, cooldown y failover.
+4. **PlayerHost:** un solo reproductor visual y estado de sesión.
+5. **Transport adapters:** Shaka y adaptadores por protocolo; el player permanece constante al cambiar la fuente.
 
-| Provider | Qué entrega | Estado |
+## Providers iniciales
+
+| Provider | Función | Estado |
 |---|---|---|
-| R2 primary | Archivo propio/licenciado, Range | Implementado en Gateway |
-| R2 replica | Copia idéntica del archivo, Range | Código de failover en PR #26; bucket por provisionar |
-| Creator-origin | URL firmada o manifiesto HLS/DASH del mismo vídeo entregado por el titular | Adaptador pendiente |
-| Cloudflare Stream | HLS/DASH para player externo; también VOD y Live Inputs | Candidato para una copia autorizada; misma empresa que R2 |
-| Backblaze B2 | Copia MP4/WebM independiente, servida desde almacenamiento S3-compatible | Candidato de backup cross-cloud; no extrae desde YouTube |
-| Creator-origin / CDN del titular | URL firmada o manifiesto del mismo vídeo, con permiso documentado | Adaptador pendiente |
+| YouTube browser runtime | Resuelve mediante InnerTube/Onesie y reproduce por SABR/DASH/HLS/progresivo | Primera integración en PR #37; falta matriz manual |
+| TodoTube R2 | Copia propia/licenciada del mismo asset, Range y réplica | Worker implementado; operación real por verificar |
+| Creator-origin | HLS/DASH/URL firmada entregada por el titular | Siguiente adaptador a implementar |
+| Native Android/Desktop | Runtime nativo detrás del mismo contrato | Fase posterior |
 
-Cloudflare Stream documenta HLS/DASH para usar reproductores propios. Sus manifiestos son dinámicos y se deben consultar directamente, no cachear ni retransmitir desde un proxy genérico. Las URL firmadas y Allowed Origins sirven para restringir el acceso.
+## Cadena de redundancia YouTube
 
-## Separación entre fuentes y copias de respaldo
+- Onesie player request como primera ruta para WEB.
+- InnerTube estándar como respaldo en el mismo perfil.
+- Perfiles alternativos: VISIONOS, MWEB, WEB, TV, TV_EMBEDDED, WEB_EMBEDDED, ANDROID_VR, ANDROID_CREATOR y ANDROID.
+- Para cada respuesta, construir candidatos SABR, DASH, HLS y progresivos válidos.
+- Si el flujo falla, renovar player response/URLs una vez y avanzar al siguiente candidato y perfil.
+- El broker registra éxito/fallo y aplica cooldown.
+- El runtime solo cuenta una fuente como funcional cuando Shaka carga y empieza a entregar datos.
 
-- Un **extractor/origen** es quien puede entregar el vídeo que se está viendo. Solo cuenta como alternativo si sirve exactamente el mismo vídeo.
-- Un **almacén de respaldo** no descubre ni extrae el vídeo: guarda una copia maestra autorizada y la entrega cuando los demás orígenes fallan.
-- R2 + R2 replica y R2 + Cloudflare Stream no son independientes ante una caída completa de Cloudflare.
-- Backblaze B2 puede actuar como segundo dominio de almacenamiento para la copia autorizada. Su API S3-compatible incluye carga multipart y operaciones de objetos. No es una fuente que descargue vídeos de YouTube.
-- El pipeline de respaldo debe aceptar el archivo original del propietario o una copia cuya licencia/permiso incluya almacenamiento y distribución. No debe descargar arbitrariamente desde una URL de YouTube.
-- El Gateway actual limita el PUT simple a 90 MiB; para un catálogo real de vídeo se necesita carga reanudable/multipart, comprobación de checksum, estado de réplica y registro de autorización antes de marcar el backup como listo.
+## Failover entre providers
 
-## Contrato de un proveedor
+R2 es preferido cuando hay copia del mismo asset. Si R2 deja de entregar bytes, el player captura tiempo, play/pause, volumen y velocidad y pasa al runtime YouTube en el mismo host. Si el runtime agota candidatos, vuelve a comprobar R2. Un backup de creator-origin podrá añadirse detrás del mismo contrato.
 
-Cada adaptador futuro debe implementar un contrato equivalente a:
+Los providers alternativos solo cuentan como copia independiente cuando el asset y la timeline coinciden. No cambiar silenciosamente a otro vídeo ni reanudar en una edición diferente.
 
-```ts
-type PlaybackProtocol = 'file' | 'hls' | 'dash';
+## Independencia de dominios de fallo
 
-type PlaybackSource = {
-  providerId: string;
-  assetId: string;
-  protocol: PlaybackProtocol;
-  url: string;                 // URL HTTPS validada y de corta duración si es firmada
-  mimeType: string;
-  codecs?: string[];
-  durationMs?: number;
-  expiresAt?: string;
-  assetFingerprint: string;    // Identidad del contenido, no solo el ID del vídeo
-  timelineFingerprint?: string; // Necesario para continuidad de HLS/DASH/live
-  authorizationRef: string;    // Referencia a derechos/permiso en el registro interno
-};
+Varios perfiles InnerTube y modos SABR/DASH/HLS son redundancia de rutas de extracción/entrega dentro del proveedor YouTube; no son CDN independientes. R2 primary + R2 replica mejora disponibilidad dentro de Cloudflare, pero no sobrevive a una caída global de Cloudflare. Para una segunda infraestructura real se debe incorporar un storage/origin externo (por ejemplo, Backblaze B2 o CDN del creador) para copias cuyo titular autorice almacenamiento y distribución.
 
-interface MediaSourceProvider {
-  readonly id: string;
-  canServe(assetId: string): Promise<boolean>;
-  resolve(assetId: string): Promise<PlaybackSource | null>;
-  healthCheck(): Promise<{ ok: boolean; latencyMs: number }>;
-}
-```
+El pipeline de backup no debe descargar arbitrariamente medios de YouTube; recibe archivos del propietario o assets con licencia de almacenamiento/distribución. Para vídeos grandes el Gateway requiere upload multipart/resumable, checksum y reconciliación de réplicas.
 
-Este es un contrato de diseño, no una API ya integrada. Ningún adaptador debe aceptar URLs arbitrarias introducidas por usuarios. El host, protocolo, identidad del asset, permiso y vencimiento del enlace se validan en servidor. Tokens y URLs firmadas no se escriben en logs.
+## Contrato mínimo
 
-## Registro por vídeo y orden de recuperación
+Cada candidato declara providerId, videoId/assetId, modo/protocolo, URI, MIME y expiración. Los providers pueden devolver varias opciones. El broker descarta candidatos malformados, aplica timeout, respeta AbortSignal, ordena por prioridad/salud y marca circuit breaker.
 
-TodoTube no debe descubrir un vídeo diferente al intentar recuperar una reproducción. Cada ficha de vídeo necesita un registro canónico:
-- `canonicalVideoId`: el identificador interno estable; puede conservar el YouTube video ID como referencia de metadatos.
-- `contentFingerprint`: prueba de identidad de la misma copia/contenido; el título o thumbnail no bastan.
-- `durationMs` y `timelineFingerprint`: impiden saltar a otra edición o a una línea temporal incompatible.
-- `sources[]`: solamente endpoints/proveedores que entregan exactamente ese asset y cuyo uso está autorizado.
-- `backupAssetId`: la copia de respaldo propia/licenciada guardada en R2/replica o en otro storage autorizado.
-- `authorizationRef`: evidencia del permiso de almacenamiento y distribución.
+El runtime recibe resumeAt y wasPlaying. El player conserva posición, volumen, velocidad, subtítulos, fullscreen e identidad del vídeo.
 
-Orden por vídeo:
-1. Mantener la fuente activa.
-2. Si hay error recuperable o el body deja de entregar bytes durante 2 segundos, probar otra fuente registrada del mismo asset.
-3. Si ninguna fuente alternativa sirve, abrir `backupAssetId` en el Gateway y reanudar desde el timestamp/byte equivalente.
-4. Si no existe fuente alternativa ni respaldo autorizado, reportar el error; jamás cambiar silenciosamente a otro vídeo.
+## Seguridad y operación
 
-El broker obtiene fuentes elegibles en orden de preferencia y valida autorización, fingerprint, protocolo y vencimiento. Para la primera selección puede probar candidates en paralelo con timeout corto.
+- Los streams de YouTube no pasan por Cloudflare Workers ni R2.
+- Bridge se limita al origen TodoTube y a hosts HTTPS permitidos.
+- No hay proxy abierto ni URLs arbitrarias en el Gateway.
+- No DRM/Widevine ni acceso a contenido de pago sin autorización.
+- No almacenar vídeos de terceros en R2 sin derechos de almacenamiento/distribución.
+- No registrar cookies, tokens de integridad, secretos o URLs firmadas completas.
 
-Se considera fallo recuperable un timeout, error de red, 408/425/429/5xx o body estancado. No se oculta un 401/403 por falta de autorización: se registra como fallo de permiso y se excluye esa fuente.
+## Pruebas necesarias
 
-Un circuito por provider + asset se abre tras fallos consecutivos y pasa a half-open después de un backoff. El estado debe residir en Durable Object/D1/KV, no solo en memoria de un Worker.
+- Onesie falla -> InnerTube normal.
+- Perfil falla -> siguiente perfil.
+- SABR falla -> DASH/HLS/directo si la respuesta provee candidatos válidos.
+- URL vencida -> renovación y después failover.
+- R2 falla a mitad de vídeo -> runtime web, posición y estado preservados.
+- Runtime se agota y R2 está disponible -> volver a R2, sin audio duplicado.
+- Rechazar fingerprint/timeline incompatible.
+- Confirmar audio y vídeo completos, seek, buffering y fullscreen en navegadores objetivo.
+- Medir TTFF, tasa de buffer y tiempo de failover.
 
-Una fuente alternativa solo es apta para continuidad cuando comparte assetFingerprint y timelineFingerprint/segment alignment. Para archivos idénticos, el Gateway reanuda por byte offset si coinciden mediaVersion (o ETag) y tamaño.
-
-## Independencia real
-
-Piped declara que su backend usa NewPipeExtractor. Invidious es una implementación propia y Grayjay utiliza plugins. Estos proyectos prueban que hay arquitecturas distintas, pero no constituyen cuatro réplicas independientes del contenido de YouTube. Si los candidatos siguen consultando YouTube para el mismo asset, comparten el mismo proveedor último y pueden fallar por una modificación o restricción del origen.
-
-No se cuentan como redundancia los conectores que solo presentan otra interfaz sobre YouTube. La fuente final sigue siendo YouTube; un cambio en la entrega o en las reglas de acceso de YouTube puede afectar a todos esos conectores. Tampoco se consideran respaldo las búsquedas de otro vídeo con el mismo título.
-
-## Contenido de YouTube
-
-Un ID de YouTube o sus metadatos no constituyen una fuente de medios. La reproducción con player propio requiere una fuente de entrega autorizada por YouTube y/o por el titular de derechos y compatible con ese reproductor. La documentación pública del API de YouTube no ofrece un endpoint general para que un tercero descargue los segmentos y los entregue desde su propia infraestructura. Los Términos de YouTube restringen el uso automatizado, la copia/transmisión no autorizada y la evasión de medidas de seguridad.
-
-No se integrarán adaptadores que evadan controles anti-bot, tokens de integridad, límites geográficos, restricciones de IP o mecanismos de acceso. La arquitectura permite múltiples proveedores autorizados; no convierte los extractores no oficiales en proveedores contratados ni estables.
-
-## Telemetría y SLO
-
-Registrar por provider:
-- resolución y latencia hasta primer byte;
-- porcentaje de éxito, errores por código y timeout;
-- cambios de origen por sesión;
-- rebuffering, tiempo recuperado y errores terminales;
-- porcentaje de assets con dos o más copias válidas.
-
-No registrar tokens, cookies, URLs firmadas ni datos personales. Alertar si un asset público queda con una sola copia o si una fuente supera el umbral de errores.
-
-## Fases
-
-- **Fase A (PR #26):** R2 primario/réplica, GET/HEAD/Range y recuperación de stream truncado.
-- **Fase B:** registro de fuentes por vídeo, backupAssetId y circuit breaker persistente.
-- **Fase B.1:** pipeline de backup con carga reanudable/multipart y almacenamiento cross-cloud opcional (Backblaze B2).
-- **Fase C:** fallback de fuente alternativa a backupAssetId, con recuperación de posición y validación de identidad.
-- **Fase D:** adaptadores de entrega autorizados (creator-origin/CDN o Cloudflare Stream) solo cuando distribuyen exactamente el mismo asset.
-- **Fase E:** pruebas de caos, medición de SLO y failover de extremo a extremo en staging y producción.
-
-No declarar continuidad multi-proveedor hasta que existan al menos dos proveedores de entrega independientes y pruebas en los que el usuario mantenga su posición de reproducción.
+El código presente en PR #37 es una primera integración. No se certifica playback completo hasta ejecutar pruebas reales de navegador y medios.
