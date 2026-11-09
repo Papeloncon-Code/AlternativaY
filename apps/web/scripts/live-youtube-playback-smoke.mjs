@@ -29,7 +29,23 @@ try {
 
   const page = await context.newPage();
   page.on('console', (message) => {
-    if (message.type() === 'error') process.stderr.write('[browser] ' + message.text() + '\n');
+    const text = message.text();
+    const isRuntimeWarning = message.type() === 'warning' &&
+      /^\[(TodoTube|ShakaPlayerAdapter|SABRPlayer|BotguardService)\]/.test(text);
+    if (message.type() === 'error' || isRuntimeWarning) {
+      const safeText = text
+        .replace(/https?:\/\/[^\s"'<>]+/g, (value) => {
+          try {
+            const url = new URL(value);
+            return url.origin + url.pathname;
+          } catch {
+            return '[URL redactada]';
+          }
+        })
+        .replace(/((?:po.?token|visitor.?data|integrity.?token|client.?key|encrypted.?key)=)[^&\s]+/gi, '$1[redactado]')
+        .slice(0, 1200);
+      process.stderr.write('[browser:' + message.type() + '] ' + safeText + '\n');
+    }
   });
   page.on('pageerror', (error) => process.stderr.write('[pageerror] ' + error.message + '\n'));
   await page.addInitScript(() => {

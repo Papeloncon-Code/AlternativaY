@@ -102,3 +102,9 @@ La ruta SABR para WEB/MWEB debe preparar el contexto de attestation del cliente 
 `ShakaPlayerAdapter` transmite `StreamProtectionStatus` detectado en UMP al runtime. Para estado `3`, el runtime re-primea attestation y renueva el WebPO mediante el `BotguardService` del navegador existente. La operación se deduplica y limita con cooldown; no cambia cliente, IP, proxy ni instancia remota.
 
 La respuesta Onesie no se debe considerar SABR-ready por tener un campo UStreamer no vacío. Materialious construye SABR con el `/player` WEB normal y Invidious PR #5814 documenta una diferencia de contextos SABR entre Onesie y el player normal. TodoTube deja de enviar `sendVideoPlaybackConfig=false`, pero aún necesita evidencia real de que el servidor devuelve contextos/segmentos y permite seek. El comportamiento debe verificarse mediante UMP telemetry segura y E4.
+
+## SABR: fuente de playerResponse WEB
+
+El runtime SABR obtiene ahora su playerResponse mediante el endpoint `/player` normal de YouTube.js en la misma sesión WEB/MWEB, transportado por Browser Bridge. Onesie no se usa como respuesta primaria para construir un manifiesto SABR: puede responder HTTP 200 con datos parciales de UStreamer pero sin los contextos requeridos para segmentos/seek. Onesie conserva pruebas y código aislado, pero no se considera una fuente SABR válida sin demostrar esos contextos.
+
+El primer smoke E4 desplegado el 2026-11-09 falló con Android HTTP 400 `FAILED_PRECONDITION`, `readyState=0`, sin dimensiones ni duración. No demuestra reproducción ni que la red del usuario esté bloqueada. El siguiente smoke debe registrar advertencias runtime redactadas para identificar la progresión de clientes/transporte y volver a exigir E4 real.
