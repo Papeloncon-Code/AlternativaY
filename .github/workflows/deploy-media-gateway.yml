@@ -83,18 +83,16 @@ jobs:
         run: npx wrangler deploy --config "$GITHUB_WORKSPACE/apps/media-gateway/test/live-e2e.wrangler.toml"
       - name: Add ephemeral test secret to fixture worker
         env:
-          TEST_TOKEN: ${{ env.MEDIA_TEST_TOKEN }}
-        run: printf '%s' "$TEST_TOKEN" | npx wrangler secret put MEDIA_TEST_TOKEN --config "$GITHUB_WORKSPACE/apps/media-gateway/test/live-e2e.wrangler.toml"
+        run: printf '%s' "$MEDIA_TEST_TOKEN" | npx wrangler secret put MEDIA_TEST_TOKEN --config "$GITHUB_WORKSPACE/apps/media-gateway/test/live-e2e.wrangler.toml"
       - name: Upload synthetic test video to both production R2 buckets
         env:
           WORKER_URL: ${{ steps.test-identity.outputs.worker_url }}
           MEDIA_ID: ${{ steps.test-identity.outputs.media_id }}
-          TEST_TOKEN: ${{ steps.test-identity.outputs.test_token }}
         run: |
           set -euo pipefail
           curl --fail-with-body --silent --show-error \
             -X POST "$WORKER_URL/setup/$MEDIA_ID" \
-            -H "Authorization: Bearer $TEST_TOKEN" \
+            -H "Authorization: Bearer $MEDIA_TEST_TOKEN" \
             -H "Content-Type: video/webm" \
             --data-binary "@$RUNNER_TEMP/todotube-media-e2e/fixture.webm" \
             | tee "$RUNNER_TEMP/todotube-media-e2e/setup.json"
@@ -109,25 +107,22 @@ jobs:
         env:
           WORKER_URL: ${{ steps.test-identity.outputs.worker_url }}
           MEDIA_ID: ${{ steps.test-identity.outputs.media_id }}
-          TEST_TOKEN: ${{ steps.test-identity.outputs.test_token }}
-        run: curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer $TEST_TOKEN" "$WORKER_URL/drop-replica/$MEDIA_ID"
+        run: curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer $MEDIA_TEST_TOKEN" "$WORKER_URL/drop-replica/$MEDIA_ID"
       - name: Restore replica and verify same-version metadata
         env:
           WORKER_URL: ${{ steps.test-identity.outputs.worker_url }}
           MEDIA_ID: ${{ steps.test-identity.outputs.media_id }}
-          TEST_TOKEN: ${{ steps.test-identity.outputs.test_token }}
         run: |
           curl --fail-with-body --silent --show-error \
             -X POST "$WORKER_URL/restore-replica/$MEDIA_ID" \
-            -H "Authorization: Bearer $TEST_TOKEN" \
+            -H "Authorization: Bearer $MEDIA_TEST_TOKEN" \
             -H "Content-Type: video/webm" \
             --data-binary "@$RUNNER_TEMP/todotube-media-e2e/fixture.webm"
       - name: Remove primary copy to force same-asset replica failover
         env:
           WORKER_URL: ${{ steps.test-identity.outputs.worker_url }}
           MEDIA_ID: ${{ steps.test-identity.outputs.media_id }}
-          TEST_TOKEN: ${{ steps.test-identity.outputs.test_token }}
-        run: curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer $TEST_TOKEN" "$WORKER_URL/drop-primary/$MEDIA_ID"
+        run: curl --fail-with-body --silent --show-error -X POST -H "Authorization: Bearer $MEDIA_TEST_TOKEN" "$WORKER_URL/drop-primary/$MEDIA_ID"
       - name: Verify replica failover, HTTP ranges and real web player
         env:
           MEDIA_ID: ${{ steps.test-identity.outputs.media_id }}
@@ -148,10 +143,9 @@ jobs:
         env:
           WORKER_URL: ${{ steps.test-identity.outputs.worker_url }}
           MEDIA_ID: ${{ steps.test-identity.outputs.media_id }}
-          TEST_TOKEN: ${{ steps.test-identity.outputs.test_token }}
         run: |
           curl --fail-with-body --silent --show-error --max-time 20 \
-            -X POST -H "Authorization: Bearer $TEST_TOKEN" \
+            -X POST -H "Authorization: Bearer $MEDIA_TEST_TOKEN" \
             "$WORKER_URL/cleanup/$MEDIA_ID" || echo "::warning::Could not confirm test object cleanup"
       - name: Delete the temporary fixture Worker and its secret
         if: always() && steps.test-identity.outputs.worker_name != ''
