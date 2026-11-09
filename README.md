@@ -25,14 +25,16 @@ TodoTube conserva metadatos públicos y enlaces al origen. No obtiene ni retrans
 ### Media Gateway R2
 
 Worker `todotube-media-gateway` en `apps/media-gateway`:
+- R2 primario y réplica opcional; lecturas en paralelo con timeout y failover automático entre orígenes configurados.
+- Cargas replicadas y catálogo combinado; las respuestas indican estado degradado.
 - GET `/health` y `/v1/catalog`.
 - GET/HEAD de `/v1/media/:id`.
-- Streaming R2, Range, 206 y 416.
+- Streaming R2, Range, 206 y 416; cambio de réplica si el stream falla, se trunca o deja de entregar bytes, reanudando desde el siguiente byte cuando la versión coincide.
 - Carga/borrado autenticados; metadatos `owned` o `licensed`.
 - Límite de carga actual: 90 MiB por objeto.
 - No acepta URLs arbitrarias ni retransmite YouTube.
 
-**Pendiente de operación:** bucket R2 `todotube-media`, Worker desplegado, `MEDIA_UPLOAD_TOKEN`, archivo autorizado y prueba real de seek en Chrome/Firefox. Hasta entonces, el Gateway no se declara operativo.
+**Pendiente de operación:** bucket R2 `todotube-media`, Worker desplegado, `MEDIA_UPLOAD_TOKEN`, archivo autorizado y prueba real de seek/failover en Chrome/Firefox. La réplica `todotube-media-replica` también debe crearse y enlazarse para activar redundancia efectiva. Hasta entonces, el Gateway no se declara operativo ni redundante.
 
 ## Arquitectura
 

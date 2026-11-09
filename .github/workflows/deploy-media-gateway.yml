@@ -1,6 +1,11 @@
 name: Deploy · Media Gateway
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/media-gateway/**'
+      - '.github/workflows/deploy-media-gateway.yml'
   workflow_dispatch:
 
 permissions:

@@ -4,21 +4,65 @@ import worker from '../src/index.js';
 
 class MemoryR2 {
   objects = new Map();
-  async head(key) { return this.objects.get(key) || null; }
+  failHead = false;
+  neverResolveHead = false;
+  failGet = false;
+  failBodyAfterBytes = null;
+  stallBodyAfterBytes = null;
+  slowPutMs = 0;
+  failList = false;
+  getCount = 0;
+  async head(key) {
+    if (this.neverResolveHead) return new Promise(() => {});
+    if (this.failHead) throw new Error('simulated origin outage');
+    return this.objects.get(key) || null;
+  }
   async get(key, opts = {}) {
+    this.getCount += 1;
+    if (this.failGet) throw new Error('simulated read outage');
     const item = this.objects.get(key); if (!item) return null;
     const bytes = item.bytes;
     const offset = opts.range?.offset ?? 0;
     const length = opts.range?.length ?? bytes.length;
     const body = new Uint8Array(bytes.slice(offset, offset + length));
-    return { ...item, body: new Response(body).body, writeHttpMetadata: item.writeHttpMetadata };
+    let stream = new Response(body).body;
+    if (this.failBodyAfterBytes != null) {
+      const failAt = Math.min(this.failBodyAfterBytes, body.length);
+      let state = 0;
+      stream = new ReadableStream({
+        pull(controller) {
+          if (state === 0) {
+            state = 1;
+            if (failAt > 0) controller.enqueue(body.subarray(0, failAt));
+            return;
+          }
+          controller.error(new Error('simulated mid-stream failure'));
+        },
+      });
+    } else if (this.stallBodyAfterBytes != null) {
+      const stallAt = Math.min(this.stallBodyAfterBytes, body.length);
+      let state = 0;
+      stream = new ReadableStream({
+        pull(controller) {
+          if (state === 0) {
+            state = 1;
+            if (stallAt > 0) controller.enqueue(body.subarray(0, stallAt));
+            return;
+          }
+          return new Promise(() => {});
+        },
+      });
+    }
+    return { ...item, body: stream, writeHttpMetadata: item.writeHttpMetadata };
   }
   async put(key, body, opts) {
+    if (this.slowPutMs) await new Promise((resolve) => setTimeout(resolve, this.slowPutMs));
     const bytes = new Uint8Array(await new Response(body).arrayBuffer());
     this.objects.set(key, makeObject(bytes, opts));
   }
   async delete(key) { this.objects.delete(key); }
   async list({ prefix }) {
+    if (this.failList) throw new Error('simulated list outage');
     return { objects: [...this.objects.entries()].filter(([k]) => k.startsWith(prefix)).map(([key, v]) => ({ key, size: v.size, uploaded: v.uploaded, httpEtag: v.httpEtag, customMetadata: v.customMetadata, httpMetadata: v.httpMetadata })) };
   }
 }
@@ -32,18 +76,58 @@ function makeObject(bytes, opts = {}) {
     },
   };
 }
-function env() { const bucket = new MemoryR2(); bucket.objects.set('media/demo_123', makeObject(new TextEncoder().encode('0123456789'))); return { MEDIA_BUCKET: bucket, MEDIA_UPLOAD_TOKEN: 'a'.repeat(40), ALLOWED_ORIGINS: 'https://todotube.papelon.workers.dev,http://localhost:5173' }; }
+function env() {
+  const bucket = new MemoryR2();
+  bucket.objects.set('media/demo_123', makeObject(new TextEncoder().encode('0123456789')));
+  return { MEDIA_BUCKET: bucket, MEDIA_UPLOAD_TOKEN: 'a'.repeat(40), ALLOWED_ORIGINS: 'https://todotube.papelon.workers.dev,http://localhost:5173' };
+}
 const req = (path, init = {}) => new Request('https://gateway.test' + path, init);
 
-test('health endpoint returns service identity', async () => {
+test('health endpoint reports configured origin count without claiming a replica exists', async () => {
   const r = await worker.fetch(req('/health'), env());
-  assert.equal(r.status, 200); assert.equal((await r.json()).service, 'todotube-media-gateway');
+  assert.equal(r.status, 200);
+  const data = await r.json();
+  assert.equal(data.service, 'todotube-media-gateway');
+  assert.equal(data.originsConfigured, 1);
+  assert.equal(data.originsAvailable, 1);
+  assert.equal(data.degraded, false);
 });
+
+test('health reports degraded origins and fails readiness when none are available', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  e.MEDIA_BUCKET.failList = true;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const degraded = await worker.fetch(req('/health'), e);
+  assert.equal(degraded.status, 200);
+  assert.deepEqual(await degraded.json(), {
+    ok: true,
+    service: 'todotube-media-gateway',
+    originsConfigured: 2,
+    originsAvailable: 1,
+    degraded: true,
+  });
+  replica.failList = true;
+  const unavailable = await worker.fetch(req('/health'), e);
+  assert.equal(unavailable.status, 503);
+  assert.equal((await unavailable.json()).ok, false);
+});
+
+test('If-None-Match supports weak and comma-separated validators without reading the body', async () => {
+  const e = env();
+  const r = await worker.fetch(req('/v1/media/demo_123', {
+    headers: { 'If-None-Match': '"another", W/"fixture-etag"' },
+  }), e);
+  assert.equal(r.status, 304);
+  assert.equal(e.MEDIA_BUCKET.getCount, 0);
+});
+
 test('GET supports byte ranges and preserves streaming status headers', async () => {
   const r = await worker.fetch(req('/v1/media/demo_123', { headers: { Range: 'bytes=2-5', Origin: 'https://todotube.papelon.workers.dev' } }), env());
   assert.equal(r.status, 206); assert.equal(r.headers.get('Content-Range'), 'bytes 2-5/10');
   assert.equal(await r.text(), '2345');
   assert.match(r.headers.get('Cache-Control') || '', /public/);
+  assert.equal(r.headers.get('X-Media-Origin'), 'primary');
 });
 test('HEAD returns metadata and no body', async () => {
   const r = await worker.fetch(req('/v1/media/demo_123', { method: 'HEAD' }), env());
@@ -97,12 +181,10 @@ test('unapproved browser origins are rejected', async () => {
   const r = await worker.fetch(req('/v1/catalog', { headers: { Origin: 'https://evil.test' } }), env());
   assert.equal(r.status, 403);
 });
-
 test('malformed encoded media IDs return 400 instead of throwing', async () => {
   const r = await worker.fetch(req('/v1/media/%ZZ'), env());
   assert.equal(r.status, 400);
 });
-
 test('deleting a missing media ID returns 404', async () => {
   const e = env();
   const r = await worker.fetch(req('/v1/admin/media/not_here', {
@@ -110,4 +192,220 @@ test('deleting a missing media ID returns 404', async () => {
     headers: { Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN },
   }), e);
   assert.equal(r.status, 404);
+});
+
+test('a primary 404 does not hide a valid replica copy', async () => {
+  const e = env();
+  e.MEDIA_BUCKET.objects.clear();
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(new TextEncoder().encode('replica-only')));
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('X-Media-Origin'), 'replica-1');
+  assert.equal(await r.text(), 'replica-only');
+});
+
+test('a failed primary origin is bypassed automatically when the replica has the file', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(new TextEncoder().encode('replica-data')));
+  e.MEDIA_BUCKET.failHead = true;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('X-Media-Origin'), 'replica-1');
+  assert.equal(await r.text(), 'replica-data');
+});
+
+test('mid-stream failover rejects a replica with different visibility or licence metadata', async () => {
+  const e = env();
+  const primaryObject = e.MEDIA_BUCKET.objects.get('media/demo_123');
+  primaryObject.customMetadata.mediaVersion = 'same-media-version';
+  e.MEDIA_BUCKET.failBodyAfterBytes = 4;
+  const replica = new MemoryR2();
+  const replicaObject = makeObject(new TextEncoder().encode('0123456789'), {
+    customMetadata: {
+      title: 'Fixture',
+      creator: 'Owner',
+      license: 'licensed',
+      licenseReference: 'different-grant',
+      visibility: 'private',
+      mediaVersion: 'same-media-version',
+    },
+  });
+  replica.objects.set('media/demo_123', replicaObject);
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  await assert.rejects(() => r.text(), /MEDIA_STREAM_ORIGINS_EXHAUSTED/);
+});
+
+test('mid-stream failover refuses a same-size replica with a different media version', async () => {
+  const e = env();
+  const primaryObject = e.MEDIA_BUCKET.objects.get('media/demo_123');
+  primaryObject.customMetadata.mediaVersion = 'version-primary';
+  e.MEDIA_BUCKET.failBodyAfterBytes = 4;
+  const replica = new MemoryR2();
+  const replicaObject = makeObject(new TextEncoder().encode('abcdefghij'));
+  replicaObject.customMetadata.mediaVersion = 'version-replica';
+  replica.objects.set('media/demo_123', replicaObject);
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  await assert.rejects(() => r.text(), /MEDIA_STREAM_ORIGINS_EXHAUSTED/);
+});
+
+test('default stream idle timeout switches to the replica after about two seconds', async () => {
+  const e = env();
+  const primary = e.MEDIA_BUCKET.objects.get('media/demo_123');
+  e.MEDIA_BUCKET.stallBodyAfterBytes = 4;
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(primary.bytes));
+  e.MEDIA_BUCKET_REPLICA = replica;
+  // Deliberately leave MEDIA_STREAM_IDLE_TIMEOUT_MS unset to verify production default.
+  const started = Date.now();
+  const response = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), '0123456789');
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed >= 1800 && elapsed < 3500, 'expected approximately two-second idle failover; got ' + elapsed + 'ms');
+});
+
+test('a stalled primary body resumes from the replica after the idle timeout', async () => {
+  const e = env();
+  const primaryObject = e.MEDIA_BUCKET.objects.get('media/demo_123');
+  e.MEDIA_BUCKET.stallBodyAfterBytes = 4;
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(primaryObject.bytes));
+  e.MEDIA_BUCKET_REPLICA = replica;
+  e.MEDIA_STREAM_IDLE_TIMEOUT_MS = '50';
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  assert.equal(await r.text(), '0123456789');
+});
+
+test('a stream that fails mid-transfer resumes from the next byte on the replica', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  const bytes = new TextEncoder().encode('0123456789');
+  replica.objects.set('media/demo_123', makeObject(bytes));
+  e.MEDIA_BUCKET.failBodyAfterBytes = 4;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123', { headers: { Range: 'bytes=2-8' } }), e);
+  assert.equal(r.status, 206);
+  assert.equal(r.headers.get('Content-Range'), 'bytes 2-8/10');
+  assert.equal(await r.text(), '2345678');
+});
+
+test('a primary read failure after HEAD is retried through the replica', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(new TextEncoder().encode('replica-after-get-error')));
+  e.MEDIA_BUCKET.failGet = true;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('X-Media-Origin'), 'replica-1');
+  assert.equal(await r.text(), 'replica-after-get-error');
+});
+
+test('a hung primary does not block the faster replica', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(new TextEncoder().encode('fast-replica')));
+  e.MEDIA_BUCKET.neverResolveHead = true;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/media/demo_123'), e);
+  assert.equal(r.status, 200);
+  assert.equal(await r.text(), 'fast-replica');
+});
+
+test('catalog merges replicas without duplicate IDs and reports degraded origins', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(new TextEncoder().encode('copy')));
+  replica.objects.set('media/second_456', makeObject(new TextEncoder().encode('other'), { customMetadata: { title: 'Second', creator: 'Owner', license: 'owned', visibility: 'public' } }));
+  e.MEDIA_BUCKET_REPLICA = replica;
+  e.MEDIA_BUCKET.failList = true;
+  const r = await worker.fetch(req('/v1/catalog'), e);
+  assert.equal(r.status, 200);
+  const data = await r.json();
+  assert.deepEqual(data.items.map((x) => x.id), ['demo_123', 'second_456']);
+  assert.deepEqual(data.origins, { configured: 2, available: 1, degraded: true });
+});
+
+test('uploads are replicated to each configured origin', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/admin/media/upload_001', {
+    method: 'PUT',
+    body: 'video',
+    headers: {
+      Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN,
+      'Content-Type': 'video/mp4',
+      'Content-Length': '5',
+      'X-Media-Title': 'Upload',
+      'X-Media-Creator': 'Owner',
+      'X-Media-License': 'owned',
+      'X-Media-Visibility': 'public',
+    },
+  }), e);
+  assert.equal(r.status, 201);
+  assert.deepEqual((await r.json()).replicas, { written: 2, configured: 2, degraded: false });
+  assert.equal(new TextDecoder().decode(e.MEDIA_BUCKET.objects.get('media/upload_001').bytes), 'video');
+  assert.equal(new TextDecoder().decode(replica.objects.get('media/upload_001').bytes), 'video');
+  assert.equal(
+    e.MEDIA_BUCKET.objects.get('media/upload_001').customMetadata.mediaVersion,
+    replica.objects.get('media/upload_001').customMetadata.mediaVersion,
+  );
+});
+
+test('replicated writes use a write timeout separate from fast read failover timeouts', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  replica.slowPutMs = 80;
+  e.MEDIA_BUCKET_REPLICA = replica;
+  e.MEDIA_ORIGIN_TIMEOUT_MS = '50';
+  e.MEDIA_WRITE_TIMEOUT_MS = '1000';
+  const r = await worker.fetch(req('/v1/admin/media/slow_upload', {
+    method: 'PUT',
+    body: 'video',
+    headers: {
+      Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN,
+      'Content-Type': 'video/mp4',
+      'Content-Length': '5',
+      'X-Media-Title': 'Slow upload',
+      'X-Media-Creator': 'Owner',
+      'X-Media-License': 'owned',
+      'X-Media-Visibility': 'public',
+    },
+  }), e);
+  assert.equal(r.status, 201);
+  assert.deepEqual((await r.json()).replicas, { written: 2, configured: 2, degraded: false });
+});
+
+test('all missing origins return 404, while an origin outage returns 503', async () => {
+  const e = env();
+  e.MEDIA_BUCKET.objects.clear();
+  const missing = await worker.fetch(req('/v1/media/not_here'), e);
+  assert.equal(missing.status, 404);
+  e.MEDIA_BUCKET.failHead = true;
+  const unavailable = await worker.fetch(req('/v1/media/not_here'), e);
+  assert.equal(unavailable.status, 503);
+});
+
+test('delete removes the file from every configured origin', async () => {
+  const e = env();
+  const replica = new MemoryR2();
+  replica.objects.set('media/demo_123', makeObject(new TextEncoder().encode('replica')));
+  e.MEDIA_BUCKET_REPLICA = replica;
+  const r = await worker.fetch(req('/v1/admin/media/demo_123', {
+    method: 'DELETE',
+    headers: { Authorization: 'Bearer ' + e.MEDIA_UPLOAD_TOKEN },
+  }), e);
+  assert.equal(r.status, 200);
+  assert.equal(e.MEDIA_BUCKET.objects.has('media/demo_123'), false);
+  assert.equal(replica.objects.has('media/demo_123'), false);
 });
