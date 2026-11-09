@@ -34,6 +34,7 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
   private requestMetadataManager?: RequestMetadataManager;
   private cacheManager?: CacheManager;
   private abortController?: AbortController;
+  private streamProtectionHandler?: (status: number) => Promise<void> | void;
 
   private requestFilter?: (type: shaka.net.NetworkingEngine.RequestType, request: shaka.extern.Request, context?: shaka.extern.RequestContext) => Promise<void>;
   private responseFilter?: (type: shaka.net.NetworkingEngine.RequestType, response: shaka.extern.Response, context?: shaka.extern.RequestContext) => Promise<void>;
@@ -59,6 +60,10 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         networkingEngine.PluginPriority.PREFERRED
       );
     });
+  }
+
+  public setStreamProtectionHandler(handler: (status: number) => Promise<void> | void): void {
+    this.streamProtectionHandler = handler;
   }
 
   private parseRequest(
@@ -171,8 +176,13 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
 
     const sabrUmpReader = new SabrUmpProcessor(requestMetadata, this.cacheManager);
 
-    const checkResultIntegrity = (result: UmpProcessingResult) => {
-      if (!result.data && ((!!requestMetadata.error || requestMetadata.streamInfo?.streamProtectionStatus?.status === 3) && !requestMetadata.streamInfo?.sabrContextUpdate)) {
+    const checkResultIntegrity = async (result: UmpProcessingResult) => {
+      const protectionStatus = requestMetadata.streamInfo?.streamProtectionStatus?.status;
+      if (protectionStatus !== undefined) {
+        await this.streamProtectionHandler?.(protectionStatus);
+      }
+
+      if (!result.data && ((!!requestMetadata.error || protectionStatus === 3) && !requestMetadata.streamInfo?.sabrContextUpdate)) {
         throw createRecoverableError('Server streaming error', requestMetadata);
       }
     };
@@ -196,7 +206,7 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
       const result = await sabrUmpReader.processChunk(new Uint8Array(arrayBuffer));
 
       if (result) {
-        checkResultIntegrity(result);
+        await checkResultIntegrity(result);
         return this.createShakaResponse({ uri, request, requestType, response, arrayBuffer: result.data });
       }
 
@@ -253,7 +263,7 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         // is downloaded, call progressUpdated().
         if ((currentTime - lastTime > 100 && chunkSize >= minBytes) || result) {
           // If we have a result, check its integrity before attempting anything.
-          if (result) checkResultIntegrity(result);
+          if (result) await checkResultIntegrity(result);
           if (contentLength) {
             const numBytesRemaining = result ? 0 : parseInt(contentLength) - loaded;
             try {
