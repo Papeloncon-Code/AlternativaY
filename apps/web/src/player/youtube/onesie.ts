@@ -14,6 +14,7 @@ import { Constants } from 'youtubei.js/web';
 import { CompositeBuffer, UmpReader } from 'googlevideo/ump';
 import { base64ToU8 } from 'googlevideo/utils';
 import type { Part } from 'googlevideo/shared-types';
+import { InnerTubePlayerHttpError } from './failurePolicy';
 import {
   encryptRequest,
   fetchFunction,
@@ -111,7 +112,10 @@ export async function makePlayerRequest(args: OnesieRequestArgs): Promise<ApiRes
     method: 'POST',
     body: body as unknown as BodyInit,
   });
-  if (!response.ok) throw new Error('Onesie endpoint returned HTTP ' + response.status + '.');
+  if (!response.ok) {
+    const responseBody = await response.text().catch(() => '');
+    throw new InnerTubePlayerHttpError(response.status, responseBody);
+  }
 
   const arrayBuffer = await response.arrayBuffer();
   const reader = new UmpReader(new CompositeBuffer([new Uint8Array(arrayBuffer)]));
