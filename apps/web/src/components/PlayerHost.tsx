@@ -68,9 +68,9 @@ export default function PlayerHost() {
           <button type="button" className="mini-text" onClick={() => navigate(back)} title="Volver a la ficha del vídeo">
             <b className="ellipsis">{s.meta.title}</b><span className="ellipsis">{s.meta.channel || 'Contenido externo'}</span>
           </button>
-          <a className="icon-btn mini-source" aria-label="Abrir vídeo original" title="Abrir vídeo original" href={original} target="_blank" rel="noreferrer">
+          {gatewayCheck?.id === s.id && gatewayCheck.status !== 'gateway' && <a className="icon-btn mini-source" aria-label="Abrir vídeo original" title="Abrir vídeo original" href={original} target="_blank" rel="noreferrer">
             <Icon name="external-link" size={20} />
-          </a>
+          </a>}
           <button type="button" className="icon-btn mini-expand" aria-label="Volver a la ficha" onClick={() => navigate(back)}><Icon name="expand" size={20} /></button>
           <button type="button" className="icon-btn" aria-label="Cerrar el minirreproductor" onClick={stop}><Icon name="close" size={20} /></button>
         </div>
