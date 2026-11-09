@@ -36,7 +36,11 @@ export async function primeSabrAttestation(
         client.getAttestationChallenge('ENGAGEMENT_TYPE_UNBOUND'),
         new Promise<never>((_, reject) => {
           timer = setTimeout(
-            () => reject(new Error('SABR attestation challenge timed out.')),
+            () => {
+              const error = new Error('SABR attestation challenge timed out.');
+              error.name = 'TimeoutError';
+              reject(error);
+            },
             timeoutMs,
           );
         }),
@@ -47,7 +51,7 @@ export async function primeSabrAttestation(
       // Do not retry an HTTP denial or a server-side rejection by changing
       // client identity. The caller can report the failure or use a different
       // transport from the already-resolved, same-client response.
-      if (shouldStopClientFallback(error)) throw error;
+      if (shouldStopClientFallback(error) || (error instanceof Error && error.name === 'TimeoutError')) throw error;
       if (attempt + 1 < attempts) {
         await delay(retryDelayMs * (attempt + 1));
       }
