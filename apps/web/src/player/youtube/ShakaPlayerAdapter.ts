@@ -300,7 +300,7 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
       }
 
       // We only make one InnerTube request through the player, and it needs to be proxied properly.
-      const fetchFn = uri.includes('get_drm_license') && checkExtension() ? getInjectedProxyFunction() : fetch;
+      const fetchFn = uri.includes('get_drm_license') && checkExtension() ? (getInjectedProxyFunction() ?? fetch) : fetch;
 
       const response = await fetchFn(uri, init);
       headersReceived(headersToGenericObject(response.headers));
