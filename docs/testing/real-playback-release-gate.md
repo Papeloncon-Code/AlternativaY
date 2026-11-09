@@ -19,9 +19,9 @@ Las pruebas de build, TypeScript, contratos, fixtures, Playwright simulado y hea
 | E1 | Tests unitarios/Playwright con fixtures | Los contratos y estados simulados se comportan como se espera |
 | E2 | Metadatos, respuesta del extractor, manifest o URL obtenidos | Se resolvió información/candidato, no que el medio reproduzca |
 | E3 | Navegador real carga metadata, dimensiones, primer frame y avanza el tiempo | Hay reproducción de vídeo; el audio todavía debe verificarse |
-| E4 | E3 + sonido audible + seek ida/vuelta + controles propios + recuperación o error terminal correcto | **Playback aceptado** |
+| E4 | E3 + sonido audible/sincronizado + seek ida/vuelta + controles propios + recuperación transitoria real con el mismo asset/timeline | **Playback aceptado** |
 
-Solo E4 cierra el objetivo de reproducción. El estado E0–E3 debe describirse con su nivel, sin llamarlo éxito total.
+Solo E4 cierra el objetivo de reproducción. E4 exige que el vídeo sí se reproduzca y se escuche en TodoTube; mostrar correctamente un error por contenido restringido es una prueba separada de seguridad y nunca sustituye una reproducción exitosa. El estado E0–E3 debe describirse con su nivel, sin llamarlo éxito total.
 
 ## Procedimiento E4
 
@@ -35,7 +35,7 @@ Ejecutar desde el dominio desplegado de TodoTube y el navegador objetivo, no sol
 6. Buscar hacia delante y hacia atrás en dos posiciones separadas del vídeo. Confirmar que el tiempo salta a la posición solicitada, que la imagen continúa y que el audio permanece sincronizado.
 7. Verificar pausa, reanudación, volumen, velocidad y pantalla completa mediante controles de TodoTube.
 8. En staging, simular un fallo transitorio/estancamiento de la fuente activa. Verificar recuperación dentro del presupuesto, sin reiniciar la línea temporal ni montar un segundo reproductor. Solo aceptar el cambio si la siguiente fuente demuestra el mismo asset y una timeline compatible; si no existe, TodoTube debe presentar un error real.
-9. Simular una denegación/restricción de acceso por separado. Confirmar que no se cambia de identidad, extractor o ruta para intentar eludirla. La reproducción debe terminar con un estado explicativo.
+9. Como prueba de seguridad independiente (no cuenta como éxito E4), simular una denegación/restricción de acceso. Confirmar que no se cambia de identidad, extractor o ruta para intentar eludirla y que TodoTube muestra un estado explicativo.
 10. Repetir en Chrome y Edge cuando ambos estén declarados como objetivos de release. Registrar versión del navegador y del Bridge.
 
 ## Identidad y continuidad durante el failover
