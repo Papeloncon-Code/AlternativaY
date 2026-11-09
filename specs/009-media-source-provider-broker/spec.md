@@ -73,3 +73,9 @@ El broker puede marcar una ruta como candidata o recuperable, pero nunca declara
 Las denegaciones explícitas (login, edad, región, consentimiento, anti-bot, PoToken/BotGuard, tráfico automatizado o `FAILED_PRECONDITION` acompañado de un motivo claro de restricción) detienen la cadena de proveedores basados en YouTube. Un `FAILED_PRECONDITION` sin causa adicional es indeterminado y solo permite el fallback técnico al endpoint estándar del mismo cliente WEB. Invidious sigue dependiendo del mismo origen y no se puede utilizar como ruta para eludir esa denegación. Un backend propio tampoco se usa para cambiar de IP/red y superar el bloqueo.
 
 Las pruebas E0–E3 (build, fixtures, contratos, metadatos, manifest y primer frame sin audio verificado) son intermedias y se reportan por separado. La aceptación final requiere E4 y un registro versionado del commit, navegador, Bridge y ruta probada.
+## Requisitos SABR de attestation y renovación
+
+- RF-18: antes de iniciar SABR en WEB/MWEB se prepara `ENGAGEMENT_TYPE_UNBOUND` mediante `getAttestationChallenge` en la misma sesión InnerTube; la operación tiene timeout/reintentos finitos y no cambia identidad.
+- RF-19: el adaptador del player propaga `StreamProtectionStatus` de UMP; ante status `3`, el runtime actualiza attestation y renueva WebPO con el `BotguardService` local, con deduplicación y cooldown.
+- RF-20: la renovación de attestation/token no puede utilizar proxy, egress alternativo, `jsdom` con origen falso, instancia pública de Invidious ni servicio remoto para superar BotGuard/PoToken o restricción de acceso.
+- RF-21: Onesie no codifica `sendVideoPlaybackConfig=false`; un SABR candidate no se considera funcional hasta demostrar que recibe datos/context updates y reproduce el mismo asset/timeline.
