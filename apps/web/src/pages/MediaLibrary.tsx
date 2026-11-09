@@ -151,7 +151,7 @@ export default function MediaLibrary() {
 
     <div className="media-library-list-head"><h2>Biblioteca</h2><span>{items.length} {items.length === 1 ? 'archivo' : 'archivos'}</span></div>
     {loading && <p className="note">Conectando con el Gateway multimedia…</p>}
-    {error && <div className="media-state" role="status"><b>No se pudo consultar el Gateway</b><p>{error}</p><button className="btn" type="button" onClick={() => { setLoading(true); reloadCatalog().catch((e) => setError(e instanceof Error ? e.message : String(e))).finally(() => setLoading(false)); }}>Reintentar</button></div>}
+    {error && <div className="media-state" role="status"><b>Gateway no disponible</b><p>{error}</p><button className="btn" type="button" onClick={() => { setLoading(true); reloadCatalog().catch((e) => setError(e instanceof Error ? e.message : String(e))).finally(() => setLoading(false)); }}>Reintentar</button></div>}
     {!loading && !error && items.length === 0 && <Empty title="Todavía no hay medios publicados"><p>Cuando cargues un archivo propio o con licencia, aparecerá aquí.</p></Empty>}
     {items.length > 0 && <div className="media-list">{items.map((m) => <Link className="media-row" key={m.id} to={'/medios/' + encodeURIComponent(m.id)}>
       <span className="media-icon"><Icon name="play" size={28} /></span>
