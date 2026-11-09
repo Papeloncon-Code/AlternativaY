@@ -15,7 +15,7 @@ test('W8 · el reproductor ocupa su hueco; la ficha externa pasa a mini y vuelve
   await page.waitForTimeout(500);
   const [h, s] = await Promise.all([host.boundingBox(), page.locator('#player-slot').boundingBox()]);
   for (const k of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(h![k] - s![k])).toBeLessThan(2);
-  // No hay stream YouTube dentro de TodoTube: al salir de Watch, la ficha compacta ofrece abrir el origen.
+  // La reproducción permanece dentro de TodoTube; no hay enlaces externos en el player.
   await expect(page.locator('.player-dock .gateway-error')).toBeVisible();
   await expect(page.locator('.player-dock iframe')).toHaveCount(0);
   await page.locator('.logo-link').click();
@@ -25,7 +25,8 @@ test('W8 · el reproductor ocupa su hueco; la ficha externa pasa a mini y vuelve
   expect(miniBox).not.toBeNull();
   expect(miniBox!.y + miniBox!.height).toBeLessThanOrEqual(await page.evaluate(() => innerHeight));
   await expect(page.locator('.player-dock .gateway-error')).toBeVisible();
-  await expect(page.locator('.player-dock .mini-source')).toBeVisible();
+  await expect(page.locator('.player-dock .mini-source')).toHaveCount(0);
+  await expect(page.locator('.player-dock a[href^="https://www.youtube.com/"]')).toHaveCount(0);
   await expect(page.locator('.mini-cover')).toHaveCount(0);
   await page.locator('.mini-text').click();
   await expect(page).toHaveURL(href);
