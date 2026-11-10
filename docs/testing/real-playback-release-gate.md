@@ -2,7 +2,7 @@
 # Puerta de aceptación final: reproducción real en TodoTube
 
 **Estado:** obligatoria para declarar terminado playback; todavía pendiente de evidencia real.
-**Aplica a:** reproductor web TodoTube, PlayerHost, Playback Broker, runtime YouTube, Bridge y cualquier provider que se incorpore.
+**Aplica a:** reproductor web TodoTube, PlayerHost, Playback Broker, runtime YouTube, endpoint de control Worker y cualquier provider que se incorpore.
 **Decisión rectora:** ADR-013 e incidencia #27.
 
 ## Regla de cierre
@@ -27,7 +27,7 @@ Solo E4 cierra el objetivo de reproducción. E4 exige que el vídeo sí se repro
 
 Ejecutar desde el dominio desplegado de TodoTube y el navegador objetivo, no solo desde localhost ni desde un runner de GitHub Actions.
 
-1. Instalar/activar la versión de TodoTube Bridge correspondiente a la compilación, cuando el navegador objetivo la requiera. Registrar también el resultado con Bridge ausente: debe mostrar una explicación clara, no fingir que reproduce ni insertar un iframe.
+1. Abrir la preview o producción en un perfil de navegador limpio, sin extensiones de TodoTube. Registrar `Bridge: no instalado`; el reproductor debe iniciar su ruta de control same-origin sin mostrar una solicitud de instalación.
 2. Abrir un vídeo público de prueba que esté disponible para esa sesión y no esté sujeto a DRM, pago, edad, login, región u otra restricción. Registrar el identificador de prueba de forma controlada.
 3. Confirmar que el título, canal y duración se corresponden con el vídeo abierto. El reproductor debe seguir siendo el de TodoTube, sin iframe, controles nativos visibles ni enlaces externos de reproducción.
 4. Esperar a `loadedmetadata` y `loadeddata`/primer frame. Confirmar `readyState >= 2`, `videoWidth > 0`, `videoHeight > 0` y duración válida. Un `play()` resuelto sin frames no basta.
@@ -36,7 +36,7 @@ Ejecutar desde el dominio desplegado de TodoTube y el navegador objetivo, no sol
 7. Verificar pausa, reanudación, volumen, velocidad y pantalla completa mediante controles de TodoTube.
 8. En staging, simular un fallo transitorio/estancamiento de la fuente activa. Verificar recuperación dentro del presupuesto, sin reiniciar la línea temporal ni montar un segundo reproductor. Solo aceptar el cambio si la siguiente fuente demuestra el mismo asset y una timeline compatible; si no existe, TodoTube debe presentar un error real.
 9. Como prueba de seguridad independiente (no cuenta como éxito E4), simular una denegación/restricción de acceso. Confirmar que no se cambia de identidad, extractor o ruta para intentar eludirla y que TodoTube muestra un estado explicativo.
-10. Repetir en Chrome y Edge cuando ambos estén declarados como objetivos de release. Registrar versión del navegador y del Bridge.
+10. Repetir en Chrome y Edge cuando ambos estén declarados como objetivos de release. Registrar versión del navegador y confirmar que no se instaló ninguna extensión.
 
 ## Identidad y continuidad durante el failover
 
@@ -60,7 +60,7 @@ Un rechazo observado desde la red compartida de GitHub Actions no demuestra que 
 
 ## Infraestructura y despliegue
 
-- El Bridge solo habilita solicitudes previstas desde los orígenes TodoTube permitidos y hosts HTTPS declarados; no se cambia el origen de la app para imitar otro sitio ni se convierte en proxy genérico.
+- El Worker solo habilita solicitudes de control previstas a hosts/rutas/métodos declarados; no retransmite medios ni acepta URLs arbitrarias.
 - Cloudflare Worker/R2 sigue sirviendo exclusivamente assets propios/licenciados. No recibe ni retransmite segmentos de YouTube.
 - Un provider Invidious, si se llega a evaluar, debe ser experimental, configurable y desactivado por defecto hasta pasar revisión de seguridad, operación, licencia/condiciones aplicables y E4. No fijar instancias públicas de terceros.
 - No desplegar un backend, VM, proxy, bucket o CDN adicional por intuición. Cada recurso debe corresponder a una ruta técnicamente validada y autorizada.
@@ -68,7 +68,7 @@ Un rechazo observado desde la red compartida de GitHub Actions no demuestra que 
 
 ## Registro de resultado
 
-La evidencia de E4 debe añadirse a un registro versionado con fecha, commit desplegado, versión de Bridge, navegador, proveedor/ruta y resultado de cada paso. Redactar datos sensibles. Hasta que ese registro exista y todas las verificaciones requeridas pasen, el estado global permanece **PLAYBACK PENDIENTE DE VALIDACIÓN REAL**.
+La evidencia de E4 debe añadirse a un registro versionado con fecha, commit desplegado, estado de extensión (ninguna), navegador, proveedor/ruta y resultado de cada paso. Redactar datos sensibles. Hasta que ese registro exista y todas las verificaciones requeridas pasen, el estado global permanece **PLAYBACK PENDIENTE DE VALIDACIÓN REAL**.
 
 ### Verificación de la ruta SABR
 

@@ -48,7 +48,7 @@ TodoTube UI / PlayerHost (un solo reproductor)
 - **PlayerHost:** dueño único del dock, navegación y selección de fuente.
 - **PlaybackBroker:** prioridades, timeouts, salud, cuarentena temporal y política de failover.
 - **YouTubeSabrRuntime:** runtime de extracción y reproducción en el navegador; mantiene una instancia Shaka por sesión.
-- **TodoTube Bridge:** extensión local Manifest V3, actualmente compilada para Chrome/Edge. Es requisito para el runtime SABR web porque habilita las peticiones que el navegador bloquea por CORS. Solo se inyecta en TodoTube/localhost y solo acepta los dominios declarados. Sin Bridge, el player comunica la limitación y no finge reproducción.
+- **Worker control-plane:** endpoint same-origin `/api/youtube/control`, que reenvía únicamente solicitudes de control a una allowlist exacta de hosts/rutas/métodos. No acepta destinos arbitrarios ni retransmite manifiestos o segmentos de vídeo. El navegador consume directamente los medios de Google Video.
 - **Media Gateway R2:** almacén y entrega de archivos propios/licenciados. No es un proxy de YouTube ni un requisito para el runtime SABR.
 - **Android/Desktop:** futuros adaptadores nativos implementarán el mismo contrato del broker, sin duplicar la UI web ni mezclar sus dependencias con el runtime web.
 
@@ -66,8 +66,8 @@ TodoTube UI / PlayerHost (un solo reproductor)
 
 ## Seguridad y operación
 
-- La resolución y entrega de YouTube ocurren desde el dispositivo/runtime del usuario. Cloudflare Workers y R2 no retransmiten streams de YouTube.
-- TodoTube Bridge limita ejecución al origen de TodoTube y a hosts HTTPS explícitamente permitidos; no acepta destinos arbitrarios.
+- El reproductor y los controles siguen ejecutándose en el navegador. El Worker realiza solo solicitudes de control expresamente permitidas; los manifiestos y segmentos de Google Video se solicitan directamente desde el navegador.
+- El endpoint de control valida HTTPS, host, ruta, método, tamaño y cabeceras; no es un proxy abierto, no sigue redirects y no acepta URLs arbitrarias.
 - Nunca se elude DRM/Widevine ni se intenta reproducir contenido de pago sin autorización.
 - No se suben ni almacenan vídeos de YouTube en R2 por defecto. El Gateway sigue reservado a contenido propio/licenciado con evidencia de derechos.
 - No se almacenan credenciales de Google en nuestros servidores.
@@ -87,7 +87,7 @@ Fuentes de la investigación: [Materialious issue #869](https://github.com/Mater
 
 ## Puerta final de aceptación E4
 
-La aceptación de playback se cierra solo con un vídeo real en el TodoTube desplegado: metadata y primer frame, dimensiones válidas, imagen en movimiento, sonido audible sincronizado, avance sostenido de `currentTime`, seek de ida y vuelta, pausa/reanudación, volumen, velocidad y pantalla completa desde controles TodoTube, y recuperación segura de un fallo transitorio en staging. La denegación explícita debe detener la cadena sin cambiar de identidad ni usar otro backend para eludirla. La prueba debe registrar navegador, Bridge, commit y proveedor/ruta. Ver `docs/testing/real-playback-release-gate.md`.
+La aceptación de playback se cierra solo con un vídeo real en el TodoTube desplegado: metadata y primer frame, dimensiones válidas, imagen en movimiento, sonido audible sincronizado, avance sostenido de `currentTime`, seek de ida y vuelta, pausa/reanudación, volumen, velocidad y pantalla completa desde controles TodoTube, y recuperación segura de un fallo transitorio en staging. La denegación explícita debe detener la cadena sin cambiar de identidad ni usar otro backend para eludirla. La prueba debe registrar navegador, indicar `Bridge: no instalado`, commit, endpoint de control y proveedor/ruta. Ver `docs/testing/real-playback-release-gate.md`.
 
 ## Criterios de aceptación
 

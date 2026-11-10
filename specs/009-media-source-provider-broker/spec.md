@@ -28,7 +28,7 @@
 - RF-12: el player y sus controles permanecen independientes de proveedores.
 - RF-13: providers web y nativos comparten contrato, no implementación acoplada.
 - RF-14: las copias en R2 requieren derecho documentado para almacenamiento/distribución; no crear copias YouTube automáticamente.
-- RF-15: el runtime web de YouTube no usa Cloudflare Worker/R2 como proxy de medios.
+- RF-15: el runtime web de YouTube usa el Worker únicamente para solicitudes de control allowlisted; nunca como proxy de manifiestos/segmentos o bytes multimedia.
 - RF-16: el runtime distingue fallos transitorios, precondiciones indeterminadas y denegaciones explícitas. Timeouts, red y 5xx son recuperables. HTTP 400 bloquea la rotación a otra identidad; si un Onesie 400 solo contiene `FAILED_PRECONDITION` genérico, se permite exactamente un fallback a InnerTube normal con el mismo perfil WEB. Si este también falla, se detiene la cadena. 401/403/407/429 y motivos explícitos de acceso/anti-bot detienen todas las rutas YouTube.
 - RF-17: el runtime detecta estancamiento por falta de avance/buffer, con timeout y presupuesto finito; no confunde pausa, seek, vídeo terminado, pestaña oculta o navegador offline con un fallo de proveedor.
 
@@ -72,7 +72,7 @@ El broker puede marcar una ruta como candidata o recuperable, pero nunca declara
 
 Las denegaciones explícitas (login, edad, región, consentimiento, anti-bot, PoToken/BotGuard, tráfico automatizado o `FAILED_PRECONDITION` acompañado de un motivo claro de restricción) detienen la cadena de proveedores basados en YouTube. Un `FAILED_PRECONDITION` sin causa adicional es indeterminado y solo permite el fallback técnico al endpoint estándar del mismo cliente WEB. Invidious sigue dependiendo del mismo origen y no se puede utilizar como ruta para eludir esa denegación. Un backend propio tampoco se usa para cambiar de IP/red y superar el bloqueo.
 
-Las pruebas E0–E3 (build, fixtures, contratos, metadatos, manifest y primer frame sin audio verificado) son intermedias y se reportan por separado. La aceptación final requiere E4 y un registro versionado del commit, navegador, Bridge y ruta probada.
+Las pruebas E0–E3 (build, fixtures, contratos, metadatos, manifest y primer frame sin audio verificado) son intermedias y se reportan por separado. La aceptación final requiere E4 y un registro versionado del commit, navegador, estado de extensión (ninguna), Worker control plane y ruta probada.
 ## Requisitos SABR de attestation y renovación
 
 - RF-18: antes de iniciar SABR en WEB/MWEB se prepara `ENGAGEMENT_TYPE_UNBOUND` mediante `getAttestationChallenge` en la misma sesión InnerTube; la operación tiene timeout/reintentos finitos y no cambia identidad.

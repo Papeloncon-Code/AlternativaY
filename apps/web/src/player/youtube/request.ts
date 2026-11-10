@@ -1,19 +1,15 @@
-export type BridgeFetchInput = string | Request | URL;
+export type FetchInput = string | Request | URL;
 
-export interface BridgePreparedRequest {
+export interface PreparedFetchRequest {
   url: URL;
   init: RequestInit;
 }
 
-/**
- * Convert fetch(input, init) semantics into a serializable request for the
- * browser extension bridge. A Request body is a stream, so clone it before
- * reading to avoid consuming the caller's original Request.
- */
-export async function prepareBridgeRequest(
-  input: BridgeFetchInput,
+/** Normalize fetch(input, init) without consuming the caller's original Request. */
+export async function prepareFetchRequest(
+  input: FetchInput,
   init?: RequestInit,
-): Promise<BridgePreparedRequest> {
+): Promise<PreparedFetchRequest> {
   const request = input instanceof Request ? input : undefined;
   const url = input instanceof URL
     ? new URL(input.toString())

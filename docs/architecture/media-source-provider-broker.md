@@ -55,8 +55,8 @@ El runtime recibe resumeAt y wasPlaying. El player conserva posición, volumen, 
 
 ## Seguridad y operación
 
-- Los streams de YouTube no pasan por Cloudflare Workers ni R2.
-- Bridge se limita al origen TodoTube y a hosts HTTPS permitidos.
+- El Worker de TodoTube solo reenvía solicitudes de control InnerTube/BotGuard a destinos HTTPS expresamente permitidos.
+- Los manifiestos y segmentos de Google Video no pasan por el Worker ni por R2; el navegador los descarga directamente.
 - No hay proxy abierto ni URLs arbitrarias en el Gateway.
 - No DRM/Widevine ni acceso a contenido de pago sin autorización.
 - No almacenar vídeos de terceros en R2 sin derechos de almacenamiento/distribución.
@@ -86,7 +86,7 @@ El código presente en PR #37 es una primera integración. La recuperación segu
 
 La fuente `materialious/src/lib/api/index.ts` elige `getVideoYTjs()` en vez de `getVideoInvidious()` si el backend YouTube está activo, si `useEngineFallback('Video')` lo ordena o si se fuerza YT.js en un entorno no restringido. `docs/DEV.md` define cuatro configuraciones distintas: SPA web estática, full web con Node backend, Desktop/Electron y Android. `isUnrestrictedPlatform()` es verdadero con full backend o app nativa; no se debe atribuir ese fallback a la SPA estática por defecto.
 
-En Materialious issue #869 el mantenedor dijo que Invidious estaba siendo bloqueado por Google y recomendó el fallback local en Android/Desktop. Es evidencia de una recuperación concreta en esos entornos, no de que cualquier web client o un Invidious remoto vaya a reproducir. TodoTube es hoy una SPA servida por Cloudflare Worker con runtime de navegador y Bridge MV3; no tiene el Node local de Android ni el full backend de Materialious.
+En Materialious issue #869 el mantenedor dijo que Invidious estaba siendo bloqueado por Google y recomendó el fallback local en Android/Desktop. Es evidencia de una recuperación concreta en esos entornos, no de que cualquier web client o un Invidious remoto vaya a reproducir. TodoTube es hoy una SPA servida por Cloudflare Worker con runtime de navegador. La rama experimental añade un endpoint same-origin de control limitado; no introduce el backend Node de Materialious ni su fallback nativo.
 
 La adaptación razonable es separar la selección de motor del PlayerHost y hacer una prueba de compatibilidad del runtime local ya existente (`youtubei.js`) antes de elegir un backend adicional. Un backend remoto/Invidious no se activa como respuesta a un rechazo anti-bot, PoToken/BotGuard, IP/región o acceso. Cambiar la red de salida para superar esa respuesta no cuenta como failover permitido.
 
@@ -105,7 +105,7 @@ La respuesta Onesie no se debe considerar SABR-ready por tener un campo UStreame
 
 ## SABR: fuente de playerResponse WEB
 
-El runtime SABR obtiene ahora su playerResponse mediante el endpoint `/player` normal de YouTube.js en la misma sesión WEB/MWEB, transportado por Browser Bridge. Onesie no se usa como respuesta primaria para construir un manifiesto SABR: puede responder HTTP 200 con datos parciales de UStreamer pero sin los contextos requeridos para segmentos/seek. Onesie conserva pruebas y código aislado, pero no se considera una fuente SABR válida sin demostrar esos contextos.
+El runtime SABR obtiene ahora su playerResponse mediante el endpoint `/player` normal de YouTube.js en la misma sesión WEB/MWEB, transportado por el endpoint de control same-origin del Worker. Onesie no se usa como respuesta primaria para construir un manifiesto SABR: puede responder HTTP 200 con datos parciales de UStreamer pero sin los contextos requeridos para segmentos/seek. Onesie conserva pruebas y código aislado, pero no se considera una fuente SABR válida sin demostrar esos contextos.
 
 El primer smoke E4 desplegado el 2026-11-09 falló con Android HTTP 400 `FAILED_PRECONDITION`, `readyState=0`, sin dimensiones ni duración. No demuestra reproducción ni que la red del usuario esté bloqueada. El siguiente smoke debe registrar advertencias runtime redactadas para identificar la progresión de clientes/transporte y volver a exigir E4 real.
 ## Aislamiento de fallos al construir el candidato SABR

@@ -179,10 +179,6 @@ export default function YouTubeSabrPlayer({
     setRetry((value) => value + 1);
   }
 
-  const original = 'https://www.youtube.com/watch?v=' + encodeURIComponent(id) +
-    (startAt > 0 ? '&t=' + Math.floor(startAt) + 's' : '');
-  const bridgeMissing = detail.includes('Falta TodoTube Bridge');
-
   return (
     <div className={'gateway-player youtube-sabr-player' + (compact ? ' compact' : '')} ref={wrap}>
       <video
@@ -199,20 +195,9 @@ export default function YouTubeSabrPlayer({
         <div className="gateway-error" role="alert">
           <b>No se pudo iniciar la reproducción propia</b>
           <p>{detail}</p>
-          {bridgeMissing ? (
-            <div className="gateway-bridge-actions">
-              <a className="btn primary" href="/todotube-browser-bridge.zip" download="todotube-browser-bridge.zip">Descargar TodoTube Bridge</a>
-              <p className="gateway-bridge-install-note">
-                Después: extrae el ZIP, abre <b>chrome://extensions</b>, activa «Modo desarrollador»,
-                pulsa «Cargar descomprimida» y selecciona la carpeta extraída. Luego vuelve a cargar TodoTube.
-              </p>
-            </div>
-          ) : (
-            <div className="player-message-actions">
-              <button type="button" className="btn primary" onClick={retryPlayback}>Reintentar proveedores</button>
-              <a className="btn" href={original} target="_blank" rel="noreferrer">Abrir vídeo original</a>
-            </div>
-          )}
+          <div className="player-message-actions">
+            <button type="button" className="btn primary" onClick={retryPlayback}>Reintentar proveedores</button>
+          </div>
         </div>
       )}
       <div className="gateway-controls" aria-label="Controles del reproductor TodoTube">

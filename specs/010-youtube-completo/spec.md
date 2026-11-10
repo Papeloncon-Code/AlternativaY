@@ -5,7 +5,7 @@
 | Estado | PR #37 integrada en `main`; smoke real del 2026-11-09 sin metadata decodificada; PR #46–#47 abiertas y no desplegadas; aceptación E4 pendiente |
 | Decisión rectora | ADR-013 |
 | Broker | Especificación 009 |
-| Plataformas | Web Chrome/Edge (Bridge MV3); Android/Desktop vía providers nativos futuros |
+| Plataformas | Web con player propio y control plane same-origin; Android/Desktop vía providers nativos futuros |
 | Player | Shaka + controles TodoTube propios |
 
 ## Objetivo
@@ -16,8 +16,7 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 
 1. PlayerHost consulta si existe una copia autorizada en R2.
 2. Si existe, reproduce en GatewayPlayer. Si R2 no está disponible, usa YouTubeSabrPlayer.
-3. TodoTube Bridge habilita el acceso del navegador a las solicitudes necesarias desde el origen TodoTube.
-   - Requisito actual: instalación manual de Bridge en Chrome/Edge. Sin él, la web no puede ejecutar la ruta SABR y presenta un error recuperable; no hay iframe como fallback.
+3. Las solicitudes de control InnerTube/BotGuard/configuración pasan por `/api/youtube/control` en el Worker de TodoTube. El Worker valida origen, host, ruta, método, cabeceras y tamaño; rechaza URLs arbitrarias y no sigue redirects. Los manifiestos y segmentos de Google Video siguen descargándose directamente en el navegador.
 4. YouTubeSabrRuntime crea sesiones InnerTube independientes para los perfiles soportados.
 5. WEB intenta Onesie primero y cae a InnerTube estándar en el mismo perfil.
 6. Cada respuesta puede producir candidatos SABR, DASH, HLS o progresivo. Solo se intenta una fuente que exponga datos utilizables.
@@ -37,7 +36,7 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 - CA10.7: cambio R2/runtime y runtime/R2 conserva timestamp, play/pause, volumen y velocidad.
 - CA10.8: no hay iframe oficial como fallback de la interfaz TodoTube.
 - CA10.9: el contenido DRM/de pago no se desbloquea ni se fuerza; se informa de su indisponibilidad.
-- CA10.10: bridge se inyecta solo en TodoTube/localhost y bloquea hosts no permitidos.
+- CA10.10: el Worker solo acepta solicitudes same-origin (o localhost de desarrollo) y endpoints de control expresamente permitidos; nunca proxy de manifiestos o segmentos.
 - CA10.11: UI propia incluye play/pause, seek, volumen, velocidad y pantalla completa; controles visibles también en modo mini.
 - CA10.12: telemetría de diagnóstico excluye credenciales, tokens de integridad y URLs firmadas completas.
 - CA10.13: un estancamiento real se detecta en un máximo aproximado de 3 s (2 s más el intervalo de muestreo) cuando no hay progreso ni buffer útil; no se dispara por pausa, seek, vídeo terminado, pestaña oculta o navegador offline.
@@ -49,9 +48,9 @@ Reproducir vídeos de YouTube en TodoTube sin depender de un iframe visible, con
 
 ## Validación pendiente para cerrar
 
-- Instalar la extensión TodoTube Bridge compilada por CI en Chrome y Edge.
-- Probar desde una instalación limpia sin Bridge y comprobar que el error explica el requisito sin crear iframe.
-- Probar el flujo con Bridge activo; CI Playwright no sustituye esta verificación.
+- Abrir el build de preview en Chromium limpio, sin extensión instalada.
+- Comprobar que InnerTube y BotGuard usan `/api/youtube/control` y que los medios se piden directamente al origen Google Video.
+- Repetir E4 en la URL de producción después de aprobar el preview; CI Playwright no sustituye la verificación audiovisual real.
 - Reproducir un vídeo público corto, un vídeo largo (>1 h), un vídeo con audio adaptativo, un Short y un directo cuando la fuente entregue una ruta compatible.
 - Simular timeout, 5xx, recurso vencido y estancamiento para demostrar recuperación limitada.
 - Simular 400 genérico y `FAILED_PRECONDITION` de Onesie: permitir solo el endpoint estándar del mismo perfil y bloquear cualquier perfil diferente si se repite el 400. Simular además 401, 403, 407, 429 y denegaciones explícitas; comprobar que se detienen todas las rutas YouTube.

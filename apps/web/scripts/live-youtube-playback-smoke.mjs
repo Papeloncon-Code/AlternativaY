@@ -1,33 +1,22 @@
 import { chromium } from '@playwright/test';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const baseUrl = String(process.env.BASE_URL || 'https://todotube.papelon.workers.dev').replace(/\/$/, '');
-const extensionPath = process.env.BRIDGE_EXTENSION_DIR;
 const videoId = process.env.PLAYBACK_SMOKE_VIDEO_ID || 'dQw4w9WgXcQ';
 const outputDir = process.env.PLAYBACK_SMOKE_OUTPUT || join(process.cwd(), 'playback-smoke-artifacts');
 
-if (!extensionPath) throw new Error('BRIDGE_EXTENSION_DIR is required.');
 mkdirSync(outputDir, { recursive: true });
 
-const profileDir = mkdtempSync(join(tmpdir(), 'todotube-playback-'));
+const browser = await chromium.launch({
+  headless: true,
+  args: ['--no-sandbox', '--disable-dev-shm-usage', '--autoplay-policy=no-user-gesture-required'],
+});
 let context;
+let page;
 try {
-  context = await chromium.launchPersistentContext(profileDir, {
-    headless: false,
-    channel: 'chromium',
-    viewport: { width: 1366, height: 900 },
-    args: [
-      '--no-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-extensions-except=' + extensionPath,
-      '--load-extension=' + extensionPath,
-      '--autoplay-policy=no-user-gesture-required',
-    ],
-  });
-
-  const page = await context.newPage();
+  context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+  page = await context.newPage();
   page.on('console', (message) => {
     const text = message.text();
     const isRuntimeWarning = message.type() === 'warning' &&
@@ -51,13 +40,11 @@ try {
   await page.addInitScript(() => {
     const key = 'todotube:v1';
     const state = JSON.parse(localStorage.getItem(key) || '{}');
-    state.promptDismissed = { ...(state.promptDismissed || {}), push: Date.now(), bridge: Date.now() };
+    state.promptDismissed = { ...(state.promptDismissed || {}), push: Date.now() };
     localStorage.setItem(key, JSON.stringify(state));
   });
 
   await page.goto(baseUrl + '/ver/' + videoId, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-  await page.waitForFunction(() => window.ytcBridge?.installed === true, null, { timeout: 20_000 });
-
   await page.waitForFunction(() => {
     const video = document.querySelector('.youtube-sabr-player video');
     return !!video && ((video.readyState >= 1 && video.videoWidth > 0) || !!document.querySelector('.youtube-sabr-player .gateway-error'));
@@ -89,9 +76,20 @@ try {
     return !!video && !video.paused && video.currentTime > 2;
   }, null, { timeout: 20_000 });
 
+  // Chromium exposes the count of audio bytes decoded by the media element.
+  // This is stronger than a manifest's audio declaration, but does not replace
+  // a human listening check for audibility and lip-sync.
+  await page.waitForFunction(() => {
+    const video = document.querySelector('.youtube-sabr-player video');
+    return !!video && Number(video.webkitAudioDecodedByteCount || 0) > 0;
+  }, null, { timeout: 20_000 });
+
   const seekTarget = Math.min(15, Math.floor(initial.duration - 2));
-  await page.locator('.youtube-sabr-player video').evaluate((element, target) => {
-    element.currentTime = target;
+  await page.locator('.youtube-sabr-player .gateway-seek').evaluate((element, target) => {
+    const slider = element;
+    slider.value = String(target);
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    slider.dispatchEvent(new Event('change', { bubbles: true }));
   }, seekTarget);
   await page.waitForFunction((target) => {
     const video = document.querySelector('.youtube-sabr-player video');
@@ -107,11 +105,17 @@ try {
       height: video.videoHeight,
       paused: video.paused,
       readyState: video.readyState,
+      audioDecodedBytes: Number(video.webkitAudioDecodedByteCount || 0),
     };
   });
   await page.screenshot({ path: join(outputDir, 'youtube-playback-success.png'), fullPage: false });
   process.stdout.write(JSON.stringify({ ok: true, videoId, initial, final }) + '\n');
+} catch (error) {
+  if (page) {
+    await page.screenshot({ path: join(outputDir, 'youtube-playback-failed.png'), fullPage: true }).catch(() => undefined);
+  }
+  throw error;
 } finally {
   if (context) await context.close();
-  rmSync(profileDir, { recursive: true, force: true });
+  await browser.close();
 }
