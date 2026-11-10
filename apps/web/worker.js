@@ -4,7 +4,7 @@ import FALLBACK_CHANNELS from './fallback-channels.json';
 import { parseAtom } from '../../spikes/websub/src/atom.js';
 import { searchPublic, channelPublic } from './server/publico.js';
 import { isAllowedYouTubeControlTarget, isAllowedYouTubeControlOrigin, YOUTUBE_CONTROL_HEADERS } from './server/youtube-control-policy.js';
-// specs/004-web-v0/spec.md · Constitución §I.2: no se extrae YouTube; solo se leen datos de WebSub/RSS.
+// WebSub/RSS alimentan el feed; la ruta de control de reproducción YouTube está separada, allowlisted y no retransmite medios.
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
 
