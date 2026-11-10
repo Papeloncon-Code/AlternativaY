@@ -3,6 +3,7 @@ import ASSETS from './assets.generated.js';
 import FALLBACK_CHANNELS from './fallback-channels.json';
 import { parseAtom } from '../../spikes/websub/src/atom.js';
 import { searchPublic, channelPublic } from './server/publico.js';
+import { isAllowedYouTubeControlTarget, YOUTUBE_CONTROL_HEADERS } from './server/youtube-control-policy.js';
 // specs/004-web-v0/spec.md · Constitución §I.2: no se extrae YouTube; solo se leen datos de WebSub/RSS.
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
@@ -60,7 +61,86 @@ const FALLBACK = { 'x-todotube-fuente': 'respaldo-rss' };
 
 const forget = (prefix) => { for (const k of memo.keys()) if (k.startsWith(prefix)) memo.delete(k); };
 
+async function youtubeControl(request) {
+  const declaredLength = Number(request.headers.get('content-length') || 0);
+  if (declaredLength > 2_000_000) return json({ error: 'Solicitud de control demasiado grande' }, 413);
+
+  let payload;
+  try {
+    const raw = await request.text();
+    if (raw.length > 2_000_000) return json({ error: 'Solicitud de control demasiado grande' }, 413);
+    payload = JSON.parse(raw);
+  } catch {
+    return json({ error: 'Solicitud de control inválida' }, 400);
+  }
+
+  if (!payload || typeof payload.target !== 'string' || payload.target.length > 8192) {
+    return json({ error: 'Destino de control inválido' }, 400);
+  }
+  let target;
+  try { target = new URL(payload.target); } catch { return json({ error: 'Destino de control inválido' }, 400); }
+
+  const method = String(payload.method || 'GET').toUpperCase();
+  if (!isAllowedYouTubeControlTarget(target, method)) {
+    return json({ error: 'Ruta de control no permitida' }, 403);
+  }
+
+  const headers = new Headers();
+  if (payload.headers && typeof payload.headers === 'object' && !Array.isArray(payload.headers)) {
+    for (const [key, value] of Object.entries(payload.headers)) {
+      const normalized = key.toLowerCase();
+      if (!YOUTUBE_CONTROL_HEADERS.has(normalized) || typeof value !== 'string' || value.length > 8192 || /[\\r\\n]/.test(value)) continue;
+      headers.set(normalized, value);
+    }
+  }
+
+  let body;
+  if (payload.body != null) {
+    if (!payload.body || typeof payload.body.data !== 'string' || payload.body.data.length > 1_800_000) {
+      return json({ error: 'Cuerpo de control inválido' }, 400);
+    }
+    if (payload.body.encoding === 'utf8') {
+      body = payload.body.data;
+    } else if (payload.body.encoding === 'base64') {
+      try {
+        const binary = atob(payload.body.data);
+        const bytes = new Uint8Array(binary.length);
+        for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+        body = bytes;
+      } catch {
+        return json({ error: 'Cuerpo binario de control inválido' }, 400);
+      }
+    } else {
+      return json({ error: 'Codificación de cuerpo no permitida' }, 400);
+    }
+  }
+  if (method === 'GET' && body !== undefined) return json({ error: 'GET no admite cuerpo' }, 400);
+
+  try {
+    // This is a narrow control-plane adapter, not a media proxy. Google Video
+    // manifests and segments are still requested directly by the browser.
+    // Redirects are not followed, preventing the endpoint from becoming an open relay.
+    const upstream = await fetch(target.toString(), {
+      method,
+      headers,
+      body: method === 'GET' ? undefined : body,
+      redirect: 'manual',
+    });
+    const responseHeaders = new Headers({
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+    });
+    const contentType = upstream.headers.get('content-type');
+    if (contentType) responseHeaders.set('content-type', contentType);
+    const responseBody = [204, 205, 304].includes(upstream.status) ? null : upstream.body;
+    return new Response(responseBody, { status: upstream.status, headers: responseHeaders });
+  } catch {
+    return json({ error: 'No se pudo contactar el endpoint de control de YouTube' }, 502);
+  }
+}
+
 async function api(request, env, url) {
+  if (url.pathname === '/api/youtube/control' && request.method === 'POST') return youtubeControl(request);
   // Cualquier cambio (seguir, dejar de seguir, campanita, foto) invalida la copia en memoria de este aislado.
   if (request.method !== 'GET' && request.method !== 'HEAD') { forget('channels'); forget('feed'); }
   // Búsqueda en todo YouTube sin Puente: el servidor lee la página pública de resultados (ADR-006, enmienda 6).
