@@ -179,9 +179,6 @@ export default function YouTubeSabrPlayer({
     setRetry((value) => value + 1);
   }
 
-  const original = 'https://www.youtube.com/watch?v=' + encodeURIComponent(id) +
-    (startAt > 0 ? '&t=' + Math.floor(startAt) + 's' : '');
-
   return (
     <div className={'gateway-player youtube-sabr-player' + (compact ? ' compact' : '')} ref={wrap}>
       <video
@@ -200,7 +197,6 @@ export default function YouTubeSabrPlayer({
           <p>{detail}</p>
           <div className="player-message-actions">
             <button type="button" className="btn primary" onClick={retryPlayback}>Reintentar proveedores</button>
-            <a className="btn" href={original} target="_blank" rel="noreferrer">Abrir vídeo original</a>
           </div>
         </div>
       )}
