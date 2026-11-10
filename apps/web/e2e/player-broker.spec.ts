@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { prepareFetchRequest } from '../src/player/youtube/request';
+import { fetchFunction } from '../src/player/youtube/helpers';
+import { isAllowedYouTubeControlTarget } from '../server/youtube-control-policy.js';
 import {
   activateWithFallback,
   PlaybackBroker,
@@ -160,5 +162,72 @@ test('mantiene vídeo y controles SABR dentro del dock en página y minirreprodu
     expect(layout.controlsBottom, layout.layout + ' controls must not be clipped').toBeLessThanOrEqual(layout.dockBottom + 1);
     expect(layout.videoBottom, layout.layout + ' video must not overlap the controls').toBeLessThanOrEqual(layout.controlsTop + 1);
     expect(layout.controlsWidth, layout.layout + ' controls must fit the dock').toBeLessThanOrEqual(layout.dockWidth + 1);
+  }
+});
+
+
+test('solo permite endpoints de control concretos y nunca endpoints de segmentos', () => {
+  expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com/'), 'GET')).toBe(true);
+  expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com/youtubei/v1/player'), 'POST')).toBe(true);
+  expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com/api/jnn/v1/GenerateIT'), 'POST')).toBe(true);
+  expect(isAllowedYouTubeControlTarget(new URL('https://redirector.googlevideo.com/initplayback'), 'GET')).toBe(true);
+  expect(isAllowedYouTubeControlTarget(new URL('https://r1.googlevideo.com/videoplayback?id=asset'), 'GET')).toBe(false);
+  expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com/videoplayback'), 'GET')).toBe(false);
+  expect(isAllowedYouTubeControlTarget(new URL('http://www.youtube.com/youtubei/v1/player'), 'POST')).toBe(false);
+  expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com/youtubei/v1/player'), 'GET')).toBe(false);
+  expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com.evil.test/youtubei/v1/player'), 'POST')).toBe(false);
+});
+
+test('fetchFunction envía InnerTube al Worker del mismo origen sin cookies ni credenciales', async () => {
+  const originalFetch = globalThis.fetch;
+  let forwarded: { input: RequestInfo | URL; init?: RequestInit } | undefined;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    forwarded = { input, init };
+    return new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } });
+  }) as typeof fetch;
+
+  try {
+    const response = await fetchFunction('https://www.youtube.com/youtubei/v1/player?key=public-key', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-goog-api-key': 'public-key',
+        authorization: 'Bearer must-not-forward',
+        cookie: 'must-not-forward',
+      },
+      body: JSON.stringify({ videoId: 'dQw4w9WgXcQ' }),
+    });
+    expect(await response.json()).toEqual({ ok: true });
+    expect(forwarded?.input).toBe('/api/youtube/control');
+    const payload = JSON.parse(String(forwarded?.init?.body));
+    expect(payload.target).toContain('https://www.youtube.com/youtubei/v1/player');
+    expect(payload.method).toBe('POST');
+    expect(payload.headers['content-type']).toBe('application/json');
+    expect(payload.headers['x-goog-api-key']).toBe('public-key');
+    expect(payload.headers.authorization).toBeUndefined();
+    expect(payload.headers.cookie).toBeUndefined();
+    expect(payload.body.encoding).toBe('utf8');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('fetchFunction conserva cuerpos binarios para las solicitudes de control', async () => {
+  const originalFetch = globalThis.fetch;
+  let payload: any;
+  globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    payload = JSON.parse(String(init?.body));
+    return new Response('{}', { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    await fetchFunction('https://www.youtube.com/youtubei/v1/player?key=public-key', {
+      method: 'POST',
+      body: new Uint8Array([0, 1, 127, 255]),
+    });
+    expect(payload.body.encoding).toBe('base64');
+    expect(Array.from(Buffer.from(payload.body.data, 'base64'))).toEqual([0, 1, 127, 255]);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
