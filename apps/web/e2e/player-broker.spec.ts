@@ -170,6 +170,8 @@ test('solo permite endpoints de control concretos y nunca endpoints de segmentos
   expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com/'), 'GET')).toBe(true);
   expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com/youtubei/v1/player'), 'POST')).toBe(true);
   expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com/api/jnn/v1/GenerateIT'), 'POST')).toBe(true);
+  expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com/youtubei/v1/att/get'), 'POST')).toBe(true);
+  expect(isAllowedYouTubeControlTarget(new URL('https://youtubei.googleapis.com/youtubei/v1/att/get'), 'POST')).toBe(true);
   expect(isAllowedYouTubeControlTarget(new URL('https://redirector.googlevideo.com/initplayback'), 'GET')).toBe(true);
   expect(isAllowedYouTubeControlTarget(new URL('https://r1.googlevideo.com/videoplayback?id=asset'), 'GET')).toBe(false);
   expect(isAllowedYouTubeControlTarget(new URL('https://www.youtube.com/videoplayback'), 'GET')).toBe(false);
