@@ -21,9 +21,9 @@ export function isAllowedYouTubeControlTarget(url, method) {
   const path = url.pathname;
   if (url.hostname === 'www.youtube.com') {
     if (method === 'GET' && (path === '/' || path === '/tv_config' || path.startsWith('/s/player/'))) return true;
-    if (method === 'POST' && (path === '/youtubei/v1/player' || path === '/api/jnn/v1/GenerateIT')) return true;
+    if (method === 'POST' && (path === '/youtubei/v1/player' || path === '/youtubei/v1/att/get' || path === '/api/jnn/v1/GenerateIT')) return true;
   }
-  if (url.hostname === 'youtubei.googleapis.com' && method === 'POST' && path === '/youtubei/v1/player') return true;
+  if (url.hostname === 'youtubei.googleapis.com' && method === 'POST' && (path === '/youtubei/v1/player' || path === '/youtubei/v1/att/get')) return true;
   if (url.hostname === 'redirector.googlevideo.com' && method === 'GET' && path === '/initplayback') return true;
   return false;
 }
