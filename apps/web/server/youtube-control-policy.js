@@ -27,3 +27,13 @@ export function isAllowedYouTubeControlTarget(url, method) {
   if (url.hostname === 'redirector.googlevideo.com' && method === 'GET' && path === '/initplayback') return true;
   return false;
 }
+
+/** Accept only the app's own origin (plus local Vite development). */
+export function isAllowedYouTubeControlOrigin(requestUrl, origin) {
+  if (typeof origin !== 'string' || !origin) return false;
+  let appOrigin;
+  try { appOrigin = new URL(requestUrl).origin; } catch { return false; }
+  return origin === appOrigin ||
+    origin === 'http://localhost:5173' ||
+    origin === 'http://127.0.0.1:5173';
+}
