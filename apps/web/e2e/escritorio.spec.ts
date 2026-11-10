@@ -156,12 +156,15 @@ test('Biblioteca de medios: estado claro cuando el Gateway todavía no está des
   await expect(page.getByText(/Puente/i)).toHaveCount(0);
 });
 
-test('YouTube se abre en su origen; TodoTube no intenta extraer ni insertar iframe', async ({ page }) => {
+test('Shorts usa el reproductor TodoTube y no ofrece enlaces externos', async ({ page }) => {
   await page.goto('/shorts');
-  await expect(page.locator('.short-player .own-player')).toBeVisible({ timeout: 15_000 });
+  const player = page.locator('.short-player .youtube-sabr-player');
+  await expect(player).toBeVisible({ timeout: 15_000 });
+  await expect(player.locator('video[aria-label="Reproductor TodoTube"]')).toHaveCount(1);
   await expect(page.locator('.short-player iframe')).toHaveCount(0);
-  await expect(page.getByRole('link', { name: 'Abrir origen' })).toBeVisible();
-  await expect(page.locator('#main').getByRole('link', { name: 'Medios propios' })).toBeVisible();
+  await expect(page.locator('.short-player a[href^="https://www.youtube.com/"]')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Abrir origen' })).toHaveCount(0);
+  await expect(page.locator('#main').getByRole('link', { name: 'Medios propios' })).toHaveCount(0);
 });
 
 

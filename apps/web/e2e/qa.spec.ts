@@ -55,12 +55,15 @@ test('#4 un Short de fuera de tus canales se puede ver', async ({ page }) => {
   await expect(page.getByText('no está entre los de tus canales')).toHaveCount(0);
 });
 
-test('Shorts nunca carga el reproductor oficial de YouTube', async ({ page }) => {
+test('Shorts usa el reproductor propio y no ofrece enlaces externos', async ({ page }) => {
   await page.goto('/shorts');
-  await expect(page.locator('.short-player .own-player')).toBeVisible();
+  const player = page.locator('.short-player .youtube-sabr-player');
+  await expect(player).toBeVisible({ timeout: 15_000 });
+  await expect(player.locator('video[aria-label="Reproductor TodoTube"]')).toHaveCount(1);
+  await expect(player).not.toContainText(/youtube|innertube|sabr|mweb|googlevideo|onesie|failed_precondition|http\s*400/i);
   await expect(page.locator('.short-player iframe')).toHaveCount(0);
-  await expect(page.locator('.own-player-error')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Abrir origen' })).toBeVisible();
+  await expect(page.locator('.short-player a[href^="https://www.youtube.com/"]')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Abrir origen' })).toHaveCount(0);
 });
 
 test('#19 ↓ en el buscador no cambia de Short; #20 «Atrás» vuelve al Short anterior', async ({ page }) => {
@@ -107,6 +110,9 @@ test('#21 «Atrás» recupera el filtro elegido', async ({ page }) => {
 test('#23 la pestaña lleva el título del vídeo; #24 vídeo por enlace con su título real', async ({ page }) => {
   await page.goto('/ver/dQw4w9WgXcQ');
   await expect(page.locator('.watch-title')).not.toHaveText('Vídeo', { timeout: 15_000 });
+  await expect(page.locator('.watch-channel')).toBeVisible();
+  await expect(page.locator('.player-dock iframe')).toHaveCount(0);
+  await expect(page.locator('.player-dock a[href^="https://www.youtube.com/"]')).toHaveCount(0);
   await expect(page).toHaveTitle(/ - TodoTube$/);
 });
 
