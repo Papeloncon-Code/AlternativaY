@@ -3,6 +3,7 @@ import ASSETS from './assets.generated.js';
 import FALLBACK_CHANNELS from './fallback-channels.json';
 import { parseAtom } from '../../spikes/websub/src/atom.js';
 import { searchPublic, channelPublic } from './server/publico.js';
+import { isAllowedYouTubeControlTarget, YOUTUBE_CONTROL_HEADERS } from './server/youtube-control-policy.js';
 // specs/004-web-v0/spec.md · Constitución §I.2: no se extrae YouTube; solo se leen datos de WebSub/RSS.
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
@@ -59,35 +60,6 @@ const plain = ({ description, ...v }) => v;
 const FALLBACK = { 'x-todotube-fuente': 'respaldo-rss' };
 
 const forget = (prefix) => { for (const k of memo.keys()) if (k.startsWith(prefix)) memo.delete(k); };
-
-const YOUTUBE_CONTROL_HEADERS = new Set([
-  'accept',
-  'accept-language',
-  'content-type',
-  'user-agent',
-  'x-goog-api-key',
-  'x-user-agent',
-  'x-youtube-client-name',
-  'x-youtube-client-version',
-  'x-youtube-page-cl',
-  'x-youtube-page-label',
-  'x-youtube-utc-offset',
-  'x-youtube-time-zone',
-  'x-goog-visitor-id',
-  'x-goog-api-format-version',
-]);
-
-function isAllowedYouTubeControlTarget(url, method) {
-  if (url.protocol !== 'https:' || url.username || url.password || url.port) return false;
-  const path = url.pathname;
-  if (url.hostname === 'www.youtube.com') {
-    if (method === 'GET' && (path === '/' || path === '/tv_config' || path.startsWith('/s/player/'))) return true;
-    if (method === 'POST' && (path === '/youtubei/v1/player' || path === '/api/jnn/v1/GenerateIT')) return true;
-  }
-  if (url.hostname === 'youtubei.googleapis.com' && method === 'POST' && path === '/youtubei/v1/player') return true;
-  if (url.hostname === 'redirector.googlevideo.com' && method === 'GET' && path === '/initplayback') return true;
-  return false;
-}
 
 async function youtubeControl(request) {
   const declaredLength = Number(request.headers.get('content-length') || 0);
