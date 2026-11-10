@@ -1,13 +1,6 @@
-import { prepareBridgeRequest } from './bridgeRequest';
+import { prepareFetchRequest } from './request';
 import { summarizeInnerTubeRequest } from './diagnostics';
 import { InnerTubePlayerHttpError } from './failurePolicy';
-
-declare global {
-  interface Window {
-    ytcBridge?: { installed: boolean };
-    proxyFetch?: (url: string, options?: RequestInit) => Promise<Response>;
-  }
-}
 
 export interface OnesieHotConfig {
   clientKeyData: Uint8Array;
@@ -26,10 +19,6 @@ export interface EncryptedRequest {
 
 export const REDIRECTOR_STORAGE_KEY = 'todotube_googlevideo_redirector';
 export const CLIENT_CONFIG_STORAGE_KEY = 'todotube_onesie_config';
-
-export function checkExtension(): boolean {
-  return window.ytcBridge?.installed === true && typeof window.proxyFetch === 'function';
-}
 
 function decodeBase64(value: string): Uint8Array {
   const binary = atob(value);
@@ -134,46 +123,99 @@ export async function fetchRedirectorUrl(): Promise<string> {
 }
 
 
-export function getInjectedProxyFunction() {
-  return window.proxyFetch;
+
+/** YouTube control requests use the same-origin Worker; media requests remain browser-direct. */
+const CONTROL_FORWARD_HEADERS = new Set([
+  'accept',
+  'accept-language',
+  'content-type',
+  'user-agent',
+  'x-goog-api-key',
+  'x-user-agent',
+  'x-youtube-client-name',
+  'x-youtube-client-version',
+  'x-youtube-page-cl',
+  'x-youtube-page-label',
+  'x-youtube-utc-offset',
+  'x-youtube-time-zone',
+  'x-goog-visitor-id',
+  'x-goog-api-format-version',
+]);
+
+type SerializedControlBody = { encoding: 'utf8' | 'base64'; data: string } | null;
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+  }
+  return btoa(binary);
 }
 
-/** InnerTube requests use the browser bridge; googlevideo media requests stay in Shaka's normal fetch path. */
+async function serializeControlBody(body: BodyInit | null | undefined): Promise<SerializedControlBody> {
+  if (body == null) return null;
+  if (typeof body === 'string') return { encoding: 'utf8', data: body };
+  if (body instanceof URLSearchParams) return { encoding: 'utf8', data: body.toString() };
+
+  let bytes: Uint8Array;
+  if (body instanceof ArrayBuffer) bytes = new Uint8Array(body);
+  else if (ArrayBuffer.isView(body)) {
+    bytes = new Uint8Array(body.buffer, body.byteOffset, body.byteLength);
+  } else if (body instanceof Blob) {
+    bytes = new Uint8Array(await body.arrayBuffer());
+  } else {
+    throw new Error('El tipo de cuerpo de la solicitud de control no es compatible.');
+  }
+  return { encoding: 'base64', data: bytesToBase64(bytes) };
+}
+
+/**
+ * InnerTube and BotGuard control requests go through TodoTube's same-origin Worker.
+ * Media manifests/segments remain direct browser requests to their Google Video URLs.
+ */
 export async function fetchFunction(input: string | Request | URL, init?: RequestInit): Promise<Response> {
-  const prepared = await prepareBridgeRequest(input, init);
+  const prepared = await prepareFetchRequest(input, init);
   const { url } = prepared;
   const requestInit = prepared.init;
-
 
   if (url.pathname.includes('/v1/player')) {
     url.searchParams.set('$fields', 'playerConfig,storyboards,captions,playabilityStatus,streamingData,responseContext.mainAppWebResponseContext.datasyncId,videoDetails.isLive,videoDetails.isLiveContent,videoDetails.title,videoDetails.author,videoDetails.thumbnail');
   }
 
-  // initplayback is a cross-origin control request, not a media segment. It must
-  // use the Bridge so page CORS does not block the redirector response.
+  const originalHeaders = new Headers(requestInit.headers);
+  const forwardedHeaders: Record<string, string> = {};
+  originalHeaders.forEach((value, key) => {
+    if (CONTROL_FORWARD_HEADERS.has(key.toLowerCase())) forwardedHeaders[key.toLowerCase()] = value;
+  });
+  const serializedBody = await serializeControlBody(requestInit.body);
+  const bodyBytes = serializedBody
+    ? serializedBody.encoding === 'base64'
+      ? Math.floor(serializedBody.data.length * 3 / 4)
+      : new TextEncoder().encode(serializedBody.data).byteLength
+    : 0;
 
-  const proxyFetch = getInjectedProxyFunction();
-  if (!proxyFetch) throw new Error('TodoTube Bridge no está instalado o no está activo en este sitio.');
+  const response = await fetch('/api/youtube/control', {
+    method: 'POST',
+    cache: 'no-store',
+    signal: requestInit.signal ?? undefined,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      target: url.toString(),
+      method: requestInit.method ?? 'GET',
+      headers: forwardedHeaders,
+      body: serializedBody,
+    }),
+  });
 
-  const response = await proxyFetch(url.toString(), requestInit);
   if (url.pathname.includes('/youtubei/v1/player') && !response.ok) {
     const responseBody = await response.text().catch(() => '');
-    const requestHeaders = new Headers(requestInit.headers);
-    const body = requestInit.body;
-    const bodyBytes = body instanceof ArrayBuffer
-      ? body.byteLength
-      : body instanceof Uint8Array
-        ? body.byteLength
-        : typeof body === 'string'
-          ? new TextEncoder().encode(body).byteLength
-          : 0;
     console.error('[TodoTube] InnerTube /player diagnostic', JSON.stringify({
       status: response.status,
       method: requestInit.method ?? 'GET',
       requestTarget: url.hostname + url.pathname,
       bodyBytes,
-      requestHeaderNames: Array.from(requestHeaders.keys()).sort(),
-      requestSummary: summarizeInnerTubeRequest(body),
+      requestHeaderNames: Object.keys(forwardedHeaders).sort(),
+      requestSummary: summarizeInnerTubeRequest(requestInit.body),
       responseContentType: response.headers.get('content-type'),
       responseBody: responseBody.slice(0, 1600),
     }));
@@ -181,7 +223,6 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
   }
   return response;
 }
-
 export function asMap<K, V>(object: Record<string, V>): Map<K, V> {
   const map = new Map<K, V>();
   for (const key of Object.keys(object)) map.set(key as K, object[key]);
