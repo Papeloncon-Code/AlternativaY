@@ -1,32 +1,20 @@
 import { chromium } from '@playwright/test';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const baseUrl = String(process.env.BASE_URL || 'https://todotube.papelon.workers.dev').replace(/\/$/, '');
-const extensionPath = process.env.BRIDGE_EXTENSION_DIR;
 const videoId = process.env.PLAYBACK_SMOKE_VIDEO_ID || 'dQw4w9WgXcQ';
 const outputDir = process.env.PLAYBACK_SMOKE_OUTPUT || join(process.cwd(), 'playback-smoke-artifacts');
 
-if (!extensionPath) throw new Error('BRIDGE_EXTENSION_DIR is required.');
 mkdirSync(outputDir, { recursive: true });
 
-const profileDir = mkdtempSync(join(tmpdir(), 'todotube-playback-'));
+const browser = await chromium.launch({
+  headless: true,
+  args: ['--no-sandbox', '--disable-dev-shm-usage', '--autoplay-policy=no-user-gesture-required'],
+});
 let context;
 try {
-  context = await chromium.launchPersistentContext(profileDir, {
-    headless: false,
-    channel: 'chromium',
-    viewport: { width: 1366, height: 900 },
-    args: [
-      '--no-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-extensions-except=' + extensionPath,
-      '--load-extension=' + extensionPath,
-      '--autoplay-policy=no-user-gesture-required',
-    ],
-  });
-
+  context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
   const page = await context.newPage();
   page.on('console', (message) => {
     const text = message.text();
@@ -51,13 +39,11 @@ try {
   await page.addInitScript(() => {
     const key = 'todotube:v1';
     const state = JSON.parse(localStorage.getItem(key) || '{}');
-    state.promptDismissed = { ...(state.promptDismissed || {}), push: Date.now(), bridge: Date.now() };
+    state.promptDismissed = { ...(state.promptDismissed || {}), push: Date.now() };
     localStorage.setItem(key, JSON.stringify(state));
   });
 
   await page.goto(baseUrl + '/ver/' + videoId, { waitUntil: 'domcontentloaded', timeout: 45_000 });
-  await page.waitForFunction(() => window.ytcBridge?.installed === true, null, { timeout: 20_000 });
-
   await page.waitForFunction(() => {
     const video = document.querySelector('.youtube-sabr-player video');
     return !!video && ((video.readyState >= 1 && video.videoWidth > 0) || !!document.querySelector('.youtube-sabr-player .gateway-error'));
@@ -113,5 +99,5 @@ try {
   process.stdout.write(JSON.stringify({ ok: true, videoId, initial, final }) + '\n');
 } finally {
   if (context) await context.close();
-  rmSync(profileDir, { recursive: true, force: true });
+  await browser.close();
 }
