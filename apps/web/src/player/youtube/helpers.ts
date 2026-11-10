@@ -1,13 +1,5 @@
-import { prepareBridgeRequest } from './bridgeRequest';
 import { summarizeInnerTubeRequest } from './diagnostics';
 import { InnerTubePlayerHttpError } from './failurePolicy';
-
-declare global {
-  interface Window {
-    ytcBridge?: { installed: boolean };
-    proxyFetch?: (url: string, options?: RequestInit) => Promise<Response>;
-  }
-}
 
 export interface OnesieHotConfig {
   clientKeyData: Uint8Array;
@@ -26,10 +18,6 @@ export interface EncryptedRequest {
 
 export const REDIRECTOR_STORAGE_KEY = 'todotube_googlevideo_redirector';
 export const CLIENT_CONFIG_STORAGE_KEY = 'todotube_onesie_config';
-
-export function checkExtension(): boolean {
-  return window.ytcBridge?.installed === true && typeof window.proxyFetch === 'function';
-}
 
 function decodeBase64(value: string): Uint8Array {
   const binary = atob(value);
@@ -134,30 +122,94 @@ export async function fetchRedirectorUrl(): Promise<string> {
 }
 
 
-export function getInjectedProxyFunction() {
-  return window.proxyFetch;
+
+const PROXY_PATH = '/api/youtube/proxy';
+const ALLOWED_HOST_SUFFIXES = ['youtube.com', 'googlevideo.com', 'googleapis.com'];
+
+function isAllowedPlaybackUrl(url: URL): boolean {
+  return url.protocol === 'https:' &&
+    !url.username &&
+    !url.password &&
+    (!url.port || url.port === '443') &&
+    ALLOWED_HOST_SUFFIXES.some((suffix) =>
+      url.hostname === suffix || url.hostname.endsWith('.' + suffix),
+    );
 }
 
-/** InnerTube requests use the browser bridge; googlevideo media requests stay in Shaka's normal fetch path. */
-export async function fetchFunction(input: string | Request | URL, init?: RequestInit): Promise<Response> {
-  const prepared = await prepareBridgeRequest(input, init);
-  const { url } = prepared;
-  const requestInit = prepared.init;
+/**
+ * Keeps extraction and token generation in the browser but sends upstream
+ * HTTP through TodoTube's strict same-origin Worker relay. The relay returns
+ * media as a stream and preserves Range responses for seeking.
+ */
+export async function fetchYouTubeProxy(
+  input: string | Request | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const request = input instanceof Request
+    ? new Request(input, init)
+    : new Request(input.toString(), init);
+  const upstreamUrl = new URL(request.url);
 
+  if (!isAllowedPlaybackUrl(upstreamUrl)) {
+    throw new Error('TodoTube bloqueó un destino de reproducción no permitido.');
+  }
+
+  const proxyUrl = new URL(PROXY_PATH, window.location.origin);
+  proxyUrl.searchParams.set('url', upstreamUrl.toString());
+
+  const headers = new Headers();
+  request.headers.forEach((value, name) => {
+    const lower = name.toLowerCase();
+    if (
+      lower === 'accept' ||
+      lower === 'accept-language' ||
+      lower === 'content-type' ||
+      lower === 'range' ||
+      lower === 'if-range' ||
+      lower.startsWith('x-youtube-') ||
+      lower.startsWith('x-goog-')
+    ) {
+      headers.set(name, value);
+    }
+  });
+
+  const method = request.method.toUpperCase();
+  const body = method === 'GET' || method === 'HEAD' ? undefined : await request.arrayBuffer();
+  return fetch(proxyUrl.toString(), {
+    method,
+    headers,
+    body,
+    signal: request.signal,
+    credentials: 'omit',
+    cache: 'no-store',
+    redirect: 'follow',
+  });
+}
+
+/** InnerTube metadata, BotGuard and media-control requests share the same restricted Worker relay. */
+export async function fetchFunction(input: string | Request | URL, init?: RequestInit): Promise<Response> {
+  let url = input instanceof URL
+    ? new URL(input.toString())
+    : new URL(typeof input === 'string' ? input : input.url);
+  const requestInit: RequestInit = { ...init };
 
   if (url.pathname.includes('/v1/player')) {
     url.searchParams.set('$fields', 'playerConfig,storyboards,captions,playabilityStatus,streamingData,responseContext.mainAppWebResponseContext.datasyncId,videoDetails.isLive,videoDetails.isLiveContent,videoDetails.title,videoDetails.author,videoDetails.thumbnail');
   }
 
-  // initplayback is a cross-origin control request, not a media segment. It must
-  // use the Bridge so page CORS does not block the redirector response.
+  if (input instanceof Request) {
+    const request = new Request(url.toString(), input);
+    const originalBody = requestInit.body;
+    if (originalBody === undefined && request.method !== 'GET' && request.method !== 'HEAD' && request.body) {
+      requestInit.body = await request.arrayBuffer();
+    }
+    requestInit.method ??= request.method;
+    requestInit.headers ??= request.headers;
+  }
 
-  const proxyFetch = getInjectedProxyFunction();
-  if (!proxyFetch) throw new Error('TodoTube Bridge no está instalado o no está activo en este sitio.');
-
-  const response = await proxyFetch(url.toString(), requestInit);
+  const response = await fetchYouTubeProxy(url, requestInit);
   if (url.pathname.includes('/youtubei/v1/player') && !response.ok) {
-    const responseBody = await response.text().catch(() => '');
+    const responseBody = await response.clone().text().catch(() => '');
     const requestHeaders = new Headers(requestInit.headers);
     const body = requestInit.body;
     const bodyBytes = body instanceof ArrayBuffer
@@ -181,6 +233,7 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
   }
   return response;
 }
+
 
 export function asMap<K, V>(object: Record<string, V>): Map<K, V> {
   const map = new Map<K, V>();

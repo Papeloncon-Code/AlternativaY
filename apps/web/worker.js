@@ -3,6 +3,7 @@ import ASSETS from './assets.generated.js';
 import FALLBACK_CHANNELS from './fallback-channels.json';
 import { parseAtom } from '../../spikes/websub/src/atom.js';
 import { searchPublic, channelPublic } from './server/publico.js';
+import { handleYouTubeProxy } from './server/youtube-proxy.js';
 // specs/004-web-v0/spec.md · Constitución §I.2: no se extrae YouTube; solo se leen datos de WebSub/RSS.
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
@@ -188,6 +189,9 @@ async function api(request, env, url) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (url.pathname === '/api/youtube/proxy') {
+      return handleYouTubeProxy(request);
+    }
     if (url.pathname.startsWith('/api/')) {
       try { return await api(request, env, url); }
       catch (e) { return json({ error: 'Error interno', detail: String(e).slice(0, 200) }, 500); }

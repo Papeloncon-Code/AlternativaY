@@ -14,8 +14,8 @@ import {
 } from 'googlevideo/sabr-streaming-adapter';
 
 import {
-  asMap, checkExtension,
-  getInjectedProxyFunction,
+  asMap,
+  fetchYouTubeProxy,
   headersToGenericObject
 } from './helpers';
 import { createRecoverableError, makeResponse } from './shakaHelpers';
@@ -330,10 +330,9 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         }
       }
 
-      // We only make one InnerTube request through the player, and it needs to be proxied properly.
-      const fetchFn = uri.includes('get_drm_license') && checkExtension() ? (getInjectedProxyFunction() ?? fetch) : fetch;
-
-      const response = await fetchFn(uri, init);
+      // Keep manifest, segment and media-control requests on the same-origin
+      // relay so CORS does not force users to install a browser extension.
+      const response = await fetchYouTubeProxy(uri, init);
       headersReceived(headersToGenericObject(response.headers));
 
       if (requestMetadata && init.method !== 'HEAD' && response.headers.get('content-type') === 'application/vnd.yt-ump') {
