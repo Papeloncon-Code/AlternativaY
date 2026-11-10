@@ -3,7 +3,7 @@ import ASSETS from './assets.generated.js';
 import FALLBACK_CHANNELS from './fallback-channels.json';
 import { parseAtom } from '../../spikes/websub/src/atom.js';
 import { searchPublic, channelPublic } from './server/publico.js';
-import { isAllowedYouTubeControlTarget, YOUTUBE_CONTROL_HEADERS } from './server/youtube-control-policy.js';
+import { isAllowedYouTubeControlTarget, isAllowedYouTubeControlOrigin, YOUTUBE_CONTROL_HEADERS } from './server/youtube-control-policy.js';
 // specs/004-web-v0/spec.md · Constitución §I.2: no se extrae YouTube; solo se leen datos de WebSub/RSS.
 const json = (data, status = 200, extra = {}) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', ...extra } });
@@ -62,6 +62,9 @@ const FALLBACK = { 'x-todotube-fuente': 'respaldo-rss' };
 const forget = (prefix) => { for (const k of memo.keys()) if (k.startsWith(prefix)) memo.delete(k); };
 
 async function youtubeControl(request) {
+  if (!isAllowedYouTubeControlOrigin(request.url, request.headers.get('origin'))) {
+    return json({ error: 'Origen de aplicación no permitido' }, 403);
+  }
   const declaredLength = Number(request.headers.get('content-length') || 0);
   if (declaredLength > 2_000_000) return json({ error: 'Solicitud de control demasiado grande' }, 413);
 
