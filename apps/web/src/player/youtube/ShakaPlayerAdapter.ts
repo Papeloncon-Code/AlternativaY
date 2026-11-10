@@ -14,8 +14,7 @@ import {
 } from 'googlevideo/sabr-streaming-adapter';
 
 import {
-  asMap, checkExtension,
-  getInjectedProxyFunction,
+  asMap,
   headersToGenericObject
 } from './helpers';
 import { createRecoverableError, makeResponse } from './shakaHelpers';
@@ -330,10 +329,8 @@ export class ShakaPlayerAdapter implements SabrPlayerAdapter {
         }
       }
 
-      // We only make one InnerTube request through the player, and it needs to be proxied properly.
-      const fetchFn = uri.includes('get_drm_license') && checkExtension() ? (getInjectedProxyFunction() ?? fetch) : fetch;
-
-      const response = await fetchFn(uri, init);
+      // Media requests go directly from the browser to Google Video. TodoTube does not relay media segments.
+      const response = await fetch(uri, init);
       headersReceived(headersToGenericObject(response.headers));
 
       if (requestMetadata && init.method !== 'HEAD' && response.headers.get('content-type') === 'application/vnd.yt-ump') {
