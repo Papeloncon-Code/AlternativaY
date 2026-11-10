@@ -123,11 +123,8 @@ export async function fetchRedirectorUrl(): Promise<string> {
 }
 
 
-export function getInjectedProxyFunction() {
-  return window.proxyFetch;
-}
 
-/** InnerTube requests use the browser bridge; googlevideo media requests stay in Shaka's normal fetch path. */
+/** YouTube control requests use the same-origin Worker; media requests remain browser-direct. */
 const CONTROL_FORWARD_HEADERS = new Set([
   'accept',
   'accept-language',
