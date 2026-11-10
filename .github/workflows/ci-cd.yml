@@ -108,6 +108,9 @@ jobs:
         with: { node-version: '${{ env.NODE_VERSION }}' }
       - name: Comprobar credenciales de Cloudflare
         run: test -n "$CLOUDFLARE_API_TOKEN"
+      - name: Instalar dependencias compartidas del Worker (WebSub)
+        working-directory: spikes/websub
+        run: npm ci
       - name: Construir y publicar Worker de preview aislado
         working-directory: apps/web
         run: npm ci && npm run build && npx wrangler deploy --name todotube-no-bridge-preview
