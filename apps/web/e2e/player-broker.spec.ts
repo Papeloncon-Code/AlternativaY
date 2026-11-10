@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { prepareFetchRequest } from '../src/player/youtube/request';
 import { fetchFunction } from '../src/player/youtube/helpers';
-import { isAllowedYouTubeControlTarget } from '../server/youtube-control-policy.js';
+import { isAllowedYouTubeControlTarget, isAllowedYouTubeControlOrigin } from '../server/youtube-control-policy.js';
 import {
   activateWithFallback,
   PlaybackBroker,
@@ -226,8 +226,18 @@ test('fetchFunction conserva cuerpos binarios para las solicitudes de control', 
       body: new Uint8Array([0, 1, 127, 255]),
     });
     expect(payload.body.encoding).toBe('base64');
-    expect(Array.from(Buffer.from(payload.body.data, 'base64'))).toEqual([0, 1, 127, 255]);
+    const decoded = atob(payload.body.data);
+    expect(Array.from(decoded, (character) => character.charCodeAt(0))).toEqual([0, 1, 127, 255]);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+
+test('el endpoint de control solo acepta el origen de la app y desarrollo local', () => {
+  expect(isAllowedYouTubeControlOrigin('https://todotube.papelon.workers.dev/api/youtube/control', 'https://todotube.papelon.workers.dev')).toBe(true);
+  expect(isAllowedYouTubeControlOrigin('https://todotube-no-bridge-preview.papelon.workers.dev/api/youtube/control', 'https://todotube-no-bridge-preview.papelon.workers.dev')).toBe(true);
+  expect(isAllowedYouTubeControlOrigin('https://todotube.papelon.workers.dev/api/youtube/control', 'https://evil.example')).toBe(false);
+  expect(isAllowedYouTubeControlOrigin('https://todotube.papelon.workers.dev/api/youtube/control', null)).toBe(false);
+  expect(isAllowedYouTubeControlOrigin('http://localhost:8787/api/youtube/control', 'http://localhost:5173')).toBe(true);
 });
