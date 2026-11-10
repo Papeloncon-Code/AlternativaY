@@ -94,6 +94,7 @@ jobs:
 
   preview:
     name: Cloudflare preview · YouTube E4 sin extensión
+    environment: produccion
     needs: [avisos, web, gateway]
     if: (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/fix/web-playback-without-bridge-final-')) || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'fix/web-playback-without-bridge-final-'))
     runs-on: ubuntu-latest
