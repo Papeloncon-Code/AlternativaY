@@ -75,9 +75,20 @@ try {
     return !!video && !video.paused && video.currentTime > 2;
   }, null, { timeout: 20_000 });
 
+  // Chromium exposes the count of audio bytes decoded by the media element.
+  // This is stronger than a manifest's audio declaration, but does not replace
+  // a human listening check for audibility and lip-sync.
+  await page.waitForFunction(() => {
+    const video = document.querySelector('.youtube-sabr-player video');
+    return !!video && Number(video.webkitAudioDecodedByteCount || 0) > 0;
+  }, null, { timeout: 20_000 });
+
   const seekTarget = Math.min(15, Math.floor(initial.duration - 2));
-  await page.locator('.youtube-sabr-player video').evaluate((element, target) => {
-    element.currentTime = target;
+  await page.locator('.youtube-sabr-player .gateway-seek').evaluate((element, target) => {
+    const slider = element;
+    slider.value = String(target);
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    slider.dispatchEvent(new Event('change', { bubbles: true }));
   }, seekTarget);
   await page.waitForFunction((target) => {
     const video = document.querySelector('.youtube-sabr-player video');
@@ -93,6 +104,7 @@ try {
       height: video.videoHeight,
       paused: video.paused,
       readyState: video.readyState,
+      audioDecodedBytes: Number(video.webkitAudioDecodedByteCount || 0),
     };
   });
   await page.screenshot({ path: join(outputDir, 'youtube-playback-success.png'), fullPage: false });
