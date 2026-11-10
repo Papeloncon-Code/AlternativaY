@@ -207,6 +207,16 @@ export async function fetchFunction(input: string | Request | URL, init?: Reques
     }),
   });
 
+  if (!response.ok && !url.pathname.includes('/youtubei/v1/player')) {
+    console.warn('[TodoTube] Falló una solicitud de control de YouTube', JSON.stringify({
+      status: response.status,
+      method: requestInit.method ?? 'GET',
+      host: url.hostname,
+      path: url.pathname,
+      contentType: response.headers.get('content-type'),
+    }));
+  }
+
   if (url.pathname.includes('/youtubei/v1/player') && !response.ok) {
     const responseBody = await response.text().catch(() => '');
     console.error('[TodoTube] InnerTube /player diagnostic', JSON.stringify({
