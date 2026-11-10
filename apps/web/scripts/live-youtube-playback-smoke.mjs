@@ -13,9 +13,10 @@ const browser = await chromium.launch({
   args: ['--no-sandbox', '--disable-dev-shm-usage', '--autoplay-policy=no-user-gesture-required'],
 });
 let context;
+let page;
 try {
   context = await browser.newContext({ viewport: { width: 1366, height: 900 } });
-  const page = await context.newPage();
+  page = await context.newPage();
   page.on('console', (message) => {
     const text = message.text();
     const isRuntimeWarning = message.type() === 'warning' &&
@@ -109,6 +110,11 @@ try {
   });
   await page.screenshot({ path: join(outputDir, 'youtube-playback-success.png'), fullPage: false });
   process.stdout.write(JSON.stringify({ ok: true, videoId, initial, final }) + '\n');
+} catch (error) {
+  if (page) {
+    await page.screenshot({ path: join(outputDir, 'youtube-playback-failed.png'), fullPage: true }).catch(() => undefined);
+  }
+  throw error;
 } finally {
   if (context) await context.close();
   await browser.close();
