@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { prepareBridgeRequest } from '../src/player/youtube/bridgeRequest';
+import { prepareFetchRequest } from '../src/player/youtube/request';
 import {
   activateWithFallback,
   PlaybackBroker,
@@ -95,7 +95,7 @@ test('un aborto del usuario no se confunde con un fallo del proveedor', async ()
 });
 
 
-test('preserva método POST, body y cabeceras de un Request al prepararlo para Bridge', async () => {
+test('preserva método POST, body y cabeceras al normalizar una solicitud', async () => {
   const payload = JSON.stringify({ videoId: 'dQw4w9WgXcQ', context: { client: { clientName: 'WEB' } } });
   const request = new Request('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
     method: 'POST',
@@ -103,7 +103,7 @@ test('preserva método POST, body y cabeceras de un Request al prepararlo para B
     body: payload,
   });
 
-  const forwarded = await prepareBridgeRequest(request);
+  const forwarded = await prepareFetchRequest(request);
   expect(forwarded.init.method).toBe('POST');
   expect(forwarded.init.body).toBeInstanceOf(ArrayBuffer);
   expect(new TextDecoder().decode(forwarded.init.body as ArrayBuffer)).toBe(payload);
