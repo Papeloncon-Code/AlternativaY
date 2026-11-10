@@ -11,7 +11,7 @@ import {
 } from 'youtubei.js/web';
 import { SabrStreamingAdapter } from 'googlevideo/sabr-streaming-adapter';
 import { buildSabrFormat } from 'googlevideo/utils';
-import { checkExtension, fetchFunction } from './helpers';
+import { fetchFunction } from './helpers';
 import type { ReloadPlaybackContext } from 'googlevideo/protos';
 import { botguardService } from './BotguardService';
 import { ShakaPlayerAdapter } from './ShakaPlayerAdapter';
@@ -159,9 +159,6 @@ export class YouTubeSabrRuntime {
     this.video = video;
     this.destroyed = false;
 
-    if (!checkExtension()) {
-      throw new Error('Falta TodoTube Bridge. Instala y activa la extensión en este navegador y vuelve a cargar TodoTube.');
-    }
 
     Platform.shim.eval = async (data: Types.BuildScriptResult) => new Function(data.output)();
 
